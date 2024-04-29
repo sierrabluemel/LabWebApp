@@ -157,7 +157,7 @@ function TestingMenu({ setPoints }) {
         let stableTime;
         const now = new Date()
         const setters = [setPoint1StableTime, setPoint2StableTime, setPoint3StableTime];
-        const references = ['S000114', 'S000115', 'S000116']
+        const references = ['S000114', 'S000115', 'S000128']
         for (let i = 0; i < setters.length; i++) {
             if (!setPoints) {
                 return;
@@ -434,7 +434,7 @@ function TestingMenu({ setPoints }) {
                         <button className={styles.default_button} onClick={() => createReading(setPoints[0], 'S000114', 1, 14, 1, 0.02, 'temperature', true)}>As Found</button>
                         <button className={styles.default_button} onClick={() => createReading(setPoints[1], 'S000114', 1, 14, 1, 0.02, 'temperature')}>{setPoints[1].temperature}°C</button>
                         <button className={styles.default_button} onClick={() => createReading(setPoints[2], 'S000115', 2, 15, 1, 0.028, 'temperature')}>{setPoints[2].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[3], 'S000116', 3, 16, 1, 0.068, 'temperature')}>{setPoints[3].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[3], 'S000128', 3, 28, 1, 0.068, 'temperature')}>{setPoints[3].temperature}°C</button>
                         <div className={styles.grid_entry}>Stable times</div>
                         <div className={styles.grid_entry}></div>
                         <StableTimeDisplay stableTime={point1StableTime} />

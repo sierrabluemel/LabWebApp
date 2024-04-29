@@ -128,8 +128,8 @@ for (let i = 1; i <= 5; i++) {
                                     "serial_number": "20657711"
                                 },
                                 {
-                                    "equipment_id": 16,
-                                    "asset_tag": "S000116",
+                                    "equipment_id": 28,
+                                    "asset_tag": "S000128",
                                     "description": "Rotronic HygroClip2 Humidity Reference",
                                     "last_calibration": "2023-01-11T07:00:00.000Z",
                                     "next_calibration": "2024-02-10T07:00:00.000Z",
