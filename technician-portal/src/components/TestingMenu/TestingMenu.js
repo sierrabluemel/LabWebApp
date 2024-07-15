@@ -172,7 +172,7 @@ function TestingMenu({ setPoints }) {
                 stableTime = await callApi('get-last-temperature-stable-reading', { 'set_point': setPoints[i + 1].temperature, 'reference': references[1], 'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria) });
             }
             const totalSeconds = parseInt((now.getTime() - new Date(stableTime[1]).getTime()) / 1000);
-            const minutesAgo = parseInt(totalSeconds / 60);
+            const minutesAgo = parseInt(totalSeconds / 60) + 60; // temporarily adding 60 minutes as hotfix for mismatched timezones on aggregator and web app
             if (isNaN(minutesAgo)) {
                 setters[i](`None found`);
             } else if (minutesAgo > 0) {
