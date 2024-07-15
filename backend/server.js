@@ -517,8 +517,9 @@ app.get('/api/get-last-temperature-stable-reading', (req, res) => {
             return res.status(500).json({ error: `Error executing query: ${err}` });
         }
         for (const row of result.rows) {
-            if (row.super_daq_data) {
-                const stabilityData = row.super_daq_data[reference].stability_data;
+            const reference_data = row.super_daq_data[reference];
+            if (reference_data && 'stability_data' in reference_data) {
+                const stabilityData = reference_data.stability_data;
                 if (stabilityData.slope < stabilityCriteria.slope && stabilityData.standard_deviation < stabilityCriteria.standardDeviation && Math.abs(stabilityData.assumed_set_point - stabilityData.average) < stabilityCriteria.difference && stabilityData.assumed_set_point === setPoint) {
                     res.json([stabilityData, row.timestamp]);
                     return;
