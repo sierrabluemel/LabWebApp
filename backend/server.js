@@ -79,6 +79,11 @@ app.use('*', (req, res, next) => {
     next();
 });
 
+app.post("/api/webhook", async req => {
+    const data = req.body;
+    console.log(data)
+})
+
 app.post("/api/auth/sign-in", async (req, res) => {
     const { email, password } = req.body;
     const result = await pool.query('SELECT * FROM "user" WHERE email = $1', [
