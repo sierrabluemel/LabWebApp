@@ -79,9 +79,10 @@ app.use('*', (req, res, next) => {
     next();
 });
 
-app.post("/api/webhook", async req => {
+app.post("/api/webhook", async (req, res) => {
     const data = req.body;
-    console.log(data)
+    console.log(data);
+    res.status(200).send('Data receieved')
 })
 
 app.post("/api/auth/sign-in", async (req, res) => {
