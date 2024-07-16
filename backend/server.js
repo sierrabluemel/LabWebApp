@@ -80,8 +80,8 @@ app.use('*', (req, res, next) => {
 });
 
 app.post("/api/webhook", async (req, res) => {
-    const data = req.body;
-    console.log(data);
+    const sensorData = req.body.sensorMessages;
+    console.log(sensorData);
     res.status(200).send('Data receieved')
 })
 
