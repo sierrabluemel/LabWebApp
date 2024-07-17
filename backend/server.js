@@ -81,7 +81,6 @@ app.use('*', (req, res, next) => {
 
 app.post("/api/webhook", async (req, res) => {
     const sensorData = req.body.sensorMessages;
-    console.log(sensorData);
     res.status(200).send('Data receieved')
 })
 
