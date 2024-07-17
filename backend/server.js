@@ -1241,7 +1241,7 @@ app.get('/api/print-certificate-labels', async (req, res) => {
 
 
 app.get('/api/create-certificate', (req, res) => {
-    const certificateJson = req.query.certificate_json;
+    const certificateJson = req.query.certificate_json.replace("S000120", "S000134"); //TODO adjust front end code sending json and remove this hotfix
     const sensorId = req.query.sensor_id;
     const template = req.query.template;
     const dueDate = req.query.due_date;
