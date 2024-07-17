@@ -422,6 +422,9 @@ app.get('/api/get-online-sensors', (req, res) => {
         return new Date(parseInt(strippedDate));
     }
     const parseLastCheckIn = (lastCommunication, minutes = 5) => {
+        if (lastCommunication == null) {
+            return false;
+        }
         if (Math.abs(new Date().getTime() - lastCommunication.getTime()) < minutes * 60000) {
             return true;
         }
