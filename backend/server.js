@@ -415,6 +415,7 @@ app.get('/api/get-calibrations-by-month', (req, res) => {
 app.get('/api/get-online-sensors', (req, res) => {
     const url = `https://www.imonnit.com/json/SensorListFull/`;
     const parseDate = (date) => {
+        console.log(date);
         const strippedDate = date.replace('/Date(', '').replace(')/', '');
         return new Date(parseInt(strippedDate));
     }
