@@ -1213,6 +1213,9 @@ app.get('/api/remove-sensor', (req, res) => {
                     };
                 })
                 .then(response => response.json())
+                .catch(error => {
+                    console.error(error);
+                })
                 .then(result =>
                     res.json(result))
                 .catch(error => {
