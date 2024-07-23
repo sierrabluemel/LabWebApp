@@ -14,6 +14,7 @@ const sgMail = require('@sendgrid/mail');
 const format = require('pg-format');
 const { hashAndValidatePassword, verify } = require("./src/utils/hash-user");
 const path = require("path");
+const synchFetch = require('sync-fetch');
 const {
     generateTokens,
     generateToken,
@@ -413,7 +414,7 @@ app.get('/api/get-calibrations-by-month', (req, res) => {
 });
 
 app.get('/api/get-online-sensors', (req, res) => {
-    const url = `https://www.imonnit.com/json/SensorListFull/`;
+    const url = `https://www.imonnit.com/json/SensorList/`;
     const parseDate = (date) => {
         if (date == null) {
             return null;
@@ -431,20 +432,15 @@ app.get('/api/get-online-sensors', (req, res) => {
         return false;
     }
 
-    fetch(`${url}`, {
-        headers: headers,
-    })
-        .then(response => response.json())
-        .then(data => {
-            sensorList = []
-            for (const sensor of data.Result) {
-                const lastCheckIn = parseDate(sensor.LastCommunicationDate)
-                if (parseLastCheckIn(lastCheckIn)) {
-                    sensorList.push(sensor.SensorID)
-                }
-            }
-            res.json(sensorList)
-        })
+    const data = monnitFetch(url);
+    sensorList = [];
+    for (const sensor of data.Result) {
+        const lastCheckIn = parseDate(sensor.LastCommunicationDate)
+        if (parseLastCheckIn(lastCheckIn)) {
+            sensorList.push(sensor.SensorID)
+        }
+    }
+    res.json(sensorList)
 });
 
 app.get('/api/get-bulk-data', (req, res) => {
@@ -935,48 +931,25 @@ app.get('/api/calibrate-sensor', (req, res) => {
         'SensorID': sensorId,
     };
 
-    const params = new URLSearchParams();
+    let params = new URLSearchParams();
     for (const parameter in parameters) {
         params.append(parameter, parameters[parameter]);
     };
 
-    fetch(`${url}?${params.toString()}`, {
-        headers: headers,
-    })
-        .then(response => response.json())
-        .then(result => {
-            url = `https://www.imonnit.com/json/SensorSetCalibration/`;
-            parameters = result.Result;
-            parameters.Calibration1 = parseInt(targetReading * 10);
-            parameters.PushAutoCalibrateCommand = true;
-            parameters.PushProfileConfig1 = false;
-            parameters.PushProfileConfig2 = false;
-            const params = new URLSearchParams();
-            for (const parameter in parameters) {
-                params.append(parameter, parameters[parameter]);
-            };
+    const result = monnitFetch(`${url}?${params.toString()}`)
+    url = `https://www.imonnit.com/json/SensorSetCalibration/`;
+    parameters = result.Result;
+    parameters.Calibration1 = parseInt(targetReading * 10);
+    parameters.PushAutoCalibrateCommand = true;
+    parameters.PushProfileConfig1 = false;
+    parameters.PushProfileConfig2 = false;
+    params = new URLSearchParams();
+    for (const parameter in parameters) {
+        params.append(parameter, parameters[parameter]);
+    };
 
-            fetch(`${url}?${params.toString()}`, {
-                headers: headers,
-            })
-                .then(response => {
-                    if (response['status'] === 200) {
-                        return response;
-                    } else {
-                        console.error('Status code: ', response['status'], response['statusText']);
-                        return response['status'];
-                    };
-                })
-                .then(response => response.json())
-                .then(result =>
-                    res.json(result))
-                .catch(error => {
-                    console.error(error);
-                });
-        })
-        .catch(error => {
-            console.error(error);
-        });
+    const response = monnitFetch(`${url}?${params.toString()}`)
+    return res.json(response);
 });
 
 
@@ -1000,64 +973,31 @@ app.get('/api/create-sensor', (req, res) => {
     };
 
 
-    fetch(`${url}?${params.toString()}`, {
-        headers: headers,
-    })
-        .then(response => response.json())
-        .then(response => {
-            if (response['Result'] === 'Success') {
-                url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
-                fetch(`${url}?${params.toString()}`, {
-                    headers: headers,
-                })
-                    .then(response => response.json())
-                    .then(response => {
-                        if (response['Result'] === 'Success') {
-                            url = 'https://www.imonnit.com/json/LookUpSensor/'
-                            fetch(`${url}?${params.toString()}`, {
-                                headers: headers,
-                            })
-                                .then(response => {
-                                    if (response['status'] === 200) {
-                                        return response.json();
-                                    } else {
-                                        res.json({ 'Result': 'Failed: Could not find sensor' });
-                                    };
-                                })
-                                .then(response => {
-                                    sku = response['Result']['SKU'];
-                                    pool.query("INSERT INTO api_sensor (sensor_id, check_digit, manufacturer, sku, batch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *", [sensorId, checkDigit, manufacturer, sku, batchId], (err, result) => {
-                                        if (err) {
-                                            pool.query("UPDATE api_sensor SET batch_id = $1 WHERE sensor_id = $2 RETURNING *", [batchId, sensorId], (err, result) => {
-                                                if (err) {
-                                                    return res.status(500).json({ error: `Error executing query: ${err}` });
-                                                }
-                                                const sensor = result.rows;
-                                                res.json(sensor);
-                                            });
-                                        } else {
-                                            const sensor = result.rows;
-                                            res.json(sensor);
-                                        }
-                                    })
-                                })
-                                .catch(error => {
-                                    console.error(error);
-                                });
-                        } else {
-                            res.json({ 'Result': 'Failed: Could not set heartbeat' });
-                        };
-                    })
-                    .catch(error => {
-                        console.error(error);
-                    });
-            } else {
-                res.json({ 'Result': 'Failed: unable to add to iMonnit' });
-            };
-        })
-        .catch(error => {
-            res.json({ 'Result': `Could not create sensor: ${error}` });
-        });
+    let response = monnitFetch(`${url}?${params.toString()}`)
+    url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
+    response = monnitFetch(`${url}?${params.toString()}`)
+    url = 'https://www.imonnit.com/json/LookUpSensor/'
+    response = monnitFetch(`${url}?${params.toString()}`)
+    sku = response['Result']['SKU'];
+    pool.query("INSERT INTO api_sensor (sensor_id, check_digit, manufacturer, sku, batch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *", [sensorId, checkDigit, manufacturer, sku, batchId], (err, result) => {
+        if (err) {        
+        if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
+            pool.query("UPDATE api_sensor SET batch_id = $1 WHERE sensor_id = $2 RETURNING *", [batchId, sensorId], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ error: `Error executing query: ${err}` });
+                }
+                const sensor = result.rows;
+                res.json(sensor);
+            });
+        } else {
+            console.error(err);
+            res.json({ 'Error creating sensor on database': err });
+        }
+        } else {
+            const sensor = result.rows;
+            res.json(sensor);
+        }
+    });
 });
 
 
@@ -1079,13 +1019,8 @@ app.get('/api/change-sensor-heartbeat', async (req, res) => {
         params.append(parameter, parameters[parameter]);
     };
     try {
-        const response = await fetch(`${url}?${params.toString()}`, { headers: headers, });
-        if (response.ok) {
-            const data = await response.json();
-            res.status(response.status).json(data);
-        } else {
-            res.status(response.status).json({ Result: `Request failed with status ${response.status}` });
-        }
+        const data = monnitFetch(`${url}?${params.toString()}`);
+        res.json(data);
     } catch (error) {
         console.error(error);
         res.json({ 'Result': error });
@@ -1194,37 +1129,11 @@ app.get('/api/remove-sensor', (req, res) => {
         params.append(parameter, parameters[parameter]);
     };
 
-    fetch(`${url}?${params.toString()}`, {
-        headers: headers,
-    })
-        .then(response => response.json())
-        .then(() => {
-            url = `https://www.imonnit.com/json/RemoveSensor/`;
+    let response = monnitFetch(`${url}?${params.toString()}`)
+    url = `https://www.imonnit.com/json/RemoveSensor/`;
 
-            fetch(`${url}?${params.toString()}`, {
-                headers: headers,
-            })
-                .then(response => {
-                    if (response['status'] === 200) {
-                        return response;
-                    } else {
-                        console.error('Status code: ', response['status'], response['statusText']);
-                        return response['status'];
-                    };
-                })
-                .then(response => response.json())
-                .catch(error => {
-                    console.error(error);
-                })
-                .then(result =>
-                    res.json(result))
-                .catch(error => {
-                    console.error(error);
-                });
-        })
-        .catch(error => {
-            console.error(error);
-        });
+    response = monnitFetch(`${url}?${params.toString()}`)
+    res.json(response)
 });
 
 
@@ -1278,20 +1187,8 @@ app.get('/api/create-certificate', (req, res) => {
             };
 
 
-            fetch(`${url}?${params.toString()}`, {
-                headers: headers,
-            })
-                .then(response => {
-                    if (response['status'] === 200) {
-                        res.json(certificate);
-                    } else {
-                        console.error('Status code: ', response['status'], response['statusText']);
-                        res.json({ 'Result': 'Failed: unable to add to iMonnit' })
-                    };
-                })
-                .catch(error => {
-                    console.error(error);
-                });
+            const response = monnitFetch(`${url}?${params.toString()}`)
+            res.json(certificate);
 
         })
     })
@@ -1765,6 +1662,19 @@ async function addSensorsToReturnRecord(bytes, sensorList) {
 
     const modifiedPdfBytes = await pdfDoc.save();
     return modifiedPdfBytes;
+}
+
+function monnitFetch(url) {
+    let status = 429;
+    let attempts = 0;
+    let response = null;
+    while (status != 200 && attempts < 10) {
+        attempts++;
+        response = synchFetch(url, { headers: headers });
+        status = response.status;
+    }
+
+    return response.json();
 }
 
 async function sendMailVerification(type, payload) {

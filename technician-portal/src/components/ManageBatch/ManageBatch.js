@@ -257,8 +257,10 @@ function ManageBatch() {
     }
 
     const handleSensorConfirm = () => {
-        const sensorId = parseInt(sensor.split(':')[0])
+        const sensorId = parseInt(sensor.split(':')[0]);
+        const checkDigit = parseInt(sensor.split(':')[1]);
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
+            callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit });
             callApi('remove-sensor-from-batch', { sensor_id: sensorId })
                 .then(response => {
                     setPopupMessage(response.Result);
