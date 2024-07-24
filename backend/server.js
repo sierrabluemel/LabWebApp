@@ -1744,7 +1744,7 @@ async function sendMailVerification(type, payload) {
 }
 
 function addSensorData(newSensorData, currentSensorData) {
-    for (newData of newSensorData) {
+    for (const newData of newSensorData) {
         for (let i = 0; i < currentSensorData.length; i++) {
             if (newData.sensorID === currentSensorData[i].sensorID) {
                 currentSensorData.splice(i, i);
