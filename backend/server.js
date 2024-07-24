@@ -85,8 +85,7 @@ app.use('*', (req, res, next) => {
 app.post("/api/webhook", async (req, res) => {
     const sensorData = req.body.sensorMessages;
     res.status(200).send('Data receieved');
-    currentSensorData = addSensorData(sensorData, currentSensorData);
-    console.log(currentSensorData)
+    addSensorData(sensorData, currentSensorData);
 })
 
 app.post("/api/auth/sign-in", async (req, res) => {
@@ -1746,11 +1745,10 @@ async function sendMailVerification(type, payload) {
 
 function addSensorData(newSensorData, currentSensorData) {
     for (newData of newSensorData) {
-        currentSensorData.filter(sensor => {
+        currentSensorData = currentSensorData.filter(sensor => {
             sensor.sensorID != newData.sensorID;
         })
         currentSensorData.push(newData);
-        return currentSensorData;
     }
 }
 
