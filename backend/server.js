@@ -988,19 +988,19 @@ app.get('/api/create-sensor', (req, res) => {
     response = monnitFetch(`${url}?${params.toString()}`)
     sku = response['Result']['SKU'];
     pool.query("INSERT INTO api_sensor (sensor_id, check_digit, manufacturer, sku, batch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *", [sensorId, checkDigit, manufacturer, sku, batchId], (err, result) => {
-        if (err) {
-            if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
-                pool.query("UPDATE api_sensor SET batch_id = $1 WHERE sensor_id = $2 RETURNING *", [batchId, sensorId], (err, result) => {
-                    if (err) {
-                        return res.status(500).json({ error: `Error executing query: ${err}` });
-                    }
-                    const sensor = result.rows;
-                    res.json(sensor);
-                });
-            } else {
-                console.error(err);
-                res.json({ 'Error creating sensor on database': err });
-            }
+        if (err) {        
+        if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
+            pool.query("UPDATE api_sensor SET batch_id = $1 WHERE sensor_id = $2 RETURNING *", [batchId, sensorId], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ error: `Error executing query: ${err}` });
+                }
+                const sensor = result.rows;
+                res.json(sensor);
+            });
+        } else {
+            console.error(err);
+            res.json({ 'Error creating sensor on database': err });
+        }
         } else {
             const sensor = result.rows;
             res.json(sensor);
@@ -1745,10 +1745,11 @@ async function sendMailVerification(type, payload) {
 
 function addSensorData(newSensorData, currentSensorData) {
     for (newData of newSensorData) {
-        for (let i = 0; i < currentSensorData.length - 1; i++) {
-            console.log(i)
-            if (newData.sensorID === currentSensorData[i].sensorID) {
-                delete currentSensorData[i];
+        if (currentSensorData.length > 0) {
+            for (let i=0; i < currentSensorData.length - 1; i++) {
+                if (newData.sensorID === currentSensorData[i].sensorID) {
+                    delete currentSensorData[i];
+                }
             }
         }
         currentSensorData.push(newData);
