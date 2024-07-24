@@ -1750,7 +1750,12 @@ function addSensorData(newSensorData, currentSensorData) {
                 currentSensorData.splice(i, 1);
             }
         }
-        currentSensorData.push(newData);
+        const finalData = {
+            sensorID: newData.sensorID,
+            dataType: newData.dataType,
+            dataValue: newData.dataValue,
+        }
+        currentSensorData.push(finalData);
     }
     return currentSensorData;
 }
