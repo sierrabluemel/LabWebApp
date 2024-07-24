@@ -43,8 +43,10 @@ if (process.env.STATUS === 'production') {
     port = process.env.DEV_PORT;
 };
 
-const pool = new Pool(JSON.parse(databaseConnection))
-const rollingDataPool = new Pool(JSON.parse(process.env.ROLLING_DATA_CONNECTION))
+const pool = new Pool(JSON.parse(databaseConnection));
+const rollingDataPool = new Pool(JSON.parse(process.env.ROLLING_DATA_CONNECTION));
+
+let currentSensorData = [];
 
 // Check database connection
 pool.connect((err, client, release) => {
@@ -82,7 +84,9 @@ app.use('*', (req, res, next) => {
 
 app.post("/api/webhook", async (req, res) => {
     const sensorData = req.body.sensorMessages;
-    res.status(200).send('Data receieved')
+    res.status(200).send('Data receieved');
+    addSensorData(sensorData, currentSensorData);
+    console.log(currentSensorData)
 })
 
 app.post("/api/auth/sign-in", async (req, res) => {
@@ -1732,6 +1736,15 @@ async function sendMailVerification(type, payload) {
     } catch (e) {
         console.error(e);
         throw e;
+    }
+}
+
+function addSensorData(newSensorData, currentSensorData) {
+    for (newData of newSensorData) {
+        currentSensorData.filter(sensor => {
+            sensor.sensorID != newData.sensorID;
+        })
+        currentSensorData.push(newData);
     }
 }
 
