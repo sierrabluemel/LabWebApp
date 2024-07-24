@@ -1747,7 +1747,7 @@ function addSensorData(newSensorData, currentSensorData) {
     for (const newData of newSensorData) {
         for (let i = 0; i < currentSensorData.length; i++) {
             if (newData.sensorID === currentSensorData[i].sensorID) {
-                currentSensorData.splice(i, i);
+                currentSensorData.splice(i, 1);
             }
         }
         currentSensorData.push(newData);
