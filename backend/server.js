@@ -1747,7 +1747,7 @@ async function sendMailVerification(type, payload) {
 function addSensorData(newSensorData, currentSensorData) {
     for (newData of newSensorData) {
         for (let i = 0; currentSensorData.length; i++) {
-            if (newData.sensorID === currentData[i].sensorID) {
+            if (newData.sensorID === currentSensorData[i].sensorID) {
                 delete currentSensorData[i];
             }
         }
