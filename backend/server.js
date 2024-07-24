@@ -393,6 +393,11 @@ app.get('/api/get-recent-data', (req, res) => {
     })
 });
 
+app.get('/api/get-sensor-data', (req, res) => {
+    res.json(currentSensorData).status(200);
+    currentSensorData = [];
+});
+
 app.get('/api/get-calibrations-by-month', (req, res) => {
     const startDate = new Date(req.query.start_date);
 
