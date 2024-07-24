@@ -85,7 +85,7 @@ app.use('*', (req, res, next) => {
 app.post("/api/webhook", async (req, res) => {
     const sensorData = req.body.sensorMessages;
     res.status(200).send('Data receieved');
-    addSensorData(sensorData, currentSensorData);
+    currentSensorData = addSensorData(sensorData, currentSensorData);
     console.log(currentSensorData)
 })
 
@@ -1750,6 +1750,7 @@ function addSensorData(newSensorData, currentSensorData) {
             sensor.sensorID != newData.sensorID;
         })
         currentSensorData.push(newData);
+        return currentSensorData;
     }
 }
 
