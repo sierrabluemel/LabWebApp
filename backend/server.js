@@ -1748,7 +1748,7 @@ function addSensorData(newSensorData, currentSensorData) {
     for (newData of newSensorData) {
         if (currentSensorData.length > 0) {
             for (let i=0; i < currentSensorData.length; i++) {
-                console.log(currentSensorData)
+                console.log(currentSensorData[i])
                 if (newData.sensorID === currentSensorData[i].sensorID) {
                     delete currentSensorData[i];
                 }
