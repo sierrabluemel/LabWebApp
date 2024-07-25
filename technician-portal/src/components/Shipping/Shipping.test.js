@@ -118,8 +118,8 @@ for (let i = 1; i <= 5; i++) {
                                     "serial_number": "20657711"
                                 },
                                 {
-                                    "equipment_id": 15,
-                                    "asset_tag": "S000115",
+                                    "equipment_id": 16,
+                                    "asset_tag": "S000116",
                                     "description": "Rotronic HygroClip2 Humidity Reference",
                                     "last_calibration": "2023-01-11T07:00:00.000Z",
                                     "next_calibration": "2024-02-10T07:00:00.000Z",
@@ -138,8 +138,8 @@ for (let i = 1; i <= 5; i++) {
                                     "serial_number": "20657711"
                                 },
                                 {
-                                    "equipment_id": 20,
-                                    "asset_tag": "S000120",
+                                    "equipment_id": 34,
+                                    "asset_tag": "S000134",
                                     "description": "Rotronic HygroClip2 Humidity Reference",
                                     "last_calibration": "2023-01-11T07:00:00.000Z",
                                     "next_calibration": "2024-02-10T07:00:00.000Z",

@@ -124,7 +124,7 @@ function Shipping() {
                   template = 'temperatureCertificate.pdf'
                   let finalReadings = [];
                   let setPoints = ['-999.00', '28.00', '-25.00', '90.00'];
-                  let references = [14, 15, 28, 20];
+                  let references = [14, 16, 28, 34];
                   let equipment = {};
 
                   for (const reference of references) {
@@ -189,18 +189,18 @@ function Shipping() {
                     'RS12': equipment.S000114.description,
                     'RS13': parseDataBaseDate(equipment.S000114.last_calibration),
                     'RS14': parseDataBaseDate(equipment.S000114.next_calibration),
-                    'RS21': equipment.S000115.asset_tag,
-                    'RS22': equipment.S000115.description,
-                    'RS23': parseDataBaseDate(equipment.S000115.last_calibration),
-                    'RS24': parseDataBaseDate(equipment.S000115.next_calibration),
+                    'RS21': equipment.S000116.asset_tag,
+                    'RS22': equipment.S000116.description,
+                    'RS23': parseDataBaseDate(equipment.S000116.last_calibration),
+                    'RS24': parseDataBaseDate(equipment.S000116.next_calibration),
                     'RS31': equipment.S000128.asset_tag,
                     'RS32': equipment.S000128.description,
                     'RS33': parseDataBaseDate(equipment.S000128.last_calibration),
                     'RS34': parseDataBaseDate(equipment.S000128.next_calibration),
-                    'RS41': equipment.S000120.asset_tag,
-                    'RS42': equipment.S000120.description,
-                    'RS43': parseDataBaseDate(equipment.S000120.last_calibration),
-                    'RS44': parseDataBaseDate(equipment.S000120.next_calibration),
+                    'RS41': equipment.S000134.asset_tag,
+                    'RS42': equipment.S000134.description,
+                    'RS43': parseDataBaseDate(equipment.S000134.last_calibration),
+                    'RS44': parseDataBaseDate(equipment.S000134.next_calibration),
                     'TUR': '4:1',
                   }
                   certificateJson = { ...certificateJson, ...standardJson };
@@ -208,7 +208,7 @@ function Shipping() {
                   template = 'temperatureCertificate.pdf'
                   let finalReadings = [];
                   let setPoints = ['-999.00', '0.00', '-80.00', '-197.00'];
-                  let references = [14, 15, 28, 20];
+                  let references = [14, 16, 28, 34];
                   let equipment = {};
 
                   for (const reference of references) {
@@ -274,18 +274,18 @@ function Shipping() {
                     'RS12': equipment.S000114.description,
                     'RS13': parseDataBaseDate(equipment.S000114.last_calibration),
                     'RS14': parseDataBaseDate(equipment.S000114.next_calibration),
-                    'RS21': equipment.S000115.asset_tag,
-                    'RS22': equipment.S000115.description,
-                    'RS23': parseDataBaseDate(equipment.S000115.last_calibration),
-                    'RS24': parseDataBaseDate(equipment.S000115.next_calibration),
+                    'RS21': equipment.S000116.asset_tag,
+                    'RS22': equipment.S000116.description,
+                    'RS23': parseDataBaseDate(equipment.S000116.last_calibration),
+                    'RS24': parseDataBaseDate(equipment.S000116.next_calibration),
                     'RS31': equipment.S000128.asset_tag,
                     'RS32': equipment.S000128.description,
                     'RS33': parseDataBaseDate(equipment.S000128.last_calibration),
                     'RS34': parseDataBaseDate(equipment.S000128.next_calibration),
-                    'RS41': equipment.S000120.asset_tag,
-                    'RS42': equipment.S000120.description,
-                    'RS43': parseDataBaseDate(equipment.S000120.last_calibration),
-                    'RS44': parseDataBaseDate(equipment.S000120.next_calibration),
+                    'RS41': equipment.S000134.asset_tag,
+                    'RS42': equipment.S000134.description,
+                    'RS43': parseDataBaseDate(equipment.S000134.last_calibration),
+                    'RS44': parseDataBaseDate(equipment.S000134.next_calibration),
                     'TUR': '4:1',
                   }
                   certificateJson = { ...certificateJson, ...lowJson };

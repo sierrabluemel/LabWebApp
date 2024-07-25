@@ -157,7 +157,7 @@ function TestingMenu({ setPoints }) {
         let stableTime;
         const now = new Date()
         const setters = [setPoint1StableTime, setPoint2StableTime, setPoint3StableTime];
-        const references = ['S000114', 'S000115', 'S000128']
+        const references = ['S000114', 'S000116', 'S000128']
         for (let i = 0; i < setters.length; i++) {
             if (!setPoints) {
                 return;
@@ -410,7 +410,7 @@ function TestingMenu({ setPoints }) {
                             'lab_temperature': readings[0].lab_temperature,
                             'sensor_id': sensor.sensor_id,
                             'generator_id': 5,
-                            'reference_id': 13,
+                            'reference_id': 19,
                             'tolerance': tolerance,
                             'uncertainty': uncertainty,
                         }
@@ -433,7 +433,7 @@ function TestingMenu({ setPoints }) {
                         <button className={styles.default_button} onClick={() => { setRefreshButtonText('Loading...'); setStableTimesToLoading(); refresh(); setRefreshButtonText('Refresh') }}>{refreshButtonText}</button>
                         <button className={styles.default_button} onClick={() => createReading(setPoints[0], 'S000114', 1, 14, 1, 0.02, 'temperature', true)}>As Found</button>
                         <button className={styles.default_button} onClick={() => createReading(setPoints[1], 'S000114', 1, 14, 1, 0.02, 'temperature')}>{setPoints[1].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[2], 'S000115', 2, 15, 1, 0.028, 'temperature')}>{setPoints[2].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[2], 'S000116', 2, 16, 1, 0.028, 'temperature')}>{setPoints[2].temperature}°C</button>
                         <button className={styles.default_button} onClick={() => createReading(setPoints[3], 'S000128', 3, 28, 1, 0.068, 'temperature')}>{setPoints[3].temperature}°C</button>
                         <div className={styles.grid_entry}>Stable times</div>
                         <div className={styles.grid_entry}></div>
@@ -452,10 +452,10 @@ function TestingMenu({ setPoints }) {
                     <div className={styles.grid_row}>
                         <button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor}>Clear selection</button>
                         <button className={styles.default_button} onClick={() => { setRefreshButtonText('Loading...'); setStableTimesToLoading(); refresh(); setRefreshButtonText('Refresh') }}>{refreshButtonText}</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[0], 'S000115', 2, 15, 1, 0.021, 'temperature', true)}>As Found</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[1], 'S000115', 2, 15, 1, 0.021, 'temperature')}>{setPoints[1].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[2], 'S000115', 17, 15, 1, 0.047, 'temperature')}>{setPoints[2].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[3], 'S000115', 18, 15, 1.5, 0.018, 'temperature')}>{setPoints[3].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[0], 'S000116', 2, 16, 1, 0.021, 'temperature', true)}>As Found</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[1], 'S000116', 2, 16, 1, 0.021, 'temperature')}>{setPoints[1].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[2], 'S000116', 17, 16, 1, 0.047, 'temperature')}>{setPoints[2].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[3], 'S000116', 18, 16, 1.5, 0.018, 'temperature')}>{setPoints[3].temperature}°C</button>
                         <div className={styles.grid_entry}>Stable times</div>
                         <div className={styles.grid_entry}></div>
                         <StableTimeDisplay stableTime={point1StableTime} />
@@ -492,10 +492,10 @@ function TestingMenu({ setPoints }) {
                     <div className={styles.grid_row}>
                         <button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor}>Clear selection</button>
                         <button className={styles.default_button} onClick={() => { setRefreshButtonText('Loading...'); setStableTimesToLoading(); refresh(); setRefreshButtonText('Refresh') }}>{refreshButtonText}</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[0], 'S000115', 17, 15, 1, 0.011, 'temperature', true)}>As Found</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[1], 'S000115', 17, 15, 1, 0.011, 'temperature')}>{setPoints[1].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[2], 'S000115', 17, 15, 1, 0.089, 'temperature')}>{setPoints[2].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createReading(setPoints[3], 'S000115', 17, 15, 1, 0.022, 'temperature')}>{setPoints[3].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[0], 'S000116', 17, 16, 1, 0.011, 'temperature', true)}>As Found</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[1], 'S000116', 17, 16, 1, 0.011, 'temperature')}>{setPoints[1].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[2], 'S000116', 17, 16, 1, 0.089, 'temperature')}>{setPoints[2].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createReading(setPoints[3], 'S000116', 17, 16, 1, 0.022, 'temperature')}>{setPoints[3].temperature}°C</button>
                         <div className={styles.grid_entry}>Stable times</div>
                         <div className={styles.grid_entry}></div>
                         <StableTimeDisplay stableTime={point1StableTime} />
@@ -513,10 +513,10 @@ function TestingMenu({ setPoints }) {
                     <div className={styles.grid_row}>
                         <button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor}>Clear selection</button>
                         <button className={styles.default_button} onClick={() => { setRefreshButtonText('Loading...'); setStableTimesToLoading(); refresh(); setRefreshButtonText('Refresh') }}>{refreshButtonText}</button>
-                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[0], 'S000119', 5, 13, 1, 0.23, 'temperature', true)}>As Found</button>
-                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[1], 'S000119', 5, 13, 1, 0.23, 'temperature')}>{setPoints[1].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[2], 'S000119', 5, 13, 1, 0.4, 'temperature')}>{setPoints[2].temperature}°C</button>
-                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[3], 'S000119', 5, 13, 1, 0.62, 'temperature')}>{setPoints[3].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[0], 'S000119', 5, 19, 1, 0.23, 'temperature', true)}>As Found</button>
+                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[1], 'S000119', 5, 19, 1, 0.23, 'temperature')}>{setPoints[1].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[2], 'S000119', 5, 19, 1, 0.4, 'temperature')}>{setPoints[2].temperature}°C</button>
+                        <button className={styles.default_button} onClick={() => createRotronicTemperatureReading(setPoints[3], 'S000119', 5, 19, 1, 0.62, 'temperature')}>{setPoints[3].temperature}°C</button>
                         <div className={styles.grid_entry}>Stable times</div>
                         <div className={styles.grid_entry}></div>
                         <StableTimeDisplay stableTime={point1StableTime} />
