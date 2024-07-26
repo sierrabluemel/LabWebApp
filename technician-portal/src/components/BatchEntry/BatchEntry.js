@@ -61,10 +61,10 @@ function BatchEntry() {
                     getBatchSensors(response)
                         .then(response => {
                             const batchList = []
-                            const orders = [...new Set(response.map(batch => batch.order_id))].sort((a, b) => b - a)
+                            const orders = [...new Set(response.map(batch => batch.order_id))].sort((a, b) => a - b)
 
                             for (const order of orders) {
-                                const batches = [...new Set(response.filter(batch => batch.order_id === order))].sort((a, b) => b - a);
+                                const batches = [...new Set(response.filter(batch => batch.order_id === order))].sort((a, b) => a.batch_id - b.batch_id);
                                 batchList.push(
                                     <div key={orders.indexOf(order)}>
                                         <hr />
