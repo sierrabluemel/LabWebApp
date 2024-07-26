@@ -68,6 +68,11 @@
     color: #333;
     background-color: #c5c5c5;
 }
+
+.navigation_menu_radio:checked+.navigation_item:hover {
+    cursor: default;
+}
+
 .navigation_menu_radio:checked+.navigation_item .icon_image {
     filter: invert(0.2);
 }
