@@ -12,7 +12,6 @@ import LocationEntry from './components/LocationEntry/LocationEntry';
 import MainMenu from './components/MainMenu/MainMenu';
 import ManageBatch from './components/ManageBatch/ManageBatch';
 import Metrics from './components/Metrics/Metrics';
-import Navbar from './components/Navbar/Navbar.js';
 import NavigationMenu from './components/NavigationMenu.js/NavigationMenu.js';
 import OrderEntry from './components/OrderEntry/OrderEntry';
 import PageNotFound from './components/PageNotFound/PageNotFound';
@@ -66,7 +65,6 @@ function App() {
           <div className={styles.main_body}>
             <NavigationMenu />
             <div className={styles.display_area}>
-              <Navbar />
               <ErrorMessage />
               <Routes>
                 <Route path='/' element={<MainMenu />} />
