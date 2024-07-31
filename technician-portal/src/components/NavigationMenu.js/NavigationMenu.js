@@ -4,7 +4,7 @@ import homeIcon from "../../media/home_icon.png";
 import receivingIcon from "../../media/receiving_icon.png";
 import testingIcon from "../../media/testing_icon.png";
 import shippingIcon from "../../media/shipping_icon.png";
-import boxedIcon from "../../media/boxed_icon.png";
+import searchIcon from "../../media/search_icon.png";
 import { useAppContext } from "../../contexts/app";
 
 
@@ -36,8 +36,8 @@ function NavigationMenu() {
                     <label htmlFor="shipping" className={styles.navigation_item} onClick={() => { navigate('/orderEntry') }}><img src={shippingIcon} alt="Shipping icon" className={styles.icon_image} /> Shipping</label>
                 </li>
                 <li>
-                    <input type="radio" id="boxedSensors" name="navigation_menu" className={styles.navigation_menu_radio}></input>
-                    <label htmlFor="boxedSensors" className={styles.navigation_item} onClick={() => { navigate('/shipSensors') }}><img src={boxedIcon} alt="Box icon" className={styles.icon_image} /> Boxed sensors</label>
+                    <input type="radio" id="search" name="navigation_menu" className={styles.navigation_menu_radio}></input>
+                    <label htmlFor="search" className={styles.navigation_item} onClick={() => { navigate('/search') }}><img src={searchIcon} alt="Search icon" className={styles.icon_image} /> Search</label>
                 </li>
             </ul>
         </div>
