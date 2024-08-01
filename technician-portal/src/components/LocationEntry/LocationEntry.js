@@ -53,7 +53,7 @@ function LocationEntry({ sensorList }) {
   }
 
   const handleChange = (event) => {
-    setLocation(event.target.value);
+    setLocation(event.target.value.toUpperCase());
   }
 
   return (

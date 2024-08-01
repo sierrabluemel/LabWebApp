@@ -125,7 +125,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
                     <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Sensor ID:Check Digit'} />
                 </form>
                 <form onSubmit={handleSetLocation} data-testid={'setLocationForm'} >
-                    <input type='text' value={location} onChange={event => setLocation(event.target.value)} className={styles.default_text_box} placeholder={'Location'} />
+                    <input type='text' value={location} onChange={event => setLocation(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
                 </form>
                 <ScannedSensors sensorList={sensors} />
                 <button type="button" className={`${styles.remove_batch_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>

@@ -13,7 +13,7 @@ function Receiving() {
         event.preventDefault();
         callApi('create-order', {
             'customer_id': 1,
-            'customer_order_number': salesOrder.toUpperCase()
+            'customer_order_number': salesOrder
         })
             .then(response => {
                 const tempOrder = response[0]['order_id'];
@@ -23,7 +23,7 @@ function Receiving() {
     }
 
     const handleChange = (event) => {
-        setSalesOrder(event.target.value);
+        setSalesOrder(event.target.value.toUpperCase());
     }
 
     return (

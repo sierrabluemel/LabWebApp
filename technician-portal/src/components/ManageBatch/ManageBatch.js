@@ -191,7 +191,7 @@ function ManageBatch() {
     }
 
     const handleLocationChange = (event) => {
-        setLocation(event.target.value);
+        setLocation(event.target.value.toUpperCase());
     }
 
     const handleLocationSubmit = async (event) => {
