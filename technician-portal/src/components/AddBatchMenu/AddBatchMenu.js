@@ -21,6 +21,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     const [confirmationArray, setConfirmationArray] = useState(false);
 
     const handleAddSensor = (event) => {
+        console.log(addedSensors)
         event.preventDefault();
         if (!technicianId) {
             setPopupMessage('Please sign in');
@@ -34,6 +35,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
                             if (!sensorValid) {
                                 setPopupMessage(`Sensor "${sensor}" could not be added`);
                                 setSensors(sensors.filter(item => item !== sensorObject))
+                                setAddedSensors(addedSensors.filter(item => item !== sensor))
                             }
                         })
                     setSensors([...sensors, sensorObject]);
