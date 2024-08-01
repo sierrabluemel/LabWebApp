@@ -83,9 +83,9 @@ function SearchMenu() {
                                     <td>{row.customer_order_number ? row.customer_order_number : 'N/A'}</td>
                                     <td>{row.order_id ? row.order_id : 'N/A'}</td>
                                     <td>{row.batch_id ? row.batch_id : 'N/A'}</td>
-                                    <td title={row.sku}><div className={styles.hoverable}>{row.sensor_id ? row.sensor_id : 'N/A'}</div></td>
+                                    <td>{row.sensor_id ? <div className={styles.hoverable} title={row.sku}>{row.sensor_id}</div> : 'N/A'}</td>
                                     <td title={row.calibration_procedure} className={styles.hoverable}>{row.calibration_procedure_id ? row.calibration_procedure_id : 'N/A'}</td>
-                                    <td><a className={styles.search_link} href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${row.certificate_id}.pdf`} target="_blank" rel="noreferrer">{row.certificate_id ? `MNT-${row.certificate_id}` : 'N/A'}</a></td>
+                                    <td>{row.certificate_id ? <a className={styles.search_link} href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${row.certificate_id}.pdf`} target="_blank" rel="noreferrer">MNT-{row.certificate_id}</a> : 'N/A'}</td>
                                     <td>{row.generate_certificate_json && row.generate_certificate_json.CS5 ? row.generate_certificate_json.CS5 : 'N/A'}</td>
                                     <td>{row.receiving_start ? `${parseDate(row.receiving_start)}` : 'N/A'}</td>
                                     <td>{row.shipping_end ? `${parseDate(row.shipping_end)}` : 'N/A'}</td>

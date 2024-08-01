@@ -23,7 +23,8 @@ async function search(params, type) { // Should have a type of search attached, 
             response = await callApi('search', { table: `api_order.order_id`, filter_data: params })
             break;
         case 'customerOrder':
-            if (params.toUpperCase().indexOf('TO') === -1) {
+            params = params.toUpperCase()
+            if (params.indexOf('TO') === -1) {
                 params = `TO${params}`
             }
             response = await callApi('search', { table: `api_order.customer_order_number`, filter_data: params })
