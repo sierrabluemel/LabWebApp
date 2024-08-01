@@ -13,7 +13,7 @@ function Receiving() {
         event.preventDefault();
         callApi('create-order', {
             'customer_id': 1,
-            'customer_order_number': salesOrder
+            'customer_order_number': salesOrder.toUpperCase()
         })
             .then(response => {
                 const tempOrder = response[0]['order_id'];
