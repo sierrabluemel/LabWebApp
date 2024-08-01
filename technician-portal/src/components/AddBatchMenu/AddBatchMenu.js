@@ -21,7 +21,6 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     const [confirmationArray, setConfirmationArray] = useState(false);
 
     const handleAddSensor = (event) => {
-        console.log(addedSensors)
         event.preventDefault();
         if (!technicianId) {
             setPopupMessage('Please sign in');

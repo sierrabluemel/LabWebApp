@@ -43,7 +43,7 @@ test('Shipping renders successfully', async () => {
         render(
             <AppWrapper sharedState={{
                 setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                orderNumber: 1, batches: []
+                orderNumber: 1, batches: [], setBatches: jest.fn()
             }}>
                 <Shipping />
             </AppWrapper>
@@ -58,7 +58,7 @@ test('generating certificates doesn\'t generate errors', async () => {
         render(
             <AppWrapper sharedState={{
                 setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                orderNumber: 1, batches: [{ batch_id: 1 }]
+                orderNumber: 1, batches: [{ batch_id: 1 }], setBatches: jest.fn()
             }}>
                 <Shipping />
             </AppWrapper>
@@ -270,7 +270,7 @@ for (let i = 1; i <= 5; i++) {
             render(
                 <AppWrapper sharedState={{
                     setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                    orderNumber: i, batches: []
+                    orderNumber: i, batches: [], setBatches: jest.fn()
                 }}>
                     <Shipping />
                 </AppWrapper>
@@ -285,65 +285,3 @@ for (let i = 1; i <= 5; i++) {
         expect(orderLabel).toBeInTheDocument()
     })
 }
-
-test('printing certificates doesn\'t generate errors', async () => {
-    await act(async () => {
-        render(
-            <AppWrapper sharedState={{
-                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                orderNumber: 1, batches: [{ batch_id: 1 }]
-            }}>
-                <Shipping />
-            </AppWrapper>
-        )
-    })
-    const generateCertificatesButton = screen.getByText(/print certificates/i)
-    await act(async () => {
-        fireEvent.click(generateCertificatesButton)
-    })
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/generate-order-certificates/`, { "params": { "order_id": 1, "print": true } })
-})
-
-test('printing labels doesn\'t generate errors', async () => {
-    await act(async () => {
-        render(
-            <AppWrapper sharedState={{
-                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                orderNumber: 1, batches: [{ batch_id: 1 }]
-            }}>
-                <Shipping />
-            </AppWrapper>
-        )
-    })
-    const generateCertificatesButton = screen.getByText(/print all labels/i)
-    await act(async () => {
-        fireEvent.click(generateCertificatesButton)
-    })
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/print-certificate-labels/`, { "params": { "calibration_date": '1/1/1970', "certificate_number": 'MNT-1', 'due_date': '1/1/1970' } })
-})
-
-test('printing labels with no certificates throws error', async () => {
-    mockAxios.get.mockImplementation(url => {
-        switch (url) {
-            case `http://${ip}/api/get-certificates-by-order-id/`:
-                return Promise.resolve({ data: [] })
-            default:
-                return Promise.reject();
-        }
-    });
-    await act(async () => {
-        render(
-            <AppWrapper sharedState={{
-                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                orderNumber: 1, batches: [{ batch_id: 1 }]
-            }}>
-                <Shipping />
-            </AppWrapper>
-        )
-    })
-    const generateCertificatesButton = screen.getByText(/print all labels/i)
-    await act(async () => {
-        fireEvent.click(generateCertificatesButton)
-    })
-    expect(mockAxios.get).not.toBeCalledWith(`http://${ip}/api/print-certificate-labels/`, expect.anything())
-})

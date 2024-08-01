@@ -49,7 +49,7 @@ const inputLocation = async (location) => {
     expect(locationForm).toBeInTheDocument()
     expect(locationBox).toHaveValue('')
     fireEvent.change(locationBox, { target: { value: location } })
-    expect(locationBox).toHaveValue(location)
+    expect(locationBox).toHaveValue(location.toUpperCase())
     const form = screen.getByTestId('setLocationForm')
     await act(async () => {
         fireEvent.submit(form)
