@@ -778,6 +778,21 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.sensor_container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-gap: 10px;
+    margin: 20px 0;
+}
+
+.shipping_sensor {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    padding: 5px;
+    font-size: large;
+    margin: 5px 0;
+}
+
 .graph {
     width: auto;
     background-color: #f3f3f3;

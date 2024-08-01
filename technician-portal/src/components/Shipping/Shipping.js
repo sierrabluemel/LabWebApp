@@ -23,6 +23,8 @@ function Shipping() {
 
   const [certificateMessage, setCertificateMessage] = useState('');
   const [sensor, setSensor] = useState('');
+  const [sensorList, setSensorList] = useState([]);
+  const [scannedSensors, setScannedSensors] = useState([]);
 
   const [confirmationArray, setConfirmationArray] = useState(false);
   const [order, setOrder] = useState(null)
@@ -50,6 +52,10 @@ function Shipping() {
         .then(response => {
           setOrder(response);
           setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
+        })
+      callApi('get-sensors-by-order-id', { order_id: orderNumber })
+        .then(response => {
+          setSensorList(response)
         })
     }
   })
@@ -525,7 +531,10 @@ function Shipping() {
     }
     try {
       callApi('print-certificate-labels', { calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
-        .then(() => setPopupMessage('Label printed'))
+        .then(() => {
+          const sensorId = parseInt(sensor.split(':')[0])
+          setScannedSensors([...scannedSensors, sensorId])
+        })
     } catch (error) {
       console.error(error)
       setPopupMessage('Unable to print label');
@@ -666,6 +675,15 @@ function Shipping() {
             <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
           </form>
         </div>
+
+        <hr />
+
+        <div className={styles.sensor_container}>
+          {sensorList.map((sensor, index) => (
+            <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.status_dot_green : styles.status_dot_red}`}>{sensor.sensor_id}:{sensor.check_digit}</div>
+          ))}
+        </div>
+
         <br />
 
         <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>
