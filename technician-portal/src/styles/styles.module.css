@@ -96,6 +96,7 @@
 }
 
 .default_button {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     border-radius: 2px;
     padding: 5px;
     cursor: pointer;
@@ -110,32 +111,11 @@
 }
 
 .default_button:active {
-    box-shadow: 2px 2px 5px #333;
+    box-shadow: none;
 }
 
 .default_button:hover {
     background-color: #08afe6;
-}
-
-.default_button_half {
-    border-radius: 2px;
-    padding: 5px;
-    cursor: pointer;
-    font-size: large;
-    background-color: #3dc6ea;
-    color: #f1f1f1;
-    margin: 5px;
-    width: 46%;
-    box-sizing: border-box;
-}
-
-.default_button_half:hover {
-    background-color: #08afe6;
-}
-
-
-.default_button_half:active {
-    box-shadow: 2px 2px 5px #333;
 }
 
 .batch_button {
@@ -515,9 +495,6 @@
     height: 33px;
     box-sizing: border-box;
     cursor: pointer;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
     transition: background-color 0.3s, box-shadow 0.3s;
 }
 
@@ -768,13 +745,12 @@
 }
 
 .status_message {
-    border: #333 2px solid;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     display: inline-block;
     border-radius: 2px;
     padding: 5px;
     font-size: large;
-    margin: 5px;
-    width: 47.5%;
+    margin: 5px 0;
     box-sizing: border-box;
 }
 
@@ -791,14 +767,15 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-gap: 10px;
-    margin: 20px;
+    margin: 20px 0;
 }
 
 .shipping_batches {
-    background-color: #333;
-    color: #3dc6ea;
+    background-color: #dadada;
+    color: #333;
     border-radius: 2px;
     padding: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .graph {

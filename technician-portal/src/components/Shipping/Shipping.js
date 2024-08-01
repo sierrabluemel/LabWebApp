@@ -18,17 +18,12 @@ function Shipping() {
 
   const {
     setConfirmationMessage, technicianId, setPopupMessage,
-    orderNumber, batches
+    orderNumber, batches, setBatches
   } = useAppContext()
 
-  const [certificatesGeneratedDate, setCertificatesGeneratedDate] = useState(null);
+  const [certificateMessage, setCertificateMessage] = useState('');
   const [sensor, setSensor] = useState('');
-  const [labelsPrinted, setLabelsPrinted] = useState(false);
-  const [certificatesPrinted, setCertificatesPrinted] = useState(false);
-  const [certificatesDownloaded, setCertificatesDownloaded] = useState(false);
 
-  const [returnRecordGenerated, setreturnRecordGenerated] = useState(false);
-  const [returnRecordPrinted, setreturnRecordPrinted] = useState(false);
   const [confirmationArray, setConfirmationArray] = useState(false);
   const [order, setOrder] = useState(null)
 
@@ -40,8 +35,10 @@ function Shipping() {
         if (certificates.length > 0) {
           const fullDate = new Date(certificates[0].timestamp)
           const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
-          setCertificatesGeneratedDate(dateString);
+          setCertificateMessage(`Certificates generated on ${dateString}`);
           certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
+        } else {
+          setCertificateMessage('No certificates found')
         }
       })
   }
@@ -51,12 +48,14 @@ function Shipping() {
       getCertificates();
       callApi('get-order-by-id', { 'order_id': orderNumber })
         .then(response => {
-          setOrder(response)
+          setOrder(response);
+          setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
         })
     }
   })
 
   const generateCertificates = async () => {
+    setCertificateMessage('Loading...');
     try {
       for (const batch of batches) {
         promises.push(callApi('update-batch-technician', {
@@ -509,7 +508,6 @@ function Shipping() {
         setPopupMessage('Unable to print label');
         return;
       }
-      setLabelsPrinted(true)
     }
   };
 
@@ -555,12 +553,10 @@ function Shipping() {
       setPopupMessage('Unable to print certificates');
       return;
     }
-    setCertificatesPrinted(true)
   }
 
   const printReturnRecord = () => {
     callApi('generate-return-record', { order_id: orderNumber, print: true })
-    setreturnRecordPrinted(true);
   }
 
   const createReturnRecord = () => {
@@ -586,7 +582,6 @@ function Shipping() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        setreturnRecordGenerated(true);
       })
       .catch(error => {
         console.error('Error:', error);
@@ -616,23 +611,10 @@ function Shipping() {
         console.error('Error:', error);
         return;
       });
-    setCertificatesDownloaded(true);
   }
 
   const handleCloseOrder = () => {
     let confirmationArray = [`Are you sure you would like to finish this order?`];
-    if (!certificatesGeneratedDate) {
-      confirmationArray.push(`The certificates for this order have not been generated`);
-    }
-    if (!labelsPrinted) {
-      confirmationArray.push(`The labels for this order have not been printed`);
-    }
-    if (!certificatesDownloaded && !certificatesPrinted) {
-      confirmationArray.push(`The certificates for this order have not been downloaded or printed`);
-    }
-    if (!returnRecordGenerated && !returnRecordPrinted) {
-      confirmationArray.push(`The return record for this order has not been downloaded or printed`)
-    }
     setConfirmationArray(confirmationArray);
   }
 
@@ -658,53 +640,35 @@ function Shipping() {
       <div className={styles.menu}>
         {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
 
-        <h1 className={styles.title}>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'}</h1>
-
-        <button className={styles.default_button_half} onClick={generateCertificates}>Create certificates</button>
-        {certificatesGeneratedDate
-          ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>Certificates generated on {certificatesGeneratedDate}</span>
-          : <span className={`${styles.status_message} ${styles.status_dot_red}`}>No certificates</span>}
-
-        <button className={styles.default_button_half} onClick={printReturnRecord}>Print return record</button>
-        {returnRecordPrinted
-          ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>Return record printed</span>
-          : <span className={`${styles.status_message} ${styles.status_dot_red}`}>Not printed</span>}
-
-        <button className={styles.default_button_half} onClick={printCertificates}>Print certificates</button>
-        {certificatesPrinted
-          ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>Certificates printed</span>
-          : <span className={`${styles.status_message} ${styles.status_dot_red}`}>No certificates printed</span>}
-
-        <button className={styles.default_button_half} onClick={createReturnRecord}>Download return record</button>
-        {returnRecordGenerated
-          ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>Return record downloaded</span>
-          : <span className={`${styles.status_message} ${styles.status_dot_red}`}>Not downloaded</span>}
-
-        <button className={styles.default_button_half} onClick={downloadCertificates}>Download certificates</button>
-        {certificatesDownloaded
-          ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>Certificates downloaded</span>
-          : <span className={`${styles.status_message} ${styles.status_dot_red}`}>Not downloaded</span>}
-
-        <button className={styles.default_button_half} onClick={printCertificateLabels}>Print all labels</button>
-        {labelsPrinted
-          ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>Labels printed</span>
-          : <span className={`${styles.status_message} ${styles.status_dot_red}`}>No labels printed</span>}
-
-        <form onSubmit={printLabel}>
-          <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
-        </form>
-
-        <button className={styles.default_button} onClick={handleCloseOrder}>Close Order</button>
+        <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'}</h2>
 
         <div className={styles.batches_container}>
-          {batches.length && batches.map(batch =>
+          {batches.length > 0 && batches.map(batch =>
             <div key={batch.batch_id} className={styles.shipping_batches}>
               {batch.current_location
-                ? `Batch ${batch.batch_id} | Current location: ${batch.current_location}`
+                ? <>{`Batch ${batch.batch_id} | Location: ${batch.current_location} | `}<span className={styles[`calibration_${batch.calibration_procedure_id}`]}>CP: {batch.calibration_procedure_id}</span></>
                 : `Batch ${batch.batch_id} (Shipped)`}
             </div>
           )}
         </div>
+
+        <div className={styles.grid_menu}>
+          <button className={styles.default_button} onClick={generateCertificates}>Create certificates</button>
+          {certificateList.current.length > 0
+            ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>{certificateMessage}</span>
+            : <span className={`${styles.status_message} ${styles.status_dot_red}`}>{certificateMessage}</span>}
+          <button className={styles.default_button} onClick={printReturnRecord}>Print return record</button>
+          <button className={styles.default_button} onClick={printCertificates}>Print certificates</button>
+          <button className={styles.default_button} onClick={createReturnRecord}>Download return record</button>
+          <button className={styles.default_button} onClick={downloadCertificates}>Download certificates</button>
+          <button className={styles.default_button} onClick={printCertificateLabels}>Print all labels</button>
+          <form onSubmit={printLabel}>
+            <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
+          </form>
+        </div>
+        <br />
+
+        <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>
       </div>
     </>
   );
