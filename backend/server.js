@@ -77,6 +77,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use((req, res, next) => {
+    console.log('Matching Origin? ', req.headers.origin === 'https://technicianportal.sensorcalibrations.com')
     console.log('Request Origin:', req.headers.origin);
     console.log('Request Method:', req.method);
     next();
