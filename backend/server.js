@@ -61,7 +61,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const app = express();
 app.locals.pool = pool;
 app.use(cors({
-    origin: true,
+    origin: ['https://technicianportal.sensorcalibrations.com', '*'],
     optionsSuccessStatus: 200,
     credentials: true,
     
