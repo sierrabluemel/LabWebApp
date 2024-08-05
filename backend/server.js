@@ -67,7 +67,7 @@ app.use(cors({
 }));
 app.options('*', cors());
 
-app.use('*', (req, res, next) => {
+app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', true);
     res.header('Access-Control-Allow-Credentials', true);
