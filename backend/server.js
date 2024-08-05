@@ -60,18 +60,25 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
 app.locals.pool = pool;
-app.use(cors({
-    origin: 'https://technicianportal.sensorcalibrations.com',
+const corsOptions = {
+    origin: function (origin, callback) {
+        const whitelist = ['https://technicianportal.sensorcalibrations.com'];
+        if (whitelist.indexOf(origin) !== -1 || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     optionsSuccessStatus: 200,
     credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://technicianportal.sensorcalibrations.com');
-    res.header('Access-Control-Allow-Headers', true);
-    res.header('Access-Control-Allow-Credentials', true);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-    res.header('Access-Control-Expose-Headers', 'Access-Token');
+    console.log('Request Origin:', req.headers.origin);
+    console.log('Request Method:', req.method);
     next();
 });
 
