@@ -61,26 +61,16 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const app = express();
 app.locals.pool = pool;
 app.use(cors({
-    origin: ['https://technicianportal.sensorcalibrations.com', '*'],
+    origin: '*',
     optionsSuccessStatus: 200,
     credentials: true,
-    
 }));
-app.options('*', cors())
+app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.listen(port, ip, () => {
     console.log(`Server running at https://${ip}:${port}/`);
-});
-
-app.use('*', (req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', true);
-    res.header('Access-Control-Allow-Credentials', true);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-    res.header('Access-Control-Expose-Headers', 'Access-Token');
-    next();
 });
 
 app.post("/api/webhook", async (req, res) => {
