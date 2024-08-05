@@ -77,6 +77,15 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', true);
+    res.header('Access-Control-Allow-Credentials', true);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    res.header('Access-Control-Expose-Headers', 'Access-Token');
+    next();
+});
+
+app.use((req, res, next) => {
     console.log('Matching Origin? ', req.headers.origin === 'https://technicianportal.sensorcalibrations.com')
     console.log('Request Origin:', req.headers.origin);
     console.log('Request Method:', req.method);
