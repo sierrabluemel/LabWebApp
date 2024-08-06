@@ -70,20 +70,11 @@ const corsOptions = {
         }
     },
     optionsSuccessStatus: 200,
-    credentials: true,
-    exposedHeaders: ['Access-Token', 'x-api-key'],
+    credentials: true
 };
 
-app.use(cors(corsOptions));
+app.use(cors());
 app.options('*', cors(corsOptions));
-
-app.use((req, res, next) => {
-    console.log(res.getHeaders());
-    console.log('Matching Origin? ', req.headers.origin === 'https://technicianportal.sensorcalibrations.com')
-    console.log('Request Origin:', req.headers.origin);
-    console.log('Request Method:', req.method);
-    next();
-});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
