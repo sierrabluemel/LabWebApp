@@ -1,12 +1,8 @@
 from flask import Flask, request
 from flask_cors import CORS
-from pypdf import PdfMerger
 from zebra import Zebra
-import requests
-import json
 import cups
 import os
-import io
 
 app = Flask(__name__)
 CORS(app)
