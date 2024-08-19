@@ -109,6 +109,11 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
         }
     }
 
+    const printWorkOrder = () => {
+        callApi('generate-work-order', { batch_id: batchNumber, print: true })
+            .then(setPopupMessage(`Batch ${batchNumber} work order printed`))
+    }
+
     if (!displayed) {
         return (
             <button className={`${styles.default_button} ${styles.double_span}`} onClick={() => setDisplayed(true)}>{`Expand (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
@@ -126,8 +131,9 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
                 <form onSubmit={handleSetLocation} data-testid={'setLocationForm'} >
                     <input type='text' value={location} onChange={event => setLocation(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
                 </form>
-                <ScannedSensors sensorList={sensors} />
                 <button type="button" className={`${styles.remove_batch_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
+                <ScannedSensors sensorList={sensors} />
+                <button className={styles.default_button} onClick={printWorkOrder}>Print work order</button>
         </>
     )
 }
