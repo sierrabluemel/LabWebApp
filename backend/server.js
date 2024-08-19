@@ -746,10 +746,10 @@ app.get('/api/search', (req, res) => {
     const filterData = req.query.filter_data;
     const table = req.query.table;
 
-    const query =   `SELECT * FROM api_order
+    const query =   `SELECT *, api_sensor.sensor_id FROM api_order
                     FULL JOIN api_batch ON api_order.order_id = api_batch.order_id
                     FULL JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
-                    FULL JOIN api_certificate ON api_certificate.sensor_id = api_sensor.sensor_id
+                    LEFT JOIN api_certificate ON api_sensor.sensor_id = api_certificate.sensor_id
                     FULL JOIN api_calibration_procedure ON api_batch.calibration_procedure_id = api_calibration_procedure.calibration_procedure_id
                     FULL JOIN api_interaction_log ON api_batch.batch_id = api_interaction_log.batch_id
                     WHERE ${table} = $1
@@ -760,6 +760,7 @@ app.get('/api/search', (req, res) => {
             return res.status(500).json({ error: `Error getting data: ${err}` });
         }
         const data = result.rows;
+        console.log(data)
         res.status(200).json(data);
     })
 })
