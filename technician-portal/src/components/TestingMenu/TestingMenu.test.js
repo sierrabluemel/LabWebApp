@@ -9,6 +9,8 @@ import { act } from 'react-dom/test-utils';
 jest.mock('axios')
 jest.spyOn(global.console, 'error').mockImplementation(() => { });
 
+const equipment = require('../../utils/equipment.test.json')
+
 beforeEach(() => {
     jest.clearAllMocks()
 
@@ -26,6 +28,8 @@ beforeEach(() => {
                 return Promise.resolve({ data: [{ super_daq_data: { S000114: { Temperature: 123 } }, devices_under_test: { '123456temp': 123, '123456humidity': 15 } }] })
             case `http://${ip}/api/calibrate-sensor/`:
                 return Promise.resolve({ data: { Result: 'failed' } })
+            case `http://${ip}/api/get-equipment/`:
+                return Promise.resolve({ data: equipment })
             case `http://${ip}/api/get-humidity-reading-range/`:
                 return Promise.resolve({ data: [{ rotronic_data: { S000119: { Humidity: 12345, Temperature: 12345 } }, devices_under_test: { '123456temp': 123, '123456humidity': 15 } }] })
             default:
@@ -120,6 +124,8 @@ test('no readings throws error', async () => {
                 return Promise.resolve({ data: [{ super_daq_data: { S000114: { Temperature: 123 } }, devices_under_test: { '123456temp': 123 } }] })
             case `http://${ip}/api/calibrate-sensor/`:
                 return Promise.resolve({ data: { Result: 'failed' } })
+            case `http://${ip}/api/get-equipment/`:
+                return Promise.resolve({ data: equipment })
             default:
                 return Promise.reject();
         }
@@ -135,6 +141,7 @@ test('no readings throws error', async () => {
         )
     })
     const setPointButton = screen.getByText(/as found/i)
+    expect(setPointButton).toBeInTheDocument();
     await act(async () => {
         fireEvent.click(setPointButton)
     })

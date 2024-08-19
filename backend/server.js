@@ -480,9 +480,6 @@ app.get('/api/get-last-humidity-stable-reading', (req, res) => {
     if (!minutes) {
         minutes = 180;
     }
-    if (!reference) {
-        reference = 'S000119';
-    }
     if (setPoint) {
         setPoint = parseInt(setPoint);
     }
@@ -792,7 +789,20 @@ app.get('/api/get-customer-by-id', (req, res) => {
 });
 
 app.get('/api/get-equipment', (req, res) => {
-    pool.query('SELECT * FROM api_equipment', (err, result) => {
+    pool.query('SELECT * FROM api_equipment ORDER BY equipment_id', (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Error executing query: ${err}` });
+        }
+        const equipment = result.rows;
+        res.json(equipment);
+    })
+});
+
+app.get('/api/set-generator', (req, res) => {
+    const referenceTag = req.query.reference_tag;
+    const generatorTag = req.query.generator_tag;
+
+    pool.query('UPDATE api_equipment SET reference_tag = $1 WHERE asset_tag = $2', [referenceTag, generatorTag], (err, result) => {
         if (err) {
             return res.status(500).json({ error: `Error executing query: ${err}` });
         }
@@ -1601,8 +1611,10 @@ async function printPdf(pdfBytes) {
         body: pdfBytes,
     },
         function (error, response, body) {
-            if (!response.body || response.body !== 'Printed PDF successfully' || error) {
-                console.log('Error printing pdf: ', error ? error : 'No error code')
+            if (response) {
+                if (!response.body || response.body !== 'Printed PDF successfully' || error) {
+                    console.log('Error printing pdf: ', error ? error : 'No error code')
+                }
             }
         }
     )

@@ -7,12 +7,14 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.4.0",
+    "babel-jest": "^29.7.0",
     "chart.js": "^4.4.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^2.30.0",
     "dotenv": "^16.3.1",
     "enzyme": "^3.11.0",
     "faker": "^6.6.6",
+    "jest-fetch-mock": "^3.0.3",
     "next": "^13.4.8",
     "pdf-lib": "^1.17.1",
     "react": "^18.2.0",
@@ -22,9 +24,8 @@
     "react-router-dom": "^6.15.0",
     "react-scripts": "5.0.1",
     "react-transition-group": "^4.4.5",
-    "web-vitals": "^2.1.4",
-    "babel-jest": "^29.7.0",
-    "jest-fetch-mock": "^3.0.3"
+    "technician-portal": "file:",
+    "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "react-scripts start",

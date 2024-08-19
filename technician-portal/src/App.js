@@ -23,6 +23,7 @@ import SignInMenu from './components/SignInMenu/SignInMenu';
 import SearchMenu from './components/SearchMenu/SearchMenu.js';
 
 import styles from './styles/styles.module.css';
+import Admin from './components/Admin/Admin.js';
 
 function App() {
   const [salesOrder, setSalesOrder] = useState('');
@@ -83,6 +84,9 @@ function App() {
                 <Route path='/shipSensors' element={<ShipSensors />} />
                 <Route path='/search' element={<SearchMenu />} />
                 <Route path='/signIn' element={<SignInMenu />} />
+
+                <Route path='/Admin' element={<Admin />} />
+
                 <Route path='*' element={<PageNotFound />} />
               </Routes>
             </div>

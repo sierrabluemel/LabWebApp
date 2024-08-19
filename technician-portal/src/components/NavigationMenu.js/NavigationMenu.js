@@ -5,12 +5,13 @@ import receivingIcon from "../../media/receiving_icon.png";
 import testingIcon from "../../media/testing_icon.png";
 import shippingIcon from "../../media/shipping_icon.png";
 import searchIcon from "../../media/search_icon.png";
+import adminIcon from "../../media/admin_icon.png";
 import { useAppContext } from "../../contexts/app";
 
 
 function NavigationMenu() {
     const navigate = useNavigate();
-    const { technicianId } = useAppContext();
+    const { technician, technicianId } = useAppContext();
 
     if (!technicianId) {
         return <></>
@@ -39,6 +40,12 @@ function NavigationMenu() {
                     <input type="radio" id="search" name="navigation_menu" className={styles.navigation_menu_radio}></input>
                     <label htmlFor="search" className={styles.navigation_item} onClick={() => { navigate('/search') }}><img src={searchIcon} alt="Search icon" className={styles.icon_image} /> Search</label>
                 </li>
+                {!technician.admin ? <></> :
+                    <li>
+                        <input type="radio" id="admin" name="navigation_menu" className={styles.navigation_menu_radio}></input>
+                        <label htmlFor="admin" className={styles.navigation_item} onClick={() => { navigate('/admin') }}><img src={adminIcon} alt="Admin icon" className={styles.icon_image} /> Admin</label>
+                    </li>
+                }
             </ul>
         </div>
     );
