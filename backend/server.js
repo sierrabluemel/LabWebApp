@@ -760,7 +760,6 @@ app.get('/api/search', (req, res) => {
             return res.status(500).json({ error: `Error getting data: ${err}` });
         }
         const data = result.rows;
-        console.log(data)
         res.status(200).json(data);
     })
 })
