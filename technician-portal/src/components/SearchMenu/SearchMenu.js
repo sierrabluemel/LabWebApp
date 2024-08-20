@@ -33,7 +33,6 @@ function SearchMenu() {
         if (!results) {
             setPopupMessage('The type of lookup you tried to perform is not valid');
         } else {
-            console.log(results)
             setData(results);
             if (results.length === 0) {
                 setResponseMessage('No data found')
