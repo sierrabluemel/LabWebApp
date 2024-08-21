@@ -1778,8 +1778,15 @@ async function sendMailVerification(type, payload) {
     }
 }
 
-function addSensorData(newSensorData, currentSensorData) {
+function addSensorData(newSensorData, currentSensorData, minutes = 120) {
+    const now = new Date();
+    const dataExpirationTime = 1000 * 60 * minutes // Milliseconds * seconds * minutes = 120 minute expiration
     for (const newData of newSensorData) {
+        const newDataDate = new Date(newData.messageDate + ' UTC');
+        const timeDifference = Math.abs(now - newDataDate);
+        if (timeDifference > dataExpirationTime) {
+            continue;
+        }
         for (let i = 0; i < currentSensorData.length; i++) {
             if (newData.sensorID === currentSensorData[i].sensorID) {
                 currentSensorData.splice(i, 1);
