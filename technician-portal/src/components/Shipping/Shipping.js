@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import callApi from "../../utils/api/callApi";
 import ip from "../../utils/ip/ip";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
+import parseSensorString from "../../utils/parseSensorString";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 import { useAppContext } from "../../contexts/app";
@@ -480,7 +481,8 @@ function Shipping() {
       setPopupMessage(`Please enter sensor id`);
       return;
     }
-    const certificate = certificateList.current.filter(cert => cert.sensor_id === parseInt(sensor.split(':')[0]))[0]
+    const sensorId = parseInt(parseSensorString(sensor)[0]);
+    const certificate = certificateList.current.filter(cert => cert.sensor_id === sensorId)[0]
     if (!certificate) {
       setPopupMessage(`No certificates found for sensor ${sensor}`)
       return;
@@ -488,7 +490,6 @@ function Shipping() {
     try {
       callApi('print-certificate-labels', { calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
         .then(() => {
-          const sensorId = parseInt(sensor.split(':')[0])
           setScannedSensors([...scannedSensors, sensorId])
         })
     } catch (error) {
