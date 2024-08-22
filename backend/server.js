@@ -1166,13 +1166,14 @@ app.get('/api/print-certificate-labels', async (req, res) => {
     const calibrationDate = req.query.calibration_date;
     const dueDate = req.query.due_date;
     const certificateNumber = req.query.certificate_number;
+    const sensorId = req.query.sensor_id;
     if (process.env.STATUS === 'development') {
         res.json({ 'Result': `Failed: print disabled in test environment` });
         return;
     }
     let url = `http://localhost:4000/print-label/`;
 
-    fetch(`${url}?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}`)
+    fetch(`${url}?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}&sensor_id=${sensorId}`)
         .then(response => {
             res.json({ 'Result': JSON.stringify(response) })
         })

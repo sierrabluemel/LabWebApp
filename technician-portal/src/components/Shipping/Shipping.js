@@ -465,7 +465,7 @@ function Shipping() {
     }
     for (const certificate of certificateList.current) {
       try {
-        await callApi('print-certificate-labels', { calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
+        await callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
       } catch (error) {
         console.error(error)
         setPopupMessage('Unable to print label');
@@ -488,7 +488,7 @@ function Shipping() {
       return;
     }
     try {
-      callApi('print-certificate-labels', { calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
+      callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
         .then(() => {
           setScannedSensors([...scannedSensors, sensorId])
         })
