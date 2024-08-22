@@ -423,33 +423,17 @@ app.get('/api/get-calibrations-by-month', (req, res) => {
 });
 
 app.get('/api/get-online-sensors', (req, res) => {
-    const url = `https://www.imonnit.com/json/SensorList/`;
-    const parseDate = (date) => {
-        if (date == null) {
-            return null;
-        };
-        const strippedDate = date.replace('/Date(', '').replace(')/', '');
-        return new Date(parseInt(strippedDate));
-    }
-    const parseLastCheckIn = (lastCommunication, minutes = 5) => {
-        if (lastCommunication == null) {
-            return false;
+    rollingDataPool.query('SELECT monnit_sensor_data FROM rolling_data ORDER BY timestamp DESC LIMIT 1', (error, result) => {
+        if (error) {
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
-        if (Math.abs(new Date().getTime() - lastCommunication.getTime()) < minutes * 60000) {
-            return true;
+        const data = result.rows[0].monnit_sensor_data;
+        const sensorList = []
+        for (const sensor of data) {
+            sensorList.push(parseInt(sensor.sensorID));
         }
-        return false;
-    }
-
-    const data = monnitFetch(url);
-    sensorList = [];
-    for (const sensor of data.Result) {
-        const lastCheckIn = parseDate(sensor.LastCommunicationDate)
-        if (parseLastCheckIn(lastCheckIn)) {
-            sensorList.push(sensor.SensorID)
-        }
-    }
-    res.json(sensorList)
+        res.status(200).json(sensorList)
+    })
 });
 
 app.get('/api/get-bulk-data', (req, res) => {

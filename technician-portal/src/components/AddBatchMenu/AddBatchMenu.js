@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAppContext } from "../../contexts/app";
 import addSensor from "../../utils/addSensor";
@@ -19,6 +19,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     const [location, setLocation] = useState('');
     const [currentLocation, setCurrentLocation] = useState('No location set');
     const [confirmationArray, setConfirmationArray] = useState(false);
+    const awaitingUpdate = useRef(false);
 
     const handleAddSensor = (event) => {
         event.preventDefault();
@@ -68,6 +69,10 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     }
 
     const checkStatus = () => {
+        if (awaitingUpdate.current) {
+            return;
+        }
+        awaitingUpdate.current = true;
         callApi('get-online-sensors')
             .then(response => {
                 for (const fullSensor of addedSensors) {
@@ -82,6 +87,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
                         setSensors(newSensors)
                     }
                 }
+                awaitingUpdate.current = false;
             })
             .catch(error => {
                 console.error(error);
