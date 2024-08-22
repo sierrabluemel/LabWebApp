@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useAppContext } from "../../contexts/app";
 import addSensor from "../../utils/addSensor";
+import parseSensorString from "../../utils/parseSensorString";
 import callApi from "../../utils/api/callApi";
 import ScannedSensors from "../ScannedSensors/ScannedSensors";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
@@ -27,7 +28,8 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
             setPopupMessage('Please sign in');
         } else {
             if (sensor) {
-                const sensorObject = { sensor: sensor, online: false }
+                const [sensorID, checkDigit] = parseSensorString(sensor);
+                const sensorObject = { sensor: `${sensorID}:${checkDigit}`, online: false }
                 if (!addedSensors.includes(sensor)) {
                     setAddedSensors([...addedSensors, sensor])
                     addSensor(sensorObject.sensor, batchNumber)
