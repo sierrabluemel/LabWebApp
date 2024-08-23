@@ -1763,9 +1763,9 @@ async function sendMailVerification(type, payload) {
     }
 }
 
-function addSensorData(newSensorData, currentSensorData, minutes = 120) {
+function addSensorData(newSensorData, currentSensorData, minutes = 10) {
     const now = new Date();
-    const dataExpirationTime = 1000 * 60 * minutes // Milliseconds * seconds * minutes = 120 minute expiration
+    const dataExpirationTime = 1000 * 60 * minutes // Milliseconds * seconds * minutes = 10 minute expiration
     for (const newData of newSensorData) {
         const newDataDate = new Date(newData.messageDate + ' UTC');
         const timeDifference = Math.abs(now - newDataDate);
