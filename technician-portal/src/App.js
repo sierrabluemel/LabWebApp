@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 import { AppWrapper } from './contexts/app';
@@ -38,6 +38,7 @@ function App() {
   const [orderNumber, setOrderNumber] = useState('');
   const [batches, setBatches] = useState([]);
   const [sensorGrid, setSensorGrid] = useState([]);
+  const equipment = useRef([]);
 
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
 
@@ -57,7 +58,8 @@ function App() {
           procedureId, setProcedureId,
           sensorGrid, setSensorGrid,
           orderNumber, setOrderNumber,
-          batches, setBatches
+          batches, setBatches,
+          equipment
         }}
       >
         <Router>

@@ -746,7 +746,21 @@ app.get('/api/search', (req, res) => {
         const data = result.rows;
         res.status(200).json(data);
     })
-})
+});
+
+app.get('/api/search-data', (req, res) => {
+    const query =   `SELECT api_batch.batch_id, api_order.order_id, api_order.customer_order_number, api_sensor.sensor_id FROM api_order
+                    FULL JOIN api_batch ON api_order.order_id = api_batch.order_id
+                    FULL JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id;`
+    
+    pool.query(query, (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Error getting data: ${err}` });
+        }
+        const data = result.rows;
+        res.status(200).json(data);
+    })
+});
 
 app.get('/api/get-readings-by-sensor-id', (req, res) => {
     const sensorId = req.query.sensor_id;
@@ -785,10 +799,19 @@ app.get('/api/get-equipment', (req, res) => {
 app.get('/api/set-generator', (req, res) => {
     const referenceTag = req.query.reference_tag;
     const generatorTag = req.query.generator_tag;
+    const certificateNumber = req.query.certificate_number;
+    const calibrationDate = new Date(req.query.calibration_date);
+    const dueDate = new Date(req.query.due_date);
 
     pool.query('UPDATE api_equipment SET reference_tag = $1 WHERE asset_tag = $2', [referenceTag, generatorTag], (err, result) => {
         if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+            return res.status(500).json({ error: `Error setting generator query: ${err}` });
+        }
+    })
+
+    pool.query('UPDATE api_equipment SET calibration_certificate_number = $1, last_calibration = $2, next_calibration = $3 WHERE asset_tag = $4', [certificateNumber, calibrationDate, dueDate, referenceTag], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Error setting reference query: ${err}` });
         }
         const equipment = result.rows;
         res.json(equipment);

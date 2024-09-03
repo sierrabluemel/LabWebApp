@@ -911,7 +911,7 @@
 
 .equipment_row {
     display: grid;
-    grid-template-columns: 2fr 3fr;
+    grid-template-columns: 2fr 2fr 1fr 1fr 1fr;
     grid-gap: 10px;
 }
 
@@ -962,4 +962,16 @@
 
 .equipment_save_button:hover {
     background-color: #08afe6;
+}
+
+.equipment_input {
+    display: flex;
+    justify-content: center;
+    align-items: center; 
+    width: 100%;
+    border: 2px solid #868686;
+    border-radius: 5px;
+    background-color: #fff;
+    text-align: center;
+    font-size: larger;
 }

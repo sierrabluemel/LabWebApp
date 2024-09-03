@@ -25,3 +25,9 @@ test('addSensor returns false when an error is thrown', async () => {
     const sensorValid = await addSensor('12345:ABCDE', 3000)
     expect(sensorValid).toBe(false)
 })
+
+test('addSensor returns false with error from parseSensorString', async () => {
+    mockAxios.get.mockImplementation(() => Promise.resolve({ data: [{ "check_digit": "ABCDE", "batch_id": 3000 }] }))
+    const sensorValid = await addSensor(':ABCDE', 3000)
+    expect(sensorValid).toBe(false)
+})

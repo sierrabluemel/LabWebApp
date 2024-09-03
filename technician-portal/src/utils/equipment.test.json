@@ -8,7 +8,7 @@
         "calibration_certificate_number": "nan",
         "type": "Generator",
         "serial_number": "2C1710100",
-        "reference_tag": "S000114"
+        "reference_tag": "S000115"
     },
     {
         "equipment_id": 2,
@@ -146,9 +146,9 @@
         "equipment_id": 14,
         "asset_tag": "S000114",
         "description": "Fluke 5615 PRT",
-        "last_calibration": "2023-03-10T07:00:00.000Z",
-        "next_calibration": "2024-09-10T06:00:00.000Z",
-        "calibration_certificate_number": "113569",
+        "last_calibration": "2024-08-08T06:00:00.000Z",
+        "next_calibration": "+123456-01-01T07:00:00.000Z",
+        "calibration_certificate_number": "123456",
         "type": "Reference",
         "serial_number": "4986904",
         "reference_tag": null
@@ -157,9 +157,9 @@
         "equipment_id": 15,
         "asset_tag": "S000115",
         "description": "Fluke 5615 PRT",
-        "last_calibration": "2023-03-13T06:00:00.000Z",
-        "next_calibration": "2024-09-11T06:00:00.000Z",
-        "calibration_certificate_number": "113573",
+        "last_calibration": "2024-08-08T06:00:00.000Z",
+        "next_calibration": "2026-08-08T06:00:00.000Z",
+        "calibration_certificate_number": "123456",
         "type": "Reference",
         "serial_number": "4729503",
         "reference_tag": null
@@ -172,7 +172,7 @@
         "next_calibration": "2026-01-25T07:00:00.000Z",
         "calibration_certificate_number": "15-F0E5T-20-1",
         "type": "Reference",
-        "serial_number": "47229504",
+        "serial_number": "4729504",
         "reference_tag": null
     },
     {
@@ -212,9 +212,9 @@
         "equipment_id": 20,
         "asset_tag": "S000120",
         "description": "Fluke 1586A \"SUPER-DAQ\"",
-        "last_calibration": "2023-10-27T06:00:00.000Z",
-        "next_calibration": "2025-04-26T06:00:00.000Z",
-        "calibration_certificate_number": "1500348244",
+        "last_calibration": "2024-08-08T06:00:00.000Z",
+        "next_calibration": "2024-08-08T06:00:00.000Z",
+        "calibration_certificate_number": "123456",
         "type": "Reference",
         "serial_number": "59765012",
         "reference_tag": null
@@ -366,12 +366,12 @@
         "equipment_id": 34,
         "asset_tag": "S000134",
         "description": "Fluke 1586A \"SUPER-DAQ\"",
-        "last_calibration": "2024-03-25T06:00:00.000Z",
-        "next_calibration": "2025-09-25T06:00:00.000Z",
-        "calibration_certificate_number": "1500364413",
+        "last_calibration": "2024-08-08T06:00:00.000Z",
+        "next_calibration": "2024-08-08T06:00:00.000Z",
+        "calibration_certificate_number": "test",
         "type": "Reference",
         "serial_number": "62555038",
-        "reference_tag": "active"
+        "reference_tag": "S000134"
     },
     {
         "equipment_id": 35,

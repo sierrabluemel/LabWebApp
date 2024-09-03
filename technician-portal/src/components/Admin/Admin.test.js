@@ -29,7 +29,7 @@ beforeEach(() => {
 test('Admin menu renders successfully', async () => {
     await act(async () => {
         render(
-            <AppWrapper sharedState={{ setPopupMessage: jest.fn() }}>
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipment: {current: equipment} }}>
                 <Admin />
             </AppWrapper>
         )
@@ -38,24 +38,40 @@ test('Admin menu renders successfully', async () => {
     expect(equipmentConfig).toBeInTheDocument();
 })
 
-test('Changing references updates correctly', async () => {
+test('Changing references with all correct data', async () => {
     await act(async () => {
         render(
-            <AppWrapper sharedState={{ setPopupMessage: jest.fn() }}>
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipment: {current: equipment} }}>
                 <Admin />
             </AppWrapper>
         )
     })
-    const dropdown1 = screen.getByTestId('Bath 1');
-    const dropdown2 = screen.getByTestId('superDaqDropdown');
+    const dropdown = screen.getByTestId('Bath 1');
+    const certificateNumberInput = screen.getByTestId('Bath 1certificateNumber');
+    const calibrationDateInput = screen.getByTestId('Bath 1calibrationDate');
+    const dueDateInput = screen.getByTestId('Bath 1dueDate');
     const saveButton = screen.getByText(/save/i);
 
     await act(async () => {
-        fireEvent.change(dropdown1, { target: { value: 'S000115' } });
-        fireEvent.change(dropdown2, { target: { value: 'S000120' } });
+        fireEvent.change(dropdown, { target: { value: 'S000116' } });
+        fireEvent.change(certificateNumberInput, { target: { value: '123456Test' } });
+        fireEvent.change(calibrationDateInput, { target: { value: '09/03/2024' } });
+        fireEvent.change(dueDateInput, { target: { value: '09/04/2025' } });
     });
 
     await act(async () => {
         fireEvent.click(saveButton);
     });
+
+    const confirmationButton = screen.getByText(/confirm/i);
+
+    await act(async () => {
+        fireEvent.click(confirmationButton);
+    });
+
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/set-generator/`, expect.anything());
+
+    expect(certificateNumberInput).toHaveValue('');
+    expect(calibrationDateInput).toHaveValue('');
+    expect(calibrationDateInput).toHaveValue('');
 })
