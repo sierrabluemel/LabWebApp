@@ -5,6 +5,7 @@ import { useAppContext } from "../../contexts/app";
 import callApi from "../../utils/api/callApi";
 
 import styles from "../../styles/styles.module.css";
+import parseDataBaseDate from "../../utils/parseDataBaseDate";
 
 function BatchEntry() {
     const navigate = useNavigate();
@@ -65,10 +66,11 @@ function BatchEntry() {
 
                             for (const order of orders) {
                                 const batches = [...new Set(response.filter(batch => batch.order_id === order))].sort((a, b) => a.batch_id - b.batch_id);
+                                const receivedDate = parseDataBaseDate(batches[0].received_timestamp);
                                 batchList.push(
                                     <div key={orders.indexOf(order)}>
                                         <hr />
-                                        <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order}`}</h1>
+                                        <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order} | ${receivedDate}`}</h1>
                                         {batches.map((batch, index) => {
                                             return <BatchDisplay batch={batch} handleButtonClick={handleButtonClick} key={index} />
                                         })}

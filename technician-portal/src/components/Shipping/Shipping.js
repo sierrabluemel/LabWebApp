@@ -94,7 +94,7 @@ function Shipping() {
     try {
       const sensors = await callApi('get-sensors-by-order-id', { 'order_id': orderNumber });
       const customer = await callApi('get-customer-by-id', { 'customer_id': order.customer_id });
- 
+
       for (const sensor of sensors) {
         promises.push(callApi('get-batch-by-id', { 'batch_id': sensor.batch_id })
           // eslint-disable-next-line no-loop-func
@@ -620,9 +620,11 @@ function Shipping() {
 
         <div className={styles.grid_menu}>
           <button className={styles.default_button} onClick={generateCertificates}>Create certificates</button>
-          {certificateList.current.length > 0
-            ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>{certificateMessage}</span>
-            : <span className={`${styles.status_message} ${styles.status_dot_red}`}>{certificateMessage}</span>}
+          {
+            certificateList.current.length > 0
+              ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>{certificateMessage}</span>
+              : <span className={`${styles.status_message} ${styles.status_dot_red}`}>{certificateMessage}</span>
+          }
           <button className={styles.default_button} onClick={printReturnRecord}>Print return record</button>
           <button className={styles.default_button} onClick={printCertificates}>Print certificates</button>
           <button className={styles.default_button} onClick={createReturnRecord}>Download return record</button>

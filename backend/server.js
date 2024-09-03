@@ -589,7 +589,7 @@ app.get('/api/get-order-by-id', (req, res) => {
 
 app.get('/api/get-orders-to-ship', (req, res) => {
     pool.query(`
-        SELECT api_order.order_id, api_order.customer_order_number
+        SELECT api_order.order_id, api_order.customer_order_number, api_order.received_timestamp
         FROM api_order
         WHERE api_order.active = true
         AND NOT EXISTS (

@@ -21,7 +21,7 @@ beforeEach(() => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/get-orders-to-ship/`:
-                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test' }, { order_id: 2, customer_order_number: 'test' }] })
+                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }, { order_id: 2, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }] })
             case `http://${ip}/api/get-batches-by-order-id/`:
                 return Promise.resolve({ data: ['test', 'test'] })
             case `http://${ip}/api/get-order-by-id/`:
@@ -135,7 +135,7 @@ test('response without order_id gets detected', async () => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/get-orders-to-ship/`:
-                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test' }, { order_id: 2, customer_order_number: 'test' }] })
+                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }, { order_id: 2, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }] })
             case `http://${ip}/api/get-order-by-id/`:
                 return Promise.resolve({ data: { Result: 'Error' } })
             default:

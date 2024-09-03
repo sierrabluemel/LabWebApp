@@ -5,6 +5,7 @@ import { useAppContext } from "../../contexts/app";
 import callApi from "../../utils/api/callApi";
 
 import styles from "../../styles/styles.module.css";
+import parseDataBaseDate from "../../utils/parseDataBaseDate";
 
 function OrderEntry() {
     const navigate = useNavigate();
@@ -110,7 +111,7 @@ function OrderEntry() {
                         className={styles.batch_button}
                         onClick={() => handleClick(order.order_id)}
                     >
-                        Order: {order.order_id} | Customer Order: {order.customer_order_number}
+                        Order: {order.order_id} | Customer Order: {order.customer_order_number} | {parseDataBaseDate(order.received_timestamp)}
                     </button>
                 ))}
         </>

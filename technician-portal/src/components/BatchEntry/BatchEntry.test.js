@@ -21,7 +21,7 @@ beforeEach(() => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/get-batches-by-active-state/`:
-                return Promise.resolve({ data: [{ batch_id: 123 }] })
+                return Promise.resolve({ data: [{ batch_id: 123, received_timestamp : "2024-08-27T20:11:22.132Z" }] })
             case `http://${ip}/api/log-batch-interaction/`:
                 return Promise.resolve()
             case `http://${ip}/api/get-batch-by-id/`:
