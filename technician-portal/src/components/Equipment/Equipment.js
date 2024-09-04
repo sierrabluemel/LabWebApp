@@ -33,10 +33,12 @@ function Equipment({ assetId, readings, description, openedEquipment, updateData
             stableString = 'Temperature stable';
             referenceColor = styles.stable_green;
         }
+        console.log(readings)
         elements = (
             <>
                 <hr />
                 <h1 className={styles.title}>Temperature: {round(readings.Temperature, 10)}</h1>
+                <h1 className={styles.title}>Temperature Average: {readings.stability_data.average}</h1>
                 <h1 className={styles.title}>{stableString}</h1>
                 <h1 className={styles.title}>Slope: {JSON.stringify(round(readings.stability_data['slope'], 10))}</h1>
                 <h1 className={styles.title}>STD DEV: {JSON.stringify(round(readings.stability_data['standard_deviation'], 10))}</h1>
@@ -51,11 +53,13 @@ function Equipment({ assetId, readings, description, openedEquipment, updateData
             <>
                 <hr />
                 <h1 className={styles.title}>Humidity: {readings.Humidity}</h1>
+                <h1 className={styles.title}>Humidity Average: {readings.stability_data.humidity.average}</h1>
                 <h1 className={styles.title}>{stableString}</h1>
                 <h1 className={styles.title}>Slope: {JSON.stringify(round(readings.stability_data['humidity']['slope'], 10))}</h1>
                 <h1 className={styles.title}>STD DEV: {JSON.stringify(round(readings.stability_data['humidity']['standard_deviation'], 10))}</h1>
                 <hr />
                 <h1 className={styles.title}>Temperature: {readings.Temperature}</h1>
+                <h1 className={styles.title}>Temperature Average: {readings.stability_data.temperature.average}</h1>
                 <h1 className={styles.title}>{(JSON.stringify(readings.stability_data.temperature['stable']) === 'true') ? 'Temperature stable' : 'Temperature not stable'}</h1>
                 <h1 className={styles.title}>Slope: {JSON.stringify(round(readings.stability_data['temperature']['slope'], 10))}</h1>
                 <h1 className={styles.title}>STD DEV: {JSON.stringify(round(readings.stability_data['temperature']['standard_deviation'], 10))}</h1>
