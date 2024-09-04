@@ -33,7 +33,6 @@ function Equipment({ assetId, readings, description, openedEquipment, updateData
             stableString = 'Temperature stable';
             referenceColor = styles.stable_green;
         }
-        console.log(readings)
         elements = (
             <>
                 <hr />
