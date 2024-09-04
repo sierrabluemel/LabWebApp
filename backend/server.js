@@ -1804,6 +1804,7 @@ function addSensorData(newSensorData, currentSensorData, minutes = 10) {
             sensorID: newData.sensorID,
             dataType: newData.dataType,
             dataValue: newData.dataValue,
+            messageDate: newData.messageDate,
         }
         currentSensorData.push(finalData);
     }
