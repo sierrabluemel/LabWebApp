@@ -46,6 +46,7 @@ function TestingMenu({ setPoints }) {
                 const sensor = sensorList[i % sensorList.length];
                 const readings = allReadings[i];
                 let style = '';
+                const thisMessage = recentReadings[0].monnit_sensor_data.filter(sensorReading => sensorReading.sensorID === `${sensor.sensor_id}`)[0]
                 if (sensor.sensor_id === selectedSensor) {
                     style = styles.selected_sensor;
                 }
@@ -58,7 +59,9 @@ function TestingMenu({ setPoints }) {
                         switch (calibrationProcedureId) {
                             default:
                                 if (recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
-                                    currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C`}</div>
+                                    const heartbeat = thisMessage.heartbeat;
+                                    const heartbeatString = heartbeat >= 60 ? `${parseInt(heartbeat/60)}m` : `${heartbeat}s`;
+                                    currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C (${heartbeatString})`}</div>
                                 } else {
                                     currentReadingCell = <div className={styles.grid_entry}>No data</div>
                                 }
@@ -92,9 +95,11 @@ function TestingMenu({ setPoints }) {
                             case 3:
                                 elementClass = `${styles.humidity_grid} ${styles.grid_row}`;
                                 if (recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
+                                    const heartbeat = thisMessage.heartbeat;
+                                    const heartbeatString = heartbeat >= 60 ? `${parseInt(heartbeat/60)}m` : `${heartbeat}s`;
                                     currentReadingCell = <div className={styles.grid_entry_green}>
                                         {`${recentReadings[0].devices_under_test[`${sensor.sensor_id}humidity`].toFixed(2)}%RH\n
-                                    ${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C`}
+                                    ${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C (${heartbeatString})`}
                                     </div>
                                 } else {
                                     currentReadingCell = <div className={styles.grid_entry}>No data</div>
