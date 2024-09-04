@@ -1788,6 +1788,7 @@ async function sendMailVerification(type, payload) {
 
 function addSensorData(newSensorData, currentSensorData, minutes = 10) {
     const now = new Date();
+    let heartbeat;
     const dataExpirationTime = 1000 * 60 * minutes // Milliseconds * seconds * minutes = 10 minute expiration
     for (const newData of newSensorData) {
         const newDataDate = new Date(newData.messageDate + ' UTC');
@@ -1797,6 +1798,7 @@ function addSensorData(newSensorData, currentSensorData, minutes = 10) {
         }
         for (let i = 0; i < currentSensorData.length; i++) {
             if (newData.sensorID === currentSensorData[i].sensorID) {
+                heartbeat = new Date(newData.messageDate) - new Date(currentSensorData[i].messageDate);
                 currentSensorData.splice(i, 1);
             }
         }
@@ -1805,6 +1807,7 @@ function addSensorData(newSensorData, currentSensorData, minutes = 10) {
             dataType: newData.dataType,
             dataValue: newData.dataValue,
             messageDate: newData.messageDate,
+            heartbeat: heartbeat,
         }
         currentSensorData.push(finalData);
     }
