@@ -67,10 +67,9 @@ function Metrics() {
 						}
 					}
 					let spanClass;
-					const daysLeft = (dueDate - today) / 1000 / 60 / 60 / 24
-					if (daysLeft < 0) {
+					if (today > dueDate) {
 						spanClass = styles.red;
-					} else if (daysLeft > 3) {
+					} else if (addWorkDays(new Date(), 3) < dueDate) {
 						spanClass = styles.green;
 					} else {
 						spanClass = styles.yellow;
