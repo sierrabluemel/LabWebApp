@@ -713,6 +713,22 @@ app.get('/api/get-sensors', (req, res) => {
     })
 });
 
+
+app.get('/api/get-active-sensors', (req, res) => {
+    const query = `SELECT * FROM api_sensor
+                   INNER JOIN api_batch ON api_batch.batch_id = api_sensor.batch_id
+                   INNER JOIN api_order ON api_order.order_id = api_batch.order_id
+                   WHERE api_order.active = true;`
+
+    pool.query(query, (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Error executing query: ${err}` });
+        }
+        const sensors = result.rows;
+        res.json(sensors);
+    })
+});
+
 app.get('/api/get-readings', (req, res) => {
     const sensors = req.query.sensors;
     const sensorIds = sensors.split(',').map(sensor => parseInt(sensor.trim()));
@@ -730,7 +746,7 @@ app.get('/api/search', (req, res) => {
     const filterData = req.query.filter_data;
     const table = req.query.table;
 
-    const query =   `SELECT *, api_sensor.sensor_id FROM api_order
+    const query = `SELECT *, api_sensor.sensor_id FROM api_order
                     FULL JOIN api_batch ON api_order.order_id = api_batch.order_id
                     FULL JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
                     LEFT JOIN api_certificate ON api_sensor.sensor_id = api_certificate.sensor_id
@@ -738,7 +754,7 @@ app.get('/api/search', (req, res) => {
                     FULL JOIN api_interaction_log ON api_batch.batch_id = api_interaction_log.batch_id
                     WHERE ${table} = $1
                     ORDER BY api_batch.batch_id DESC;`
-    
+
     pool.query(query, [filterData], (err, result) => {
         if (err) {
             return res.status(500).json({ error: `Error getting data: ${err}` });
@@ -749,10 +765,10 @@ app.get('/api/search', (req, res) => {
 });
 
 app.get('/api/search-data', (req, res) => {
-    const query =   `SELECT api_batch.batch_id, api_order.order_id, api_order.customer_order_number, api_sensor.sensor_id FROM api_order
+    const query = `SELECT api_batch.batch_id, api_order.order_id, api_order.customer_order_number, api_sensor.sensor_id FROM api_order
                     FULL JOIN api_batch ON api_order.order_id = api_batch.order_id
                     FULL JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id;`
-    
+
     pool.query(query, (err, result) => {
         if (err) {
             return res.status(500).json({ error: `Error getting data: ${err}` });

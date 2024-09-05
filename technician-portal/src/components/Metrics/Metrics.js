@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-loop-func */
 import React, { useState, useEffect, useRef } from 'react';
 import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
@@ -6,175 +8,265 @@ import styles from "../../styles/styles.module.css";
 import callApi from '../../utils/api/callApi';
 
 Chart.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ChartDataLabels
+	CategoryScale, LinearScale, BarElement,
+	Title, Tooltip, Legend, ChartDataLabels
 );
 
+export function addWorkDays(date, workDays) {
+	for (let i = 0; i < workDays; i++) {
+		date.setDate(date.getDate() + 1);
+		if (date.getDay() === 6) {
+			date.setDate(date.getDate() + 2); // Skip weekend
+		} else if (date.getDay() === 0) {
+			date.setDate(date.getDate() + 1);
+		}
+	}
 
-function parseDate(date) {
-  if (date.getMonth() > 12) {
-    return new Date(date.getFullYear() - 1, date.getMonth() - 12, 1);
-  } else if (date.getMonth() < 1) {
-    return new Date(date.getFullYear() - 1, date.getMonth() + 12, 1);
-  } else {
-    return date;
-  }
+	return date;
 }
 
 function Metrics() {
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June", "July",
-    "August", "September", "October", "November", "December"
-  ];
+	const today = new Date();
+	const [totalSensors, setTotalSensors] = useState([]);
+	const calibrationProcedures = useRef([]);
+	const [datasets, setDataSets] = useState([]);
+	const [totalDataSets, setTotalDataSets] = useState([]);
+	const [activeSensors, setActiveSensors] = useState(0);
+	const [nextOrderDue, setNextOrderDue] = useState(<></>);
+	const [bestMonth, setBestMonth] = useState('');
+	const [bestMonthTotal, setBestMonthTotal] = useState(0);
+	const [sensorsInReceiving, setSensorsInReceiving] = useState(0);
+	const [sensorsInShipping, setSensorsInShipping] = useState(0);
 
-  const today = new Date();
-  const [totalSensors, setTotalSensors] = useState([]);
-  const calibrationProcedures = useRef([]);
-  const [datasets, setDataSets] = useState([]);
-  const [totalDataSets, setTotalDataSets] = useState([]);
+	const monthNames = [
+		"January", "February", "March", "April", "May", "June", "July",
+		"August", "September", "October", "November", "December"
+	];
 
-  useEffect(() => {
-    const today = new Date()
+	useEffect(() => {
+		const today = new Date()
 
-    const fetchData = async () => {
-      const colors = ['#FF000095', '#0000FF95', '#FFFF0095', '#FF000095', '#FFFF0095', '#08afe695']
-      const promises = [];
-      calibrationProcedures.current = await callApi('get-calibration-procedures')
-      if (!Array.isArray(calibrationProcedures.current)) {
-        calibrationProcedures.current = [];
-      }
-      for (let i = 2; i >= 0; i--) {
-        const modifiedDate = new Date(today.getFullYear(), today.getMonth() - i, 1)
-        const startDate = parseDate(modifiedDate);
-        const promise = callApi('get-calibrations-by-month', { start_date: startDate })
-          .then(response => {
-            let calibrationProcedureTotals = []
-            for (const calibrationProcedure of calibrationProcedures.current) {
-              calibrationProcedureTotals.push(response.filter(calibrationList => calibrationList.calibration_procedure_id === calibrationProcedure.calibration_procedure_id).length)
-            }
-            calibrationProcedureTotals.push(response.length)
-            return calibrationProcedureTotals;
-          });
-        promises.push(promise);
-      }
-      const sensorsData = await Promise.all(promises);
+		const fetchData = async () => {
+			callApi('get-active-sensors')
+				.then(response => {
+					setActiveSensors(response.length);
+					let dueDate;
+					let orderDue;
+					let sensorsToTest = 0;
+					let sensorsToShip = 0;
+					for (const sensor of response) {
+						const sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
+						if (!dueDate || sensorDue < dueDate) {
+							dueDate = sensorDue;
+							orderDue = sensor.customer_order_number;
+							if (sensor.current_location.startsWith('R')) {
+								sensorsToTest += 1;
+							} else if (sensor.current_location.startsWith('S')) {
+								sensorsToShip += 1;
+							}
+						}
+					}
+					let spanClass;
+					const daysLeft = (dueDate - today) / 1000 / 60 / 60 / 24
+					if (daysLeft < 0) {
+						spanClass = styles.red;
+					} else if (daysLeft > 3) {
+						spanClass = styles.green;
+					} else {
+						spanClass = styles.yellow;
+					}
+					setNextOrderDue(
+						<>
+							<span className={`${spanClass}`}>
+								{dueDate.getMonth() + 1}/{dueDate.getDate()}/{dueDate.getFullYear()}
+							</span>
+							({orderDue})
+						</>
+					);
+					setSensorsInReceiving(sensorsToTest);
+					setSensorsInShipping(sensorsToShip);
+				})
 
-      const newDatasets = [];
-      for (let i = 0; i < sensorsData[0].length; i++) {
-        if (i === sensorsData[0].length - 1) {
-          setTotalDataSets([{
-            label: 'Total sensors',
-            data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i]],
-            backgroundColor: colors[i],
-            borderColor: '#333',
-            borderWidth: 1,
-            hoverBorderWidth: 2,
-            borderRadius: 2,
-          }])
-        } else {
-          newDatasets.push(
-            {
-              label: `CP ${i + 1}: ${calibrationProcedures.current[i].calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`,
-              data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i]],
-              backgroundColor: colors[i],
-              borderColor: '#333',
-              borderWidth: 1,
-              hoverBorderWidth: 2,
-              borderRadius: 2,
-            }
-          )
-        }
-      }
-      setDataSets(newDatasets);
-      setTotalSensors(sensorsData);
-    };
+			const colors = ['#FF000095', '#0000FF95', '#FFFF0095', '#FF000095', '#FFFF0095', '#08afe695']
+			const promises = [];
+			calibrationProcedures.current = await callApi('get-calibration-procedures')
+			if (!Array.isArray(calibrationProcedures.current)) {
+				calibrationProcedures.current = [];
+			}
+			let topMonth;
+			let topMonthTotal;
+			for (let i = 5; i >= 0; i--) {
+				const startDate = new Date(today.getFullYear(), today.getMonth() - i, 1)
+				const promise = callApi('get-calibrations-by-month', { start_date: startDate })
+					.then(response => {
+						if (!topMonthTotal || topMonthTotal < response.length) {
+							topMonthTotal = response.length;
+							topMonth = monthNames[today.getMonth() - i];
+						}
+						let calibrationProcedureTotals = []
+						for (const calibrationProcedure of calibrationProcedures.current) {
+							calibrationProcedureTotals.push(response.filter(calibrationList => calibrationList.calibration_procedure_id === calibrationProcedure.calibration_procedure_id).length)
+						}
+						calibrationProcedureTotals.push(response.length)
+						return calibrationProcedureTotals;
+					});
+				promises.push(promise);
+			}
+			const sensorsData = await Promise.all(promises);
 
-    if (totalSensors.length === 0) {
-      fetchData();
-    }
-  }, [datasets, totalSensors]);
+			setBestMonth(topMonth);
+			setBestMonthTotal(topMonthTotal)
 
-  const byProcedureOptions = {
-    responsive: true,
-    plugins: {
-      datalabels: {
-        anchor: 'end',
-        align: 'top',
-        offset: -5,
-        formatter: function(value) {
-          return value > 0 ? value : ''
-        },
-      },
-      legend: {
-        display: false,
-      },
-      title: {
-        display: true,
-        text: 'Sensors Calibrated By Procedure',
-      },
-    },
-  };
+			const newDatasets = [];
+			for (let i = 0; i < sensorsData[0].length; i++) {
+				if (i === sensorsData[0].length - 1) {
+					setTotalDataSets([{
+						label: 'Total sensors',
+						data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i], sensorsData[3][i], sensorsData[4][i], sensorsData[5][i]],
+						backgroundColor: colors[i],
+						borderColor: '#333',
+						borderWidth: 1,
+						hoverBorderWidth: 2,
+						borderRadius: 2,
+					}])
+				} else {
+					newDatasets.push(
+						{
+							label: `CP ${i + 1}: ${calibrationProcedures.current[i].calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`,
+							data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i], sensorsData[3][i], sensorsData[4][i], sensorsData[5][i]],
+							backgroundColor: colors[i],
+							borderColor: '#333',
+							borderWidth: 1,
+							hoverBorderWidth: 2,
+							borderRadius: 2,
+						}
+					)
+				}
+			}
+			setDataSets(newDatasets);
+			setTotalSensors(sensorsData);
+		};
 
-  const totalOptions = {
-    responsive: true,
-    plugins: {
-      datalabels: {
-        anchor: 'end',
-        align: 'top',
-        offset: -5,
-        formatter: function(value) {
-          return value > 0 ? value : ''
-        },
-      },
-      legend: {
-        display: false,
-      },
-      title: {
-        display: true,
-        text: 'Total Sensors Calibrated',
-      },
-    },
-  };
+		if (totalSensors.length === 0) {
+			fetchData();
+		}
+	}, [datasets, monthNames, totalSensors]);
 
-  const labels = [monthNames[parseDate(new Date(today.getFullYear(), today.getMonth() - 2), 1).getMonth()], monthNames[parseDate(new Date(today.getFullYear(), today.getMonth() - 1), 1).getMonth()], monthNames[parseDate(new Date(today.getFullYear(), today.getMonth()), 1).getMonth()]];
-  const byProcedureData = {
-    labels,
-    datasets: datasets,
-  };
+	const byProcedureOptions = {
+		responsive: true,
+		maintainAspectRatio: false,
+		plugins: {
+			datalabels: {
+				anchor: 'end',
+				align: 'top',
+				offset: -5,
+				formatter: function (value) {
+					return value > 0 ? value : ''
+				},
+			},
+			legend: {
+				display: false,
+			},
+			title: {
+				display: true,
+				text: 'Sensors Calibrated By Procedure',
+			},
+		},
+	};
 
-  const totalData = {
-    labels,
-    datasets: totalDataSets,
-  };
-  if (totalDataSets.length === 0) {
-    return (
-      <>
-        <br />
-        <br />
-        <h1 className={styles.title}>Loading...</h1>
-      </>
-    )
-  }
+	const totalOptions = JSON.parse(JSON.stringify(byProcedureOptions)); // Deep copy byProcedureOptions
 
-  return (
-    <div data-testid='graphs'>
-      <script src="chartjs-plugin-datalabels.js"></script>
-      <br />
-      <div className={styles.graph_grid}>
-        <div className={styles.graph}>
-          <Bar options={byProcedureOptions} data={byProcedureData} />
-        </div>
-        <div className={styles.graph}>
-          <Bar options={totalOptions} data={totalData} />
-        </div>
-      </div>
-    </div>
-  );
+	totalOptions.plugins.title.text = 'Total Sensors Calibrated';
+
+	const labels = [
+		monthNames[new Date(today.getFullYear(), today.getMonth() - 5, 1).getMonth()],
+		monthNames[new Date(today.getFullYear(), today.getMonth() - 4, 1).getMonth()],
+		monthNames[new Date(today.getFullYear(), today.getMonth() - 3, 1).getMonth()],
+		monthNames[new Date(today.getFullYear(), today.getMonth() - 2, 1).getMonth()],
+		monthNames[new Date(today.getFullYear(), today.getMonth() - 1, 1).getMonth()],
+		monthNames[new Date(today.getFullYear(), today.getMonth(), 1).getMonth()]
+	]
+
+	const byProcedure6MonthData = {
+		labels,
+		datasets: datasets,
+	}
+
+	const total6MonthData = {
+		labels,
+		datasets: totalDataSets,
+	}
+
+	if (totalDataSets.length === 0) {
+		return (
+			<>
+				<br />
+				<br />
+				<h1 className={styles.title}>Loading...</h1>
+			</>
+		)
+	}
+
+	return (
+		<div data-testid='graphs'>
+			<script src="chartjs-plugin-datalabels.js"></script>
+			<div className={styles.graph_grid}>
+				<div className={styles.metrics_header}>
+					<div className={styles.metrics_text_grid}>
+
+						<h3 className={styles.default_text}>
+							<div className={styles.metrics_text_container}>
+								<div className={styles.float_left}>Top sensors:</div>
+								<div className={styles.float_right}>{bestMonthTotal}</div>
+							</div>
+						</h3>
+
+						<h3 className={styles.default_text}>
+							<div className={styles.metrics_text_container}>
+								<div className={styles.float_left}>Best month:</div>
+								<div className={styles.float_right}>{bestMonth}</div>
+							</div>
+						</h3>
+
+						<h3 className={styles.default_text}>
+							<div className={styles.metrics_text_container}>
+								<div className={styles.float_left}>Next order due:</div>
+								<div className={styles.float_right}>{nextOrderDue}</div>
+							</div>
+						</h3>
+
+						<h3 className={styles.default_text}>
+							<div className={styles.metrics_text_container}>
+								<div className={styles.float_left}>Sensors in lab:</div>
+								<div className={styles.float_right}>{activeSensors}</div>
+							</div>
+						</h3>
+
+						<h3 className={styles.default_text}>
+							<div className={styles.metrics_text_container}>
+								<div className={styles.float_left}>Sensors ready to test:</div>
+								<div className={styles.float_right}>{sensorsInReceiving}</div>
+							</div>
+						</h3>
+
+						<h3 className={styles.default_text}>
+							<div className={styles.metrics_text_container}>
+								<div className={styles.float_left}>Sensors ready to ship:</div>
+								<div className={styles.float_right}>{sensorsInShipping}</div>
+							</div>
+						</h3>
+
+					</div>
+				</div>
+				<div className={styles.graph_tile}>
+					<Bar options={byProcedureOptions} data={byProcedure6MonthData} />
+				</div>
+				<div className={styles.graph_tile}>
+					<Bar options={totalOptions} data={total6MonthData} />
+				</div>
+			</div>
+		</div>
+	);
 }
 
 export default Metrics;

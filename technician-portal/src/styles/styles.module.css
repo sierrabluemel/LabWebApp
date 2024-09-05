@@ -793,12 +793,43 @@
     margin: 5px 0;
 }
 
-.graph {
-    width: auto;
+.float_left {
+    float: left;
+}
+
+.float_right {
+    float: right;
+}
+
+.metrics_text_container {
+    margin: 0 20px;
+    border-top: #333 4px solid;
+}
+
+.metrics_text_grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.metrics_header {
+    background-color: #f3f3f3;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    grid-column: span 2;
+}
+
+.due_date {
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.graph_tile {
+    position: relative;
     background-color: #f3f3f3;
     border-radius: 5px;
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    height: 400px;
 }
 
 .graph_grid {
