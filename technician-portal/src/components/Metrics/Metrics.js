@@ -216,15 +216,8 @@ function Metrics() {
 
 						<h3 className={styles.default_text}>
 							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Top sensors:</div>
-								<div className={styles.float_right}>{bestMonthTotal}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
 								<div className={styles.float_left}>Best month:</div>
-								<div className={styles.float_right}>{bestMonth}</div>
+								<div className={styles.float_right}>{bestMonth} ({bestMonthTotal})</div>
 							</div>
 						</h3>
 
@@ -244,8 +237,15 @@ function Metrics() {
 
 						<h3 className={styles.default_text}>
 							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors ready to test:</div>
+								<div className={styles.float_left}>Sensors ready to calibrate:</div>
 								<div className={styles.float_right}>{sensorsInReceiving}</div>
+							</div>
+						</h3>
+
+						<h3 className={styles.default_text}>
+							<div className={styles.metrics_text_container}>
+								<div className={styles.float_left}>Sensors in progress:</div>
+								<div className={styles.float_right}>{activeSensors - sensorsInReceiving - sensorsInShipping || 0}</div>
 							</div>
 						</h3>
 
