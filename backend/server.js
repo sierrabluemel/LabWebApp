@@ -1637,7 +1637,7 @@ async function printPdf(pdfBytes) {
         function (error, response, body) {
             if (response) {
                 if (!response.body || response.body !== 'Printed PDF successfully' || error) {
-                    console.log('Error printing pdf: ', error ? error : 'No error code')
+                    console.error('Error printing pdf: ', error ? error : 'No error code')
                 }
             }
         }
@@ -1805,6 +1805,7 @@ async function sendMailVerification(type, payload) {
 function addSensorData(newSensorData, currentSensorData, minutes = 10) {
     const now = new Date();
     const dataExpirationTime = 1000 * 60 * minutes // Milliseconds * seconds * minutes = 10 minute expiration
+    sensorData:
     for (const newData of newSensorData) {
         const newDataDate = new Date(newData.messageDate + ' UTC');
         const timeDifference = Math.abs(now - newDataDate);
@@ -1814,7 +1815,7 @@ function addSensorData(newSensorData, currentSensorData, minutes = 10) {
         for (let i = 0; i < currentSensorData.length; i++) {
             if (newData.sensorID === currentSensorData[i].sensorID) {
                 if (newDataDate - new Date(currentSensorData[i].messageDate + ' UTC') < 0) {
-                    break; // Reject messages that are older than the current message
+                    continue sensorData; // Reject messages that are older than the current message
                 }
                 currentSensorData.splice(i, 1);
             }
