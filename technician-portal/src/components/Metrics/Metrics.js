@@ -55,15 +55,15 @@ function Metrics() {
 					let sensorsToTest = 0;
 					let sensorsToShip = 0;
 					for (const sensor of response) {
+						if (sensor.current_location.startsWith('R')) {
+							sensorsToTest += 1;
+						} else if (sensor.current_location.startsWith('S')) {
+							sensorsToShip += 1;
+						}
 						const sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
 						if (!dueDate || sensorDue < dueDate) {
 							dueDate = sensorDue;
 							orderDue = sensor.customer_order_number;
-							if (sensor.current_location.startsWith('R')) {
-								sensorsToTest += 1;
-							} else if (sensor.current_location.startsWith('S')) {
-								sensorsToShip += 1;
-							}
 						}
 					}
 					let spanClass;
