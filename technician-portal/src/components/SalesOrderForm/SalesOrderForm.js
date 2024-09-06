@@ -102,7 +102,7 @@ function SalesOrderForm() {
     return (
         <div className={styles.menu}>
             <div className={styles.grid_menu}>
-                <h1 className={styles.title}>{`Sales Order: ${order}`}</h1>
+                <h1 className={styles.title}>{salesOrder}</h1>
                     {CUSTOMER_INPUTS.map((inputItem, index) =>
                         <input
                             key={index + inputItem.placeholder}

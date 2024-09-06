@@ -860,6 +860,7 @@ app.get('/api/create-order', (req, res) => {
     let timestamp = req.query.received_timestamp;
     let customerOrderNumber = req.query.customer_order_number;
     let customerId = req.query.customer_id;
+    let expedited = req.query.expedited;
 
     if (!timestamp) {
         timestamp = new Date().toISOString();
@@ -868,7 +869,7 @@ app.get('/api/create-order', (req, res) => {
         customerId = 1;
     }
 
-    pool.query("INSERT INTO api_order (received_timestamp, customer_order_number, customer_id) VALUES ($1, $2, $3) RETURNING *", [timestamp, customerOrderNumber, customerId], (err, result) => {
+    pool.query("INSERT INTO api_order (received_timestamp, customer_order_number, customer_id, expedited) VALUES ($1, $2, $3, $4) RETURNING *", [timestamp, customerOrderNumber, customerId, expedited], (err, result) => {
         if (err) {
             return res.status(500).json({ error: `Error executing query: ${err}` });
         }

@@ -4,20 +4,22 @@ import { useAppContext } from "../../contexts/app";
 import callApi from "../../utils/api/callApi";
 
 import styles from "../../styles/styles.module.css";
+import { useState } from "react";
 
 function Receiving() {
     const navigate = useNavigate();
     const { salesOrder, setSalesOrder, setOrder } = useAppContext()
+    const [expedited, setExpedited] = useState(false)
 
     const handleSubmit = (event) => {
         event.preventDefault();
         callApi('create-order', {
-            'customer_id': 1,
-            'customer_order_number': salesOrder
+            customer_id: 1,
+            customer_order_number: salesOrder,
+            expedited: expedited
         })
             .then(response => {
-                const tempOrder = response[0]['order_id'];
-                setOrder(tempOrder);
+                setOrder(response[0].order_id);
                 navigate('/createSalesOrder');
             })
     }
@@ -29,8 +31,14 @@ function Receiving() {
     return (
         <div className={styles.menu}>
             <form onSubmit={handleSubmit}>
-                <input type='text' value={salesOrder} onChange={handleChange} className={styles.default_text_box} placeholder={'Sales Order'} />
-                <button type='submit' className={styles.default_button}>Submit</button>
+                <div className={styles.order_entry}>
+                    <label className={`${styles.check_box_container}`}>
+                        <input className={styles.grid_check_box} type="checkbox" onChange={() => setExpedited(!expedited)} checked={expedited} />
+                        <span className={styles.expedite_text}>Expedited</span>
+                    </label>
+                    <input type='text' value={salesOrder} onChange={handleChange} className={styles.default_text_box} placeholder={'Sales Order'} />
+                    <button type='submit' className={styles.default_button}>Submit</button>
+                </div>
             </form>
         </div>
     );
