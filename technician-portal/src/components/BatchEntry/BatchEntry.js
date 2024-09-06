@@ -62,15 +62,16 @@ function BatchEntry() {
                     getBatchSensors(response)
                         .then(response => {
                             const batchList = []
-                            const orders = [...new Set(response.map(batch => batch.order_id))].sort((a, b) => a - b)
+                            const orders = response.filter((batch, index, self) => index === self.findIndex(b => b.order_id === batch.order_id)).sort((a, b) => a.order_id - b.order_id)
 
                             for (const order of orders) {
-                                const batches = [...new Set(response.filter(batch => batch.order_id === order))].sort((a, b) => a.batch_id - b.batch_id);
+                                console.log(order.expedited)
+                                const batches = [...new Set(response.filter(batch => batch.order_id === order.order_id))].sort((a, b) => a.batch_id - b.batch_id);
                                 const receivedDate = parseDataBaseDate(batches[0].received_timestamp);
                                 batchList.push(
                                     <div key={orders.indexOf(order)}>
                                         <hr />
-                                        <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order} | ${receivedDate}`}</h1>
+                                        <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h1>
                                         {batches.map((batch, index) => {
                                             return <BatchDisplay batch={batch} handleButtonClick={handleButtonClick} key={index} />
                                         })}
@@ -136,8 +137,6 @@ function BatchDisplay({ batch, handleButtonClick }) {
             </button>
         </>
     )
-
-
 }
 
 export default BatchEntry;
