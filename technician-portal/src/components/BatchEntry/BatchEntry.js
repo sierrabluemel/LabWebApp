@@ -65,7 +65,6 @@ function BatchEntry() {
                             const orders = response.filter((batch, index, self) => index === self.findIndex(b => b.order_id === batch.order_id)).sort((a, b) => a.order_id - b.order_id)
 
                             for (const order of orders) {
-                                console.log(order.expedited)
                                 const batches = [...new Set(response.filter(batch => batch.order_id === order.order_id))].sort((a, b) => a.batch_id - b.batch_id);
                                 const receivedDate = parseDataBaseDate(batches[0].received_timestamp);
                                 batchList.push(

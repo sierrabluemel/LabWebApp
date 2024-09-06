@@ -60,7 +60,10 @@ function Metrics() {
 						} else if (sensor.current_location.startsWith('S')) {
 							sensorsToShip += 1;
 						}
-						const sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
+						let sensorDue;
+						sensor.expedited ? sensorDue = addWorkDays(new Date(sensor.received_timestamp), 2) :
+						sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
+
 						if (!dueDate || sensorDue < dueDate) {
 							dueDate = sensorDue;
 							orderDue = sensor.customer_order_number;
