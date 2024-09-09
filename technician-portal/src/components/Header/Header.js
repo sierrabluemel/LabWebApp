@@ -1,4 +1,4 @@
-import { React, useEffect } from 'react';
+import { React, useEffect, useRef } from 'react';
 import styles from '../../styles/styles.module.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from "../../contexts/app";
@@ -7,15 +7,24 @@ function Header({ title }) {
   let location = useLocation();
   let navigate = useNavigate();
   const { technician, setTechnician, setTechnicianId } = useAppContext();
+  const isMounted = useRef(false)
 
   useEffect(() => {
-    if (!technician.technician_id && location.pathname !== '/signIn') {
-      navigate('/signIn')
+    const user = JSON.parse(localStorage.getItem('user'))
+    if (!user && location.pathname !== '/signIn') {
+      navigate('/signIn');
+    } else if (isMounted.current === false && user) {
+      setTechnician(user);
+      setTechnicianId(1);
+      isMounted.current = true;
+      navigate(location.pathname);
     }
   })
+
   const handleSubmit = () => {
     setTechnician({});
     setTechnicianId(0);
+    localStorage.clear('user')
     navigate('/signIn')
   }
   return (

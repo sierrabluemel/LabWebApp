@@ -94,7 +94,7 @@ app.post("/api/auth/sign-in", async (req, res) => {
     const result = await pool.query('SELECT * FROM "user" WHERE email = $1', [
         email,
     ]);
-    const user = result.rows[0];
+    let user = result.rows[0];
     if (!user) {
         return res.status(404).json({ error: `User not found` });
     }
@@ -116,8 +116,12 @@ app.post("/api/auth/sign-in", async (req, res) => {
         user,
         process.env.JWT_SECRET_KEY
     );
-    res.setHeader("access-token", accessToken);
-    res.setHeader("refresh-token", refreshToken);
+
+    user = {
+        ...user,
+        'access-token': accessToken,
+    }
+
     res.status(200).json(user);
 });
 

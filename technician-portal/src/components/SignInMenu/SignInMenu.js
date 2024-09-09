@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import styles from "../../styles/styles.module.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppContext } from "../../contexts/app";
 import axios from "axios";
 import ip from "../../utils/ip/ip";
@@ -51,19 +52,7 @@ function SignInMenu() {
         }
       });
 
-      localStorage.setItem('token', response?.headers['access-token'])
-      callApi('lookup-technician', { technician: response.data })
-        .then(technician => {
-          technician = technician[0]
-          if (technician?.technician_id) {
-            setTechnicianId(technician.technician_id);
-            setTechnician(technician);
-            navigate('/');
-          } else {
-            setPopupMessage('It looks like there is no technician profile connected with that account. If you believe this is an error, please contact your manager.')
-          }
-        })
-
+      login(response.data);
     } catch (error) {
       const errorMessageRaw = error.response
       const errorMessage = errorMessageRaw?.data.error
@@ -71,6 +60,30 @@ function SignInMenu() {
       setPopupMessage(errorMessage);
     }
   }
+
+  function login(userObject) {
+    callApi('lookup-technician', { technician: userObject })
+      .then(technician => {
+        technician = technician[0]
+        if (technician?.technician_id) {
+          setTechnicianId(technician.technician_id);
+          setTechnician(technician);
+          localStorage.setItem('user', JSON.stringify(technician))
+          navigate('/');
+        } else {
+          setPopupMessage('It looks like there is no technician profile connected with that account. If you believe this is an error, please contact your manager.')
+        }
+      })
+  }
+
+  useEffect(() => {
+    const loggedInUser = localStorage.getItem('user');
+    if (loggedInUser) {
+      const foundUser = JSON.parse(loggedInUser);
+      login(foundUser)
+    }
+  }, [login, navigate]);
+
   return (
     <div className={styles.sign_in_menu}>
       <div className={styles.menu}>
