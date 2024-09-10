@@ -125,7 +125,7 @@ function Metrics() {
 					setTotalDataSets([{
 						label: 'Total sensors',
 						data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i], sensorsData[3][i], sensorsData[4][i], sensorsData[5][i]],
-						backgroundColor: colors[i],
+						backgroundColor: colors[5],
 						borderColor: '#333',
 						borderWidth: 1,
 						hoverBorderWidth: 2,
