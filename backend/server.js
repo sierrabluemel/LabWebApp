@@ -49,8 +49,8 @@ const rollingDataPool = new Pool(JSON.parse(process.env.ROLLING_DATA_CONNECTION)
 let currentSensorData = [];
 
 // Check database connection
-pool.connect((err, client, release) => {
-    if (err) {
+pool.connect((error, client, release) => {
+    if (error) {
         return console.error('Error connecting to database', err.stack);
     }
     console.log('Connected to database!');
@@ -161,12 +161,14 @@ app.post("/api/auth/sign-up", async (req, res) => {
                 token,
             });
         } catch (error) {
+            console.error(error);
             return res.status(500).json(error);
         }
 
         delete user.password;
         return res.status(201).json(user);
     } catch (error) {
+        console.error(error);
         return res.status(500).json(error);
     }
 });
@@ -207,6 +209,7 @@ app.post("/api/auth/resend-verify-email", async (req, res) => {
             token,
         });
     } catch (error) {
+        console.error(error);
         return res.status(500).json(error);
     }
     return res.status(200).json({
@@ -241,6 +244,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
             token,
         });
     } catch (error) {
+        console.error(error);
         return res.status(500).json(error);
     }
     return res.status(200).json({
@@ -275,6 +279,7 @@ app.post("/api/auth/resend-forgot-password-email", async (req, res) => {
             token,
         });
     } catch (error) {
+        console.error(error);
         return res.status(500).json(error);
     }
     return res.status(200).json({
@@ -308,6 +313,7 @@ app.post("/api/auth/verify-reset-password", async (req, res) => {
         delete userUpdated.password;
         return res.status(200).json(userUpdated);
     } catch (error) {
+        console.error(error);
         return res.status(500).json(error);
     }
 });
@@ -347,7 +353,7 @@ app.get("/api/request-quotes", auth, async (req, res) => {
 app.post("/api/request-quotes", auth, async (req, res) => {
     const { user } = req;
     const { name, email, phone, company, address1, address2, items } = req.body;
-    pool.connect(async (err, client, release) => {
+    pool.connect(async (error, client, release) => {
         try {
             await client.query("BEGIN");
             const result = await pool.query(
@@ -379,6 +385,7 @@ app.post("/api/request-quotes", auth, async (req, res) => {
                 .status(201)
                 .json({ ...requestQuoteCreated, requestQuoteItems: itemsCreated.rows });
         } catch (error) {
+            console.error(error);
             await client.query("ROLLBACK");
             return res.status(500).send(error);
         } finally {
@@ -388,9 +395,10 @@ app.post("/api/request-quotes", auth, async (req, res) => {
 });
 
 app.get('/api/get-recent-data', (req, res) => {
-    rollingDataPool.query('SELECT * FROM rolling_data ORDER BY timestamp DESC LIMIT 1', (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    rollingDataPool.query('SELECT * FROM rolling_data ORDER BY timestamp DESC LIMIT 1', (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const data = result.rows;
         res.json(data);
@@ -417,9 +425,10 @@ app.get('/api/get-calibrations-by-month', (req, res) => {
                 ON api_batch.batch_id = api_interaction_log.batch_id
                 WHERE shipping_end > $1
                 AND shipping_end < $2
-                AND api_sensor.certificate_id IS NOT NULL`, [startDate, endDate], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+                AND api_sensor.certificate_id IS NOT NULL`, [startDate, endDate], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const data = result.rows;
         res.json(data);
@@ -429,6 +438,7 @@ app.get('/api/get-calibrations-by-month', (req, res) => {
 app.get('/api/get-online-sensors', (req, res) => {
     rollingDataPool.query('SELECT monnit_sensor_data FROM rolling_data ORDER BY timestamp DESC LIMIT 1', (error, result) => {
         if (error) {
+            console.error(error);
             return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const data = result.rows[0].monnit_sensor_data;
@@ -447,9 +457,10 @@ app.get('/api/get-bulk-data', (req, res) => {
     }
     const start = new Date(Date.now() - minutes * 60000);
 
-    rollingDataPool.query('SELECT * FROM rolling_data WHERE timestamp >= $1 ORDER BY timestamp DESC', [start], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    rollingDataPool.query('SELECT * FROM rolling_data WHERE timestamp >= $1 ORDER BY timestamp DESC', [start], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const data = result.rows;
         res.json(data);
@@ -473,9 +484,10 @@ app.get('/api/get-last-humidity-stable-reading', (req, res) => {
     }
     const start = new Date(Date.now() - minutes * 60000);
 
-    rollingDataPool.query(`SELECT rotronic_data, timestamp FROM rolling_data WHERE timestamp >= $1 ORDER BY timestamp DESC`, [start], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    rollingDataPool.query(`SELECT rotronic_data, timestamp FROM rolling_data WHERE timestamp >= $1 ORDER BY timestamp DESC`, [start], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         let data = [];
         for (const row of result.rows) {
@@ -513,9 +525,10 @@ app.get('/api/get-last-temperature-stable-reading', (req, res) => {
         setPoint = parseInt(setPoint);
     }
     const start = new Date(Date.now() - minutes * 60000);
-    rollingDataPool.query(`SELECT super_daq_data, timestamp FROM rolling_data WHERE timestamp >= $1 ORDER BY timestamp DESC`, [start], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    rollingDataPool.query(`SELECT super_daq_data, timestamp FROM rolling_data WHERE timestamp >= $1 ORDER BY timestamp DESC`, [start], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         for (const row of result.rows) {
             const reference_data = row.super_daq_data[reference];
@@ -545,9 +558,10 @@ app.get('/api/get-humidity-reading-range', (req, res) => {
     const start = new Date(timestamp - (seconds * 1000));
     const end = new Date(start.getTime() - (seconds * 1000));
 
-    rollingDataPool.query(`SELECT timestamp, devices_under_test, rotronic_data FROM rolling_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`, [end, start], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    rollingDataPool.query(`SELECT timestamp, devices_under_test, rotronic_data FROM rolling_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`, [end, start], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const data = result.rows;
         res.json(data);
@@ -568,9 +582,10 @@ app.get('/api/get-temperature-reading-range', (req, res) => {
     const start = new Date(timestamp - (seconds * 1000));
     const end = new Date(start.getTime() - (seconds * 1000));
 
-    rollingDataPool.query(`SELECT timestamp, devices_under_test, super_daq_data FROM rolling_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`, [end, start], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    rollingDataPool.query(`SELECT timestamp, devices_under_test, super_daq_data FROM rolling_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`, [end, start], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const data = result.rows;
         res.json(data);
@@ -581,9 +596,10 @@ app.get('/api/get-temperature-reading-range', (req, res) => {
 app.get('/api/get-order-by-id', (req, res) => {
     const orderId = req.query.order_id;
 
-    pool.query('SELECT * FROM api_order WHERE order_id = $1', [orderId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_order WHERE order_id = $1', [orderId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const orders = result.rows;
         res.json(orders[0]);
@@ -602,9 +618,10 @@ app.get('/api/get-orders-to-ship', (req, res) => {
             WHERE api_batch.order_id = api_order.order_id
             AND api_batch.active = true
         )
-    `, (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    `, (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const orders = result.rows;
         res.json(orders);
@@ -618,9 +635,10 @@ app.get('/api/get-orders-boxed', (req, res) => {
                 ON api_order.order_id = api_batch.order_id
                 INNER JOIN api_sensor
                 ON api_sensor.batch_id = api_batch.batch_id
-                WHERE api_order.shipped = false AND api_order.active = false`, (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+                WHERE api_order.shipped = false AND api_order.active = false`, (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const orders = result.rows;
         const orderNumbers = new Set(orders.map(order => order.order_id))
@@ -641,9 +659,10 @@ app.get('/api/set-order-shipped', (req, res) => {
     const name = req.query.name;
     const timestamp = new Date().toISOString()
 
-    pool.query('UPDATE api_order SET shipped = true, shipped_timestamp = $1, courier = $2 WHERE order_id = $3 RETURNING *', [timestamp, name, orderId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('UPDATE api_order SET shipped = true, shipped_timestamp = $1, courier = $2 WHERE order_id = $3 RETURNING *', [timestamp, name, orderId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const order = result.rows;
         res.json(order[0]);
@@ -654,9 +673,10 @@ app.get('/api/set-order-shipped', (req, res) => {
 app.get('/api/get-batch-by-id', (req, res) => {
     const batchId = req.query.batch_id;
 
-    pool.query('SELECT * FROM api_batch WHERE batch_id = $1', [batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_batch WHERE batch_id = $1', [batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const batches = result.rows;
         res.json(batches[0]);
@@ -666,9 +686,10 @@ app.get('/api/get-batch-by-id', (req, res) => {
 app.get('/api/get-batches-by-order-id', (req, res) => {
     const orderId = req.query.order_id;
 
-    pool.query(`SELECT * FROM api_order INNER JOIN api_batch ON api_order.order_id = $1 WHERE api_batch.order_id = $1;`, [orderId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query(`SELECT * FROM api_order INNER JOIN api_batch ON api_order.order_id = $1 WHERE api_batch.order_id = $1;`, [orderId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const batches = result.rows;
         res.json(batches);
@@ -676,9 +697,10 @@ app.get('/api/get-batches-by-order-id', (req, res) => {
 });
 
 app.get('/api/get-batches', (req, res) => {
-    pool.query('SELECT * FROM api_batch ORDER BY batch_id', (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_batch ORDER BY batch_id', (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const batches = result.rows;
         res.json(batches);
@@ -689,9 +711,10 @@ app.get('/api/get-batches-by-active-state', (req, res) => {
     const active = req.query.active;
 
 
-    pool.query('SELECT * FROM api_batch INNER JOIN api_order ON api_batch.order_id = api_order.order_id WHERE api_batch.active=$1 ORDER BY batch_id DESC', [active], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_batch INNER JOIN api_order ON api_batch.order_id = api_order.order_id WHERE api_batch.active=$1 ORDER BY batch_id DESC', [active], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         let batches = result.rows;
         res.json(batches);
@@ -708,9 +731,10 @@ app.get('/api/get-sensors', (req, res) => {
     } else {
         query = `SELECT * FROM api_sensor WHERE batch_id = ${batchId}`
     }
-    pool.query(query, (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query(query, (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const batches = result.rows;
         res.json(batches);
@@ -724,9 +748,10 @@ app.get('/api/get-active-sensors', (req, res) => {
                    INNER JOIN api_order ON api_order.order_id = api_batch.order_id
                    WHERE api_order.active = true;`
 
-    pool.query(query, (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query(query, (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const sensors = result.rows;
         res.json(sensors);
@@ -737,9 +762,10 @@ app.get('/api/get-readings', (req, res) => {
     const sensors = req.query.sensors;
     const sensorIds = sensors.split(',').map(sensor => parseInt(sensor.trim()));
 
-    pool.query('SELECT * FROM api_reading WHERE sensor_id = ANY($1::int[]) AND timestamp IS NOT NULL ORDER BY timestamp DESC', [sensorIds], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_reading WHERE sensor_id = ANY($1::int[]) AND timestamp IS NOT NULL ORDER BY timestamp DESC', [sensorIds], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const readings = result.rows;
         res.json(readings);
@@ -759,9 +785,10 @@ app.get('/api/search', (req, res) => {
                     WHERE ${table} = $1
                     ORDER BY api_batch.batch_id DESC;`
 
-    pool.query(query, [filterData], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error getting data: ${err}` });
+    pool.query(query, [filterData], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error getting data: ${error}` });
         }
         const data = result.rows;
         res.status(200).json(data);
@@ -773,9 +800,10 @@ app.get('/api/search-data', (req, res) => {
                     FULL JOIN api_batch ON api_order.order_id = api_batch.order_id
                     FULL JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id;`
 
-    pool.query(query, (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error getting data: ${err}` });
+    pool.query(query, (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error getting data: ${error}` });
         }
         const data = result.rows;
         res.status(200).json(data);
@@ -785,9 +813,10 @@ app.get('/api/search-data', (req, res) => {
 app.get('/api/get-readings-by-sensor-id', (req, res) => {
     const sensorId = req.query.sensor_id;
 
-    pool.query('SELECT * FROM api_reading WHERE sensor_id = $1 ORDER BY reading_id DESC', [sensorId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_reading WHERE sensor_id = $1 ORDER BY reading_id DESC', [sensorId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const readings = result.rows;
         res.json(readings);
@@ -797,9 +826,10 @@ app.get('/api/get-readings-by-sensor-id', (req, res) => {
 app.get('/api/get-customer-by-id', (req, res) => {
     const customerId = req.query.customer_id;
 
-    pool.query('SELECT * FROM api_customer WHERE customer_id = $1', [customerId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_customer WHERE customer_id = $1', [customerId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const customers = result.rows;
         res.json(customers[0]);
@@ -807,9 +837,10 @@ app.get('/api/get-customer-by-id', (req, res) => {
 });
 
 app.get('/api/get-equipment', (req, res) => {
-    pool.query('SELECT * FROM api_equipment ORDER BY equipment_id', (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_equipment ORDER BY equipment_id', (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const equipment = result.rows;
         res.json(equipment);
@@ -823,15 +854,17 @@ app.get('/api/set-generator', (req, res) => {
     const calibrationDate = new Date(req.query.calibration_date);
     const dueDate = new Date(req.query.due_date);
 
-    pool.query('UPDATE api_equipment SET reference_tag = $1 WHERE asset_tag = $2', [referenceTag, generatorTag], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error setting generator query: ${err}` });
+    pool.query('UPDATE api_equipment SET reference_tag = $1 WHERE asset_tag = $2', [referenceTag, generatorTag], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error setting generator query: ${error}` });
         }
     })
 
-    pool.query('UPDATE api_equipment SET calibration_certificate_number = $1, last_calibration = $2, next_calibration = $3 WHERE asset_tag = $4', [certificateNumber, calibrationDate, dueDate, referenceTag], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error setting reference query: ${err}` });
+    pool.query('UPDATE api_equipment SET calibration_certificate_number = $1, last_calibration = $2, next_calibration = $3 WHERE asset_tag = $4', [certificateNumber, calibrationDate, dueDate, referenceTag], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error setting reference query: ${error}` });
         }
         const equipment = result.rows;
         res.json(equipment);
@@ -839,9 +872,10 @@ app.get('/api/set-generator', (req, res) => {
 });
 
 app.get('/api/get-calibration-procedures', (req, res) => {
-    pool.query('SELECT * FROM api_calibration_procedure ORDER BY calibration_procedure_id', (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_calibration_procedure ORDER BY calibration_procedure_id', (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const procedures = result.rows;
         res.json(procedures);
@@ -851,9 +885,10 @@ app.get('/api/get-calibration-procedures', (req, res) => {
 app.get('/api/lookup-technician', (req, res) => {
     let technician = req.query.technician;
 
-    pool.query('SELECT * FROM api_technician WHERE user_id = $1', [technician.id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('SELECT * FROM api_technician WHERE user_id = $1', [technician.id], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const technician = result.rows;
         res.json(technician);
@@ -873,9 +908,10 @@ app.get('/api/create-order', (req, res) => {
         customerId = 1;
     }
 
-    pool.query("INSERT INTO api_order (received_timestamp, customer_order_number, customer_id, expedited) VALUES ($1, $2, $3, $4) RETURNING *", [timestamp, customerOrderNumber, customerId, expedited], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("INSERT INTO api_order (received_timestamp, customer_order_number, customer_id, expedited) VALUES ($1, $2, $3, $4) RETURNING *", [timestamp, customerOrderNumber, customerId, expedited], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const order = result.rows;
         res.json(order);
@@ -890,9 +926,10 @@ app.get('/api/create-batch', (req, res) => {
     let testingTechnicianId = req.query.testing_technician_id;
     let shippingTechnicianId = req.query.shipping_technician_id;
 
-    pool.query("INSERT INTO api_batch (current_location, order_id, calibration_procedure_id, receiving_technician_id, testing_technician_id, shipping_technician_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", [currentLocation, orderId, calibrationProcedureId, receivingTechnicianId, testingTechnicianId, shippingTechnicianId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("INSERT INTO api_batch (current_location, order_id, calibration_procedure_id, receiving_technician_id, testing_technician_id, shipping_technician_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", [currentLocation, orderId, calibrationProcedureId, receivingTechnicianId, testingTechnicianId, shippingTechnicianId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const batch = result.rows;
         res.json(batch);
@@ -921,9 +958,10 @@ app.get('/api/create-reading', (req, res) => {
     if (!sensorReading) {
         sensorReading = null;
     }
-    pool.query("INSERT INTO api_reading (type, set_point, reference_reading, sensor_reading, lab_rh, lab_temperature, sensor_id, generator_id, reference_id, uncertainty, tolerance, pass) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *", [type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("INSERT INTO api_reading (type, set_point, reference_reading, sensor_reading, lab_rh, lab_temperature, sensor_id, generator_id, reference_id, uncertainty, tolerance, pass) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *", [type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const reading = result.rows;
         res.json(reading);
@@ -935,9 +973,10 @@ app.get('/api/set-batch-active-state', (req, res) => {
     const batchId = req.query.batch_id;
     const activeState = req.query.active_state;
 
-    pool.query("UPDATE api_batch SET active = $1 WHERE batch_id = $2", [activeState, batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("UPDATE api_batch SET active = $1 WHERE batch_id = $2", [activeState, batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         return res.json({ 'Result': `Batch ${batchId} active state set to ${activeState}` })
     })
@@ -947,9 +986,10 @@ app.get('/api/set-batch-active-state', (req, res) => {
 app.get('/api/remove-batch-location', (req, res) => {
     const batchId = req.query.batch_id;
 
-    pool.query("UPDATE api_batch SET current_location = $1 WHERE batch_id = $2", [null, batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("UPDATE api_batch SET current_location = $1 WHERE batch_id = $2", [null, batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         return res.json({ 'Result': `Batch ${batchId} location removed` });
     })
@@ -960,9 +1000,10 @@ app.get('/api/set-order-active-state', (req, res) => {
     const orderId = req.query.order_id;
     const activeState = req.query.active_state;
 
-    pool.query("UPDATE api_order SET active = $1 WHERE order_id = $2", [activeState, orderId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("UPDATE api_order SET active = $1 WHERE order_id = $2", [activeState, orderId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         return res.json({ 'Result': `Order ${orderId} active state set to ${activeState}` })
     })
@@ -977,15 +1018,17 @@ app.get('/api/create-location-log', (req, res) => {
         timestamp = new Date().toISOString()
     }
 
-    pool.query("UPDATE api_batch SET current_location = $1 WHERE batch_id = $2", [location, batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("UPDATE api_batch SET current_location = $1 WHERE batch_id = $2", [location, batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
     })
 
-    pool.query("INSERT INTO api_location_log (location, timestamp, batch_id) VALUES ($1, $2, $3) RETURNING *", [location, timestamp, batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("INSERT INTO api_location_log (location, timestamp, batch_id) VALUES ($1, $2, $3) RETURNING *", [location, timestamp, batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const locationLog = result.rows;
         res.json(locationLog);
@@ -1048,12 +1091,13 @@ app.get('/api/create-sensor', (req, res) => {
     url = 'https://www.imonnit.com/json/LookUpSensor/'
     response = monnitFetch(`${url}?${params.toString()}`)
     sku = response['Result']['SKU'];
-    pool.query("INSERT INTO api_sensor (sensor_id, check_digit, manufacturer, sku, batch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *", [sensorId, checkDigit, manufacturer, sku, batchId], (err, result) => {
-        if (err) {
+    pool.query("INSERT INTO api_sensor (sensor_id, check_digit, manufacturer, sku, batch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *", [sensorId, checkDigit, manufacturer, sku, batchId], (error, result) => {
+        if (error) {
             if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
-                pool.query("UPDATE api_sensor SET batch_id = $1 WHERE sensor_id = $2 RETURNING *", [batchId, sensorId], (err, result) => {
-                    if (err) {
-                        return res.status(500).json({ error: `Error executing query: ${err}` });
+                pool.query("UPDATE api_sensor SET batch_id = $1 WHERE sensor_id = $2 RETURNING *", [batchId, sensorId], (error, result) => {
+                    if (error) {
+                        console.error(error);
+                        return res.status(500).json({ error: `Error executing query: ${error}` });
                     }
                     const sensor = result.rows;
                     res.json(sensor);
@@ -1105,10 +1149,11 @@ app.get('/api/get-certificates-by-order-id', (req, res) => {
                 ON api_sensor.batch_id = api_batch.batch_id
                 INNER JOIN api_certificate
                 ON api_certificate.certificate_id = api_sensor.certificate_id
-                WHERE api_order.order_id = $1`, [orderId], (err, result) => {
+                WHERE api_order.order_id = $1`, [orderId], (error, result) => {
 
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const certificates = result.rows;
         res.json(certificates);
@@ -1146,7 +1191,7 @@ app.get('/api/get-sensors-by-order-id', async (req, res) => {
         res.json(sensorList);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: `Error executing query: ${err}` });
+        res.status(500).json({ error: `Error executing query: ${error}` });
     }
 });
 
@@ -1156,10 +1201,11 @@ app.get('/api/get-sensors-by-batch-id', (req, res) => {
     pool.query(`SELECT * FROM api_batch
                 INNER JOIN api_sensor
                 ON api_batch.batch_id = api_sensor.batch_id
-                WHERE api_batch.batch_id = $1`, [batchId], (err, result) => {
+                WHERE api_batch.batch_id = $1`, [batchId], (error, result) => {
 
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const sensors = result.rows;
         res.json(sensors);
@@ -1171,10 +1217,11 @@ app.get('/api/remove-sensor-from-batch', (req, res) => {
 
     pool.query(`UPDATE api_sensor
                 SET batch_id = NULL
-                WHERE sensor_id = $1;`, [sensorId], (err, result) => {
+                WHERE sensor_id = $1;`, [sensorId], (error, result) => {
 
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         res.json({ Result: 'Sensor successfully removed from batch' });
     })
@@ -1222,6 +1269,7 @@ app.get('/api/print-certificate-labels', async (req, res) => {
             res.json({ 'Result': JSON.stringify(response) })
         })
         .catch(error => {
+            console.error(error);
             res.json({ 'Result': `Failed: ${error}` })
         })
 });
@@ -1234,14 +1282,16 @@ app.get('/api/create-certificate', (req, res) => {
     const dueDate = req.query.due_date;
     const calibrationDate = req.query.calibration_date;
 
-    pool.query("INSERT INTO api_certificate (generate_certificate_json, template, sensor_id) values ($1, $2, $3) RETURNING *", [certificateJson, template, sensorId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("INSERT INTO api_certificate (generate_certificate_json, template, sensor_id) values ($1, $2, $3) RETURNING *", [certificateJson, template, sensorId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const certificate = result.rows[0];
-        pool.query("UPDATE api_sensor SET certificate_id = $1 WHERE sensor_id = $2 RETURNING *", [certificate.certificate_id, sensorId], (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: `Error executing query: ${err}` });
+        pool.query("UPDATE api_sensor SET certificate_id = $1 WHERE sensor_id = $2 RETURNING *", [certificate.certificate_id, sensorId], (error, result) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({ error: `Error executing query: ${error}` });
             }
             let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;
             const parameters = {
@@ -1276,9 +1326,10 @@ app.get('/api/log-batch-interaction', (req, res) => {
     const column1 = `${department}_${status}`;
     const column2 = `${department}_${status}_technician_id`;
 
-    pool.query(`SELECT * FROM api_interaction_log WHERE batch_id = $1`, [batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query(`SELECT * FROM api_interaction_log WHERE batch_id = $1`, [batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         let query;
 
@@ -1288,9 +1339,10 @@ app.get('/api/log-batch-interaction', (req, res) => {
             query = `INSERT INTO api_interaction_log (${column1}, ${column2}, batch_id) values ($1, $2, $3) RETURNING *`;
         }
 
-        pool.query(query, [timestamp, technicianId, batchId], (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: `Error executing query: ${err}` });
+        pool.query(query, [timestamp, technicianId, batchId], (error, result) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({ error: `Error executing query: ${error}` });
             }
             res.json(result.rows);
         })
@@ -1305,9 +1357,10 @@ app.get('/api/update-batch-technician', (req, res) => {
 
     const query = `UPDATE api_batch SET ${department}_technician_id = $1 WHERE batch_id = $2 RETURNING *`
 
-    pool.query(query, [technicianId, batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query(query, [technicianId, batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const updatedBatch = result.rows;
         res.json(updatedBatch);
@@ -1319,9 +1372,10 @@ app.get('/api/update-certificate-json', (req, res) => {
     let certificateId = req.query.certificate_id;
     let certificateJson = req.query.certificate_json;
 
-    pool.query("UPDATE api_certificate SET generate_certificate_json = $1 WHERE certificate_id = $2 RETURNING *", [certificateJson, certificateId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("UPDATE api_certificate SET generate_certificate_json = $1 WHERE certificate_id = $2 RETURNING *", [certificateJson, certificateId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const certificate = result.rows;
         res.json(certificate);
@@ -1333,9 +1387,10 @@ app.get('/api/generate-certificate', async (req, res) => {
     const upload = req.query.upload;
     const print = req.query.print;
 
-    pool.query("SELECT * FROM api_certificate WHERE certificate_id = $1", [certificateId], async (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query("SELECT * FROM api_certificate WHERE certificate_id = $1", [certificateId], async (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         if (!result.rows[0]) {
             return res.status(404).json({ error: `No certificates found with certificate id ${certificateId}` });
@@ -1377,9 +1432,10 @@ app.get('/api/generate-order-certificates', async (req, res) => {
                 INNER JOIN api_certificate
                 ON api_certificate.certificate_id = api_sensor.certificate_id
                 WHERE api_order.order_id = $1
-                ORDER BY api_certificate.certificate_id`, [orderId], async (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+                ORDER BY api_certificate.certificate_id`, [orderId], async (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         if (!result.rows[0]) {
             return res.status(404).json({ error: `No certificates found under order id ${orderId}` });
@@ -1420,9 +1476,10 @@ app.get('/api/generate-return-record', async (req, res) => {
                 JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
                 JOIN api_certificate ON api_sensor.certificate_id = api_certificate.certificate_id
                 JOIN api_technician ON api_batch.shipping_technician_id = api_technician.technician_id
-                WHERE api_order.order_id = $1;`, [orderId], async (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+                WHERE api_order.order_id = $1;`, [orderId], async (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
 
         let data;
@@ -1462,9 +1519,10 @@ app.get('/api/generate-return-record', async (req, res) => {
                         JOIN api_batch ON api_order.order_id = api_batch.order_id
                         JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
                         JOIN api_certificate ON api_sensor.certificate_id = api_certificate.certificate_id
-                        WHERE api_order.order_id = $1;`, [orderId], async (err, result) => {
-                if (err) {
-                    return res.status(500).json({ error: `Error executing query: ${err}` });
+                        WHERE api_order.order_id = $1;`, [orderId], async (error, result) => {
+                if (error) {
+                    console.error(error);
+                    return res.status(500).json({ error: `Error executing query: ${error}` });
                 }
                 const data = result.rows;
                 const finishedFormBytes = await addSensorsToReturnRecord(bytes, data)
@@ -1493,16 +1551,18 @@ app.get('/api/generate-work-order', async (req, res) => {
     pool.query(`SELECT api_batch.calibration_procedure_id, api_technician.first_name
                 FROM api_batch
                 JOIN api_technician ON api_batch.receiving_technician_id = api_technician.technician_id
-                WHERE api_batch.batch_id = $1;`, [batchId], async (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+                WHERE api_batch.batch_id = $1;`, [batchId], async (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
 
         const data = result.rows[0];
 
-        pool.query(`SELECT sensor_id FROM api_sensor WHERE batch_id = $1;`, [batchId], async (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: `Error executing query: ${err}` });
+        pool.query(`SELECT sensor_id FROM api_sensor WHERE batch_id = $1;`, [batchId], async (error, result) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({ error: `Error executing query: ${error}` });
             }
             const sensors = result.rows;
             let sensorsString;
@@ -1554,14 +1614,16 @@ app.get('/api/delete-batch', (req, res) => {
     const batchId = req.query.batch_id;
 
 
-    pool.query('DELETE FROM api_interaction_log WHERE batch_id = $1 RETURNING *', [batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('DELETE FROM api_interaction_log WHERE batch_id = $1 RETURNING *', [batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
     })
-    pool.query('DELETE FROM api_batch WHERE batch_id = $1 RETURNING *', [batchId], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: `Error executing query: ${err}` });
+    pool.query('DELETE FROM api_batch WHERE batch_id = $1 RETURNING *', [batchId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
         }
         const data = result.rows;
         res.json(data);
@@ -1850,6 +1912,7 @@ function auth(req, res, next) {
         req.user = user;
         next();
     } catch (error) {
+        console.error(error);
         return res.status(401).json(error);
     }
 }
