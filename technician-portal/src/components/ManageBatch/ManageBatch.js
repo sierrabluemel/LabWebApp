@@ -23,105 +23,13 @@ function ManageBatch() {
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
+    const [setPoint, setSetPoint] = useState(null);
+    const [isMounted, setIsMounted] = useState(false);
 
-    const getSetPoints = () => {
-        switch (procedureId) {
-            case 1:
-                return [
-                    {
-                        temperature: '-999.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.005 }
-                    },
-                    {
-                        temperature: '28.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.005 }
-                    },
-                    {
-                        temperature: '-25.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.009 }
-                    },
-                    {
-                        temperature: '90.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.006 }
-                    }
-                ];
-            case 2:
-                return [
-                    {
-                        temperature: '-999.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.0078 }
-                    },
-                    {
-                        temperature: '0.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.0078 }
-                    },
-                    {
-                        temperature: '-80.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.0057 }
-                    },
-                    {
-                        temperature: '-197.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.0020 }
-                    }
-                ];
-            case 3:
-                return [
-                    {
-                        temperature: '40.00',
-                        humidity: '20.00',
-                        stabilityCriteria: { difference: 2.0, slope: 0.003, standardDeviation: 0.30 }
-                    },
-                    {
-                        temperature: '30.00',
-                        humidity: '50.00',
-                        stabilityCriteria: { difference: 2.0, slope: 0.003, standardDeviation: 0.60 }
-                    },
-                    {
-                        temperature: '20.00', humidity: '80.00',
-                        stabilityCriteria: { difference: 2.0, slope: 0.003, standardDeviation: 0.65 }
-                    },
-                ];
-            case 4:
-                return [
-                    {
-                        temperature: '-999.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.00036 }
-                    },
-                    {
-                        temperature: '28.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.00036 }
-                    },
-                    {
-                        temperature: '-25.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.044 }
-                    },
-                    {
-                        temperature: '90.00',
-                        stabilityCriteria: { difference: 0.5, slope: 0.0099, standardDeviation: 0.0032 }
-                    }
-                ];
-            case 5:
-                return [
-                    {
-                        temperature: '-999.00',
-                        stabilityCriteria: { difference: 0.25, slope: 0.005, standardDeviation: 0.075 }
-                    },
-                    {
-                        temperature: '20.00',
-                        stabilityCriteria: { difference: 0.25, slope: 0.005, standardDeviation: 0.075 }
-                    },
-                    {
-                        temperature: '-20.00',
-                        stabilityCriteria: { difference: 0.25, slope: 0.005, standardDeviation: 0.065 }
-                    },
-                    {
-                        temperature: '60.00',
-                        stabilityCriteria: { difference: 0.25, slope: 0.005, standardDeviation: 0.01 }
-                    }
-                ];
-            default:
-                return null;
-        }
+    const getSetPoints = async () => {
+        const response = await callApi('get-calibration-procedures')
+        const currentProcedure = response.filter(procedure => procedure.calibration_procedure_id === procedureId)[0];
+        return currentProcedure.set_points;
     }
 
     useEffect(() => {
@@ -129,6 +37,13 @@ function ManageBatch() {
             .then(response => {
                 setCurrentLocation(response.current_location)
             })
+        if (!isMounted) {
+            getSetPoints()
+                .then(point => {
+                    setSetPoint(point);
+                    setIsMounted(true);
+                })
+        }
     })
 
     const downloadWorkOrder = () => {
@@ -309,7 +224,7 @@ function ManageBatch() {
                 </div>
                 <div className={styles.test_menu}>
                     <h1 className={styles.title}>{`Calibration Procedure: ${procedureId}`}</h1>
-                    <TestingMenu readings={readings} setPoints={getSetPoints()} />
+                    <TestingMenu readings={readings} setPoints={setPoint} />
                 </div>
             </div>
         </>

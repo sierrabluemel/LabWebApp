@@ -839,7 +839,7 @@ app.get('/api/set-generator', (req, res) => {
 });
 
 app.get('/api/get-calibration-procedures', (req, res) => {
-    pool.query('SELECT * FROM api_calibration_procedure', (err, result) => {
+    pool.query('SELECT * FROM api_calibration_procedure ORDER BY calibration_procedure_id', (err, result) => {
         if (err) {
             return res.status(500).json({ error: `Error executing query: ${err}` });
         }
