@@ -11,6 +11,7 @@ jest.mock('axios');
 
 const mockedUseNavigate = jest.fn();
 const mockSetPopupMessage = jest.fn();
+const calibrationProcedures = JSON.parse(JSON.stringify(require('./calibration_procedures.test.json')));
 
 jest.mock('react-router-dom', () => ({
     ...(jest.requireActual('react-router-dom')),
@@ -52,6 +53,8 @@ beforeEach(() => {
                 return Promise.resolve({ data: { Result: 'Success' } });
             case `http://${ip}/api/create-location-log/`:
                 return Promise.resolve({ data: { Result: 'Success' } });
+            case `http://${ip}/api/get-calibration-procedures/`:
+                return Promise.resolve({ data: calibrationProcedures });
             default:
                 return Promise.reject();
         }
@@ -83,7 +86,7 @@ test('ManageBatch renders successfully', async () => {
 });
 
 test('Manage batch works with each procedureId', async () => {
-    for (let i = 0; i <= 5; i++) {
+    for (let i = 1; i <= 5; i++) {
         await act(async () => {
             setupComponent({
                 batchNumber: 1,
