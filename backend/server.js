@@ -1093,7 +1093,7 @@ app.get('/api/create-sensor', (req, res) => {
     sku = response['Result']['SKU'];
     pool.query("INSERT INTO api_sensor (sensor_id, check_digit, manufacturer, sku, batch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *", [sensorId, checkDigit, manufacturer, sku, batchId], (error, result) => {
         if (error) {
-            if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
+            if (error.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
                 pool.query("UPDATE api_sensor SET batch_id = $1 WHERE sensor_id = $2 RETURNING *", [batchId, sensorId], (error, result) => {
                     if (error) {
                         console.error(error);
@@ -1103,8 +1103,8 @@ app.get('/api/create-sensor', (req, res) => {
                     res.json(sensor);
                 });
             } else {
-                console.error(err);
-                res.json({ 'Error creating sensor on database': err });
+                console.error(error);
+                res.json({ 'Error creating sensor on database': error });
             }
         } else {
             const sensor = result.rows;
