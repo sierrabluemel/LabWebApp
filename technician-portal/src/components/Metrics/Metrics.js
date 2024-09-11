@@ -55,10 +55,12 @@ function Metrics() {
 					let sensorsToTest = 0;
 					let sensorsToShip = 0;
 					for (const sensor of response) {
-						if (sensor.current_location.startsWith('R')) {
-							sensorsToTest += 1;
-						} else if (sensor.current_location.startsWith('S')) {
-							sensorsToShip += 1;
+						if (sensor.current_location) {
+							if (sensor.current_location.startsWith('R')) {
+								sensorsToTest += 1;
+							} else if (sensor.current_location.startsWith('S')) {
+								sensorsToShip += 1;
+							}
 						}
 						let sensorDue;
 						sensor.expedited ? sensorDue = addWorkDays(new Date(sensor.received_timestamp), 2) :
