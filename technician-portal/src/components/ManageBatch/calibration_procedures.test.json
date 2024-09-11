@@ -1,0 +1,187 @@
+[
+    {
+        "calibration_procedure_id": 1,
+        "calibration_procedure": "Monnit Standard Temperature Calibration, 3-Set Points, Leaded, Submersible",
+        "set_points": [
+            {
+                "temperature": "-999.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.005
+                }
+            },
+            {
+                "temperature": "28.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.005
+                }
+            },
+            {
+                "temperature": "-25.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.009
+                }
+            },
+            {
+                "temperature": "90.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.006
+                }
+            }
+        ]
+    },
+    {
+        "calibration_procedure_id": 2,
+        "calibration_procedure": "Monnit Low Temperature Calibration, 3-Set Points, Leaded, Submersible",
+        "set_points": [
+            {
+                "temperature": "-999.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.0078
+                }
+            },
+            {
+                "temperature": "0.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.0078
+                }
+            },
+            {
+                "temperature": "-80.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.0057
+                }
+            },
+            {
+                "temperature": "-197.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.002
+                }
+            }
+        ]
+    },
+    {
+        "calibration_procedure_id": 3,
+        "calibration_procedure": "Monnit Humidity and Temperature Calibration",
+        "set_points": [
+            {
+                "humidity": "20.00",
+                "temperature": "40.00",
+                "stabilityCriteria": {
+                    "slope": 0.003,
+                    "difference": 2,
+                    "standardDeviation": 0.3
+                }
+            },
+            {
+                "humidity": "50.00",
+                "temperature": "30.00",
+                "stabilityCriteria": {
+                    "slope": 0.003,
+                    "difference": 2,
+                    "standardDeviation": 0.6
+                }
+            },
+            {
+                "humidity": "80.00",
+                "temperature": "20.00",
+                "stabilityCriteria": {
+                    "slope": 0.003,
+                    "difference": 2,
+                    "standardDeviation": 0.65
+                }
+            }
+        ]
+    },
+    {
+        "calibration_procedure_id": 4,
+        "calibration_procedure": "Monnit Temperature Calibration, 3-Set Points, Dry",
+        "set_points": [
+            {
+                "temperature": "-999.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.00036
+                }
+            },
+            {
+                "temperature": "28.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.00036
+                }
+            },
+            {
+                "temperature": "-25.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.044
+                }
+            },
+            {
+                "temperature": "90.00",
+                "stabilityCriteria": {
+                    "slope": 0.0099,
+                    "difference": 0.5,
+                    "standardDeviation": 0.0032
+                }
+            }
+        ]
+    },
+    {
+        "calibration_procedure_id": 5,
+        "calibration_procedure": "Monnit Temperature Calibration in Climate Controlled Chamber",
+        "set_points": [
+            {
+                "temperature": "-999.00",
+                "stabilityCriteria": {
+                    "slope": 0.005,
+                    "difference": 0.25,
+                    "standardDeviation": 0.075
+                }
+            },
+            {
+                "temperature": "20.00",
+                "stabilityCriteria": {
+                    "slope": 0.005,
+                    "difference": 0.25,
+                    "standardDeviation": 0.075
+                }
+            },
+            {
+                "temperature": "-20.00",
+                "stabilityCriteria": {
+                    "slope": 0.005,
+                    "difference": 0.25,
+                    "standardDeviation": 0.065
+                }
+            },
+            {
+                "temperature": "60.00",
+                "stabilityCriteria": {
+                    "slope": 0.005,
+                    "difference": 0.25,
+                    "standardDeviation": 0.01
+                }
+            }
+        ]
+    }
+]
