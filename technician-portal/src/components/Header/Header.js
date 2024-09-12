@@ -17,7 +17,7 @@ function Header({ title }) {
       setTechnician(user);
       setTechnicianId(1);
       isMounted.current = true;
-      navigate(location.pathname);
+      navigate('/');
     }
   })
 
