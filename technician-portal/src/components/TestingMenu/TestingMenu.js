@@ -60,69 +60,58 @@ function TestingMenu({ setPoints }) {
                         let referenceString = '';
                         let pass = true;
                         let readingObject = {}
+
+                        if (recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
+                            const heartbeat = thisMessage.heartbeat;
+
+                            let heartbeatString = '';
+                            if (heartbeat >= 60) {
+                                heartbeatString = `(${parseInt(heartbeat / 60)}m)`
+                            } else if (heartbeat < 60 && heartbeat !== undefined) {
+                                heartbeatString = `(${heartbeat}s)`
+                            }
+
+                            currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}</div>;
+
+                            if (calibrationProcedureId === 3) {
+                                currentReadingCell = <div className={styles.grid_entry_green}>
+                                    {`${recentReadings[0].devices_under_test[`${sensor.sensor_id}humidity`].toFixed(2)}%RH\n
+                                    ${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}
+                                </div>
+                            }
+                        } else {
+                            currentReadingCell = <div className={styles.grid_entry}>No data</div>
+                        }
+
                         switch (calibrationProcedureId) {
                             default:
-                                if (recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
-                                    const heartbeat = thisMessage.heartbeat;
-
-                                    let heartbeatString = '';
-                                    if (heartbeat >= 60) {
-                                        heartbeatString = `(${parseInt(heartbeat / 60)}m)`
-                                    } else if (heartbeat < 60 && heartbeat !== undefined) {
-                                        heartbeatString = `(${heartbeat}s)`
-                                    }
-
-                                    currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}</div>
-                                } else {
-                                    currentReadingCell = <div className={styles.grid_entry}>No data</div>
+                                if (calibrationProcedureId === 6) {
+                                    elementClass = styles.grid_row_6;
                                 }
+
                                 firstCell = (<div className={styles.grid_entry}>{tempReferenceReadings.setPoint0}</div>);
                                 referenceCell = (<div className={sensorReadings.set_point_0_style}>{sensorReadings.set_point_0}</div>);
 
-                                for (const type of ['temperature']) {
-                                    const findReadings = readings.find((reading) => (reading.set_point === setPoints[j][type] && reading.type === type));
-                                    if (findReadings) {
-                                        readingObject = { ...readingObject, ...findReadings };
-                                        if (type === 'humidity') {
-                                            referenceString = referenceString + `${readingObject.reference_reading}%RH\n`
-                                            sensorReadingString = sensorReadingString + `${readingObject.sensor_reading}%RH\n`;
-                                        } else {
-                                            referenceString = referenceString + `${readingObject.reference_reading}°C\n`
-                                            sensorReadingString = sensorReadingString + `${readingObject.sensor_reading}°C`;
-                                        }
-                                        if (!readingObject.pass) {
-                                            pass = false;
-                                        }
-                                        sensorReadings[`set_point_${j}_style`] = (pass) ? styles.grid_entry_green : styles.grid_entry_red;
-                                    } else {
-                                        sensorReadings[`set_point_${j}_style`] = styles.grid_entry;
-                                        break;
+                                const findReadings = readings.find((reading) => (reading.set_point === setPoints[j]['temperature'] && reading.type === 'temperature'));
+                                if (findReadings) {
+                                    readingObject = { ...readingObject, ...findReadings };
+                                    referenceString = referenceString + `${readingObject.reference_reading}°C\n`
+                                    sensorReadingString = sensorReadingString + `${readingObject.sensor_reading}°C`;
+                                    if (!readingObject.pass) {
+                                        pass = false;
                                     }
+                                    sensorReadings[`set_point_${j}_style`] = (pass) ? styles.grid_entry_green : styles.grid_entry_red;
+                                } else {
+                                    sensorReadings[`set_point_${j}_style`] = styles.grid_entry;
+                                    break;
                                 }
+
                                 sensorReadings[`set_point_${j}`] = sensorReadingString;
                                 tempReferenceReadings[`setPoint${j}`] = referenceString;
                                 break;
 
                             case 3:
                                 elementClass = `${styles.humidity_grid} ${styles.grid_row}`;
-                                if (recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
-                                    const heartbeat = thisMessage.heartbeat;
-                                    
-                                    let heartbeatString = '';
-                                    if (heartbeat >= 60) {
-                                        heartbeatString = `(${parseInt(heartbeat / 60)}m)`
-                                    } else if (heartbeat < 60 && heartbeat !== undefined) {
-                                        heartbeatString = `(${heartbeat}s)`
-                                    }
-
-                                    currentReadingCell = <div className={styles.grid_entry_green}>
-                                        {`${recentReadings[0].devices_under_test[`${sensor.sensor_id}humidity`].toFixed(2)}%RH\n
-                                    ${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}
-                                    </div>
-                                } else {
-                                    currentReadingCell = <div className={styles.grid_entry}>No data</div>
-                                }
-
                                 for (const type of ['humidity', 'temperature']) {
                                     const findReadings = readings.find((reading) => (reading.set_point === setPoints[j][type] && reading.type === type))
                                     if (findReadings) {
@@ -160,6 +149,7 @@ function TestingMenu({ setPoints }) {
                         <div className={sensorReadings.set_point_1_style}>{sensorReadings.set_point_1}</div>
                         <div className={sensorReadings.set_point_2_style}>{sensorReadings.set_point_2}</div>
                         <div className={sensorReadings.set_point_3_style}>{sensorReadings.set_point_3}</div>
+                        {calibrationProcedureId === 6 ? <div className={sensorReadings.set_point_4_style}>{sensorReadings.set_point_4}</div> : <></>}
                     </div>
                 );
             }
@@ -171,6 +161,7 @@ function TestingMenu({ setPoints }) {
                     <div className={styles.grid_entry}>{tempReferenceReadings.setPoint1}</div>
                     <div className={styles.grid_entry}>{tempReferenceReadings.setPoint2}</div>
                     <div className={styles.grid_entry}>{tempReferenceReadings.setPoint3}</div>
+                    {calibrationProcedureId === 6 ? <div className={styles.grid_entry}>{tempReferenceReadings.setPoint4}</div> : <></>}
                 </div>)
             setSensorGrid(newSensorGrid);
         } catch (error) {
@@ -197,13 +188,35 @@ function TestingMenu({ setPoints }) {
                 return;
             }
             if (calibrationProcedureId === 3) {
-                stableTime = await callApi('get-last-humidity-stable-reading', { 'set_point': setPoints[i].humidity, 'reference': equipment.current.rotronic.asset_tag })
+                stableTime = await callApi('get-last-humidity-stable-reading', {
+                    'set_point': setPoints[i].humidity,
+                    'reference': equipment.current.rotronic.asset_tag
+                })
             } else if (calibrationProcedureId === 5) {
-                stableTime = await callApi('get-last-humidity-stable-reading', { 'set_point': setPoints[i + 1].temperature, 'type': 'temperature', 'reference': equipment.current.rotronic.asset_tag })
+                stableTime = await callApi('get-last-humidity-stable-reading', {
+                    'set_point': setPoints[i + 1].temperature,
+                    'type': 'temperature',
+                    'reference': equipment.current.rotronic.asset_tag
+                })
             } else if (calibrationProcedureId === 1) {
-                stableTime = await callApi('get-last-temperature-stable-reading', { 'set_point': setPoints[i + 1].temperature, 'reference': references[i], 'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria) });
+                stableTime = await callApi('get-last-temperature-stable-reading', {
+                    'set_point': setPoints[i + 1].temperature,
+                    'reference': references[i],
+                    'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria)
+                });
+            } else if (calibrationProcedureId === 6) {
+                const index = i >= 1 ? i + 1 : i; // Bypass second as found
+                stableTime = await callApi('get-last-temperature-stable-reading', {
+                    'set_point': setPoints[index + 1].temperature,
+                    'reference': references[i],
+                    'stability_criteria': JSON.stringify(setPoints[index + 1].stabilityCriteria)
+                });
             } else {
-                stableTime = await callApi('get-last-temperature-stable-reading', { 'set_point': setPoints[i + 1].temperature, 'reference': references[1], 'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria) });
+                stableTime = await callApi('get-last-temperature-stable-reading', {
+                    'set_point': setPoints[i + 1].temperature,
+                    'reference': references[1],
+                    'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria)
+                });
             }
             const totalSeconds = parseInt((now.getTime() - new Date(stableTime[1]).getTime()) / 1000);
             const minutesAgo = parseInt(totalSeconds / 60)
@@ -256,6 +269,8 @@ function TestingMenu({ setPoints }) {
             } else {
                 finalSetPoint = '28.00';
             }
+        } else if (finalSetPoint === '-998.00') {
+            finalSetPoint = '-25.00';
         }
         const data = await callApi('get-last-temperature-stable-reading', { 'set_point': finalSetPoint, 'reference': reference, 'stability_criteria': JSON.stringify(setPointObject.stabilityCriteria) });
         if (!data[1]) {
@@ -277,6 +292,10 @@ function TestingMenu({ setPoints }) {
         const setPoint = setPointObject.temperature;
         const readings = await getStableTemperatureReading(sensorList, setPointObject, referenceAssetID);
         const labReadings = await callApi('get-recent-data');
+        if (!labReadings[0].lab_humidity || !labReadings[0].lab_temperature) {
+            setPopupMessage('No lab readings available for this reading');
+            return;
+        }
         for (const sensor of sensorList) {
             if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current)) {
                 continue;
@@ -464,6 +483,9 @@ function TestingMenu({ setPoints }) {
         setLoadingMessage('');
     } else {
         switch (calibrationProcedureId) {
+            default:
+                menu = <h1 className={styles.title}>No calibration menu found</h1>
+                break;
             case 1:
                 menu = (
                     <div className={styles.testing_grid}>
@@ -567,10 +589,29 @@ function TestingMenu({ setPoints }) {
                     </div >
                 );
                 break;
-            default:
+            case 6:
                 menu = (
-                    <h1 className={styles.title}>No calibration menu found</h1>
-                )
+                    <div className={styles.testing_grid}>
+                        <div className={styles.grid_row_6}>
+                            <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
+                            <Button onClick={() => { setStableTimesToLoading(); refresh() }} innerText='Refresh' />
+                            <Button onClick={() => createTemperatureReading(setPoints[0], equipment.current.reference1.asset_tag, equipment.current.bath1.equipment_id, 1, 0.02, equipment.current.reference1, true)} innerText={`As Found (${setPoints[1].temperature}°C)`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[1], equipment.current.reference1.asset_tag, equipment.current.bath1.equipment_id, 1, 0.02, equipment.current.reference1)} innerText={`${setPoints[1].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[2], equipment.current.reference2.asset_tag, equipment.current.bath2.equipment_id, 1, 0.028, equipment.current.reference2, true)} innerText={`As Found (${setPoints[3].temperature}°C)`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[3], equipment.current.reference2.asset_tag, equipment.current.bath2.equipment_id, 1, 0.028, equipment.current.reference2)} innerText={`${setPoints[3].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[4], equipment.current.reference3.asset_tag, equipment.current.bath3.equipment_id, 1, 0.068, equipment.current.reference3)} innerText={`${setPoints[4].temperature}°C`} />
+                            <div className={styles.grid_entry}>Stable times</div>
+                            <div className={styles.grid_entry}></div>
+                            <StableTimeDisplay stableTime={point1StableTime} />
+                            <StableTimeDisplay stableTime={point1StableTime} />
+                            <StableTimeDisplay stableTime={point2StableTime} />
+                            <StableTimeDisplay stableTime={point2StableTime} />
+                            <StableTimeDisplay stableTime={point3StableTime} />
+                        </div>
+                        {sensorGrid}
+                    </div>
+                );
+                break;
         }
         if (sensorList.length < 1) {
             return (
@@ -585,8 +626,8 @@ function TestingMenu({ setPoints }) {
                 </>
             )
         }
-    
-    
+
+
         return menu;
     }
 }

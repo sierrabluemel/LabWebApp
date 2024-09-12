@@ -201,6 +201,78 @@ function Shipping() {
                   'TUR': '4:1',
                 }
                 certificateJson = { ...certificateJson, ...standardJson };
+              } else if (batch.calibration_procedure_id === 6) {
+                setPoints = ['-999.00', '28.00', '-998.00', '-25.00', '90.00'];
+                let certificateStatus = 'PASS';
+
+                for (const setPoint of setPoints) {
+                  for (const reading of readings) {
+                    if (reading.set_point === setPoint) {
+                      finalReadings.push(reading);
+                      if (!reading.pass && setPoint !== '-999.00' && setPoint !== '-998.00') {
+                        certificateStatus = 'FAIL';
+                      }
+                      break;
+                    }
+                  }
+                }
+                if (finalReadings.length !== 5 && alerted === false) {
+                  alerted = true;
+                  setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires 4 readings, and only has ${finalReadings.length}`)
+                  navigate('/shipping');
+                  return;
+                } else if (alerted === true) {
+                  navigate('/shipping');
+                  return;
+                }
+                dueDate = addMonths(today, 25);
+                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
+                const standardJson = {
+                  'CS2': parsedDueDate,
+                  'CS5': certificateStatus,
+                  'CD11': parseFloat(finalReadings[1].set_point).toFixed(0) + '°C',
+                  'CD12': parseFloat(finalReadings[1].reference_reading).toFixed(1) + '°C',
+                  'CD13': parseFloat(finalReadings[0].sensor_reading).toFixed(1) + '°C',
+                  'CD14': (parseFloat(finalReadings[1].sensor_reading) - parseFloat(finalReadings[0].sensor_reading)).toFixed(1) + '°C',
+                  'CD15': parseFloat(finalReadings[1].sensor_reading).toFixed(1) + '°C',
+                  'CD16': parseFloat(finalReadings[1].tolerance).toFixed(1) + '°C',
+                  'CD17': parseFloat(finalReadings[1].uncertainty).toFixed(3) + '°C',
+                  'CD18': (finalReadings[1].pass ? 'PASS' : 'FAIL'),
+                  'CD21': parseFloat(finalReadings[3].set_point).toFixed(0) + '°C',
+                  'CD22': parseFloat(finalReadings[3].reference_reading).toFixed(1) + '°C',
+                  'CD23': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
+                  'CD24': (parseFloat(finalReadings[3].sensor_reading) - parseFloat(finalReadings[2].sensor_reading)).toFixed(1) + '°C',
+                  'CD25': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
+                  'CD26': parseFloat(finalReadings[3].tolerance).toFixed(1) + '°C',
+                  'CD27': parseFloat(finalReadings[3].uncertainty).toFixed(3) + '°C',
+                  'CD28': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
+                  'CD31': parseFloat(finalReadings[4].set_point).toFixed(0) + '°C',
+                  'CD32': parseFloat(finalReadings[4].reference_reading).toFixed(1) + '°C',
+                  'CD33': parseFloat(finalReadings[4].sensor_reading).toFixed(1) + '°C',
+                  'CD34': 'N/A',
+                  'CD35': parseFloat(finalReadings[4].sensor_reading).toFixed(1) + '°C',
+                  'CD36': parseFloat(finalReadings[4].tolerance).toFixed(1) + '°C',
+                  'CD37': parseFloat(finalReadings[4].uncertainty).toFixed(3) + '°C',
+                  'CD38': (finalReadings[4].pass ? 'PASS' : 'FAIL'),
+                  'RS11': equipment.reference1.asset_tag,
+                  'RS12': equipment.reference1.description,
+                  'RS13': parseDataBaseDate(equipment.reference1.last_calibration),
+                  'RS14': parseDataBaseDate(equipment.reference1.next_calibration),
+                  'RS21': equipment.reference2.asset_tag,
+                  'RS22': equipment.reference2.description,
+                  'RS23': parseDataBaseDate(equipment.reference2.last_calibration),
+                  'RS24': parseDataBaseDate(equipment.reference2.next_calibration),
+                  'RS31': equipment.reference3.asset_tag,
+                  'RS32': equipment.reference3.description,
+                  'RS33': parseDataBaseDate(equipment.reference3.last_calibration),
+                  'RS34': parseDataBaseDate(equipment.reference3.next_calibration),
+                  'RS41': equipment.superDaq.asset_tag,
+                  'RS42': equipment.superDaq.description,
+                  'RS43': parseDataBaseDate(equipment.superDaq.last_calibration),
+                  'RS44': parseDataBaseDate(equipment.superDaq.next_calibration),
+                  'TUR': '4:1',
+                }
+                certificateJson = { ...certificateJson, ...standardJson };
               } else if (batch.calibration_procedure_id === 2) {
                 setPoints = ['-999.00', '0.00', '-80.00', '-197.00'];
                 let certificateStatus = 'PASS';

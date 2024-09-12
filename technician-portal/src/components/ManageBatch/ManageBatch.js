@@ -215,7 +215,7 @@ function ManageBatch() {
                     </form>
                     <button className={styles.default_button} onClick={downloadWorkOrder}>Download work order</button>
                     <form onSubmit={handleHeartBeatSubmit} data-testid={'heartbeatForm'}>
-                        <input type='text' value={heartbeat} onChange={handleHeartBeatChange} className={styles.default_text_box} placeholder={'Heartbeat'} />
+                        <input type='text' value={heartbeat} onChange={handleHeartBeatChange} className={styles.default_text_box} placeholder={'Heartbeat (minutes)'} />
                     </form>
                     <button className={styles.default_button} onClick={printWorkOrder}>Print work order</button>
                     <form onSubmit={handleSensorSubmit}>

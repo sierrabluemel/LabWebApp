@@ -176,6 +176,13 @@
     border-radius: 4px;
 }
 
+.calibration_6 {
+    background-color: red;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
 .home_button {
     width: 130px;
     height: 60px;
@@ -379,6 +386,20 @@
 }
 
 .grid_row .default_button {
+    margin: 0;
+    width: 100%;
+}
+
+.grid_row_6 {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    max-width: 100%;
+    margin-top: 10px;
+    transition-duration: 0.25s;
+}
+
+.grid_row_6 .default_button {
     margin: 0;
     width: 100%;
 }
