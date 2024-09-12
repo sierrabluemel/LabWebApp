@@ -462,8 +462,8 @@ function TestingMenu({ setPoints }) {
                             'lab_rh': readings[0].lab_humidity,
                             'lab_temperature': readings[0].lab_temperature,
                             'sensor_id': sensor.sensor_id,
-                            'generator_id': 5,
-                            'reference_id': 19,
+                            'generator_id': equipment.current.chamber.equipment_id,
+                            'reference_id': equipment.current.rotronic.equipment_id,
                             'tolerance': tolerance,
                             'uncertainty': uncertainty,
                         }
@@ -614,17 +614,9 @@ function TestingMenu({ setPoints }) {
                 break;
         }
         if (sensorList.length < 1) {
-            return (
-                <>
-                    <h1 className={styles.title}>No sensors found</h1>
-                </>
-            )
+            return <h1 className={styles.title}>No sensors found</h1>
         } else if (loadingMessage) {
-            return (
-                <>
-                    <h1 className={styles.title}>Loading...</h1>
-                </>
-            )
+            return <h1 className={styles.title}>Loading...</h1>
         }
 
 
