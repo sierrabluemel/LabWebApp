@@ -12,7 +12,8 @@ const isValidUrl = urlString => {
 
 const parseSensorString = sensorString => {
     let sensorId, checkDigit;
-
+    sensorString = sensorString.trim()
+    
     if (isValidUrl(sensorString)) { // URL sensor format
         const url = new URL(sensorString);
         const params = url.searchParams;

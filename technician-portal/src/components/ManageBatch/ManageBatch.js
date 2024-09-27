@@ -9,6 +9,7 @@ import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 import TestingMenu from "../TestingMenu/TestingMenu";
 
 import styles from "../../styles/styles.module.css";
+import parseSensorString from "../../utils/parseSensorString";
 
 function ManageBatch() {
     const navigate = useNavigate();
@@ -163,7 +164,8 @@ function ManageBatch() {
 
     const handleSensorSubmit = (event) => {
         event.preventDefault();
-        const sensorId = parseInt(sensor.split(':')[0])
+        const sensorId = parseInt(parseSensorString(sensor)[0])
+        
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
             setConfirmationArray([`Would you like to REMOVE sensor ${sensorId} from batch ${batchNumber}?`])
         } else {
