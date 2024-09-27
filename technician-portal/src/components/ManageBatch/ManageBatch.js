@@ -164,8 +164,8 @@ function ManageBatch() {
 
     const handleSensorSubmit = (event) => {
         event.preventDefault();
-        const sensorId = parseInt(parseSensorString(sensor)[0])
-        
+        const sensorId = parseInt(parseSensorString(sensor)[0]);
+
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
             setConfirmationArray([`Would you like to REMOVE sensor ${sensorId} from batch ${batchNumber}?`])
         } else {
@@ -174,8 +174,8 @@ function ManageBatch() {
     }
 
     const handleSensorConfirm = () => {
-        const sensorId = parseInt(sensor.split(':')[0]);
-        const checkDigit = parseInt(sensor.split(':')[1]);
+        const sensorId = parseInt(parseSensorString(sensor)[0]);
+        const checkDigit = parseInt(parseSensorString(sensor)[1]);
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
             callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit });
             callApi('remove-sensor-from-batch', { sensor_id: sensorId })
