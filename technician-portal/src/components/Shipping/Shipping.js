@@ -202,7 +202,7 @@ function Shipping() {
                                 }
                                 certificateJson = { ...certificateJson, ...standardJson };
                             } else if (batch.calibration_procedure_id === 6) {
-                                setPoints = ['-999.00', '28.00', '-998.00', '-25.00', '90.00'];
+                                setPoints = ['-998.00', '-25.00', '-999.00', '28.00', '90.00'];
                                 let certificateStatus = 'PASS';
 
                                 for (const setPoint of setPoints) {

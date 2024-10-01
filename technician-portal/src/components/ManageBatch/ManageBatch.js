@@ -24,7 +24,7 @@ function ManageBatch() {
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
-    const [setPoint, setSetPoint] = useState(null);
+    const setPoint = useRef(null);
     const [isMounted, setIsMounted] = useState(false);
 
     const getSetPoints = async () => {
@@ -41,7 +41,7 @@ function ManageBatch() {
         if (!isMounted) {
             getSetPoints()
                 .then(point => {
-                    setSetPoint(point);
+                    setPoint.current = point;
                     setIsMounted(true);
                 })
         }
@@ -226,7 +226,9 @@ function ManageBatch() {
                 </div>
                 <div className={styles.test_menu}>
                     <h1 className={styles.title}>{`Calibration Procedure: ${procedureId}`}</h1>
-                    <TestingMenu readings={readings} setPoints={setPoint} />
+                    {setPoint.current ? 
+                    <TestingMenu readings={readings} setPoints={setPoint.current} /> :
+                    <></>}
                 </div>
             </div>
         </>
