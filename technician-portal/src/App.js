@@ -38,6 +38,7 @@ function App() {
   const [orderNumber, setOrderNumber] = useState('');
   const [batches, setBatches] = useState([]);
   const [sensorGrid, setSensorGrid] = useState([]);
+  const [expedited, setExpedited] = useState(false)
   const equipment = useRef([]);
 
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
@@ -59,6 +60,7 @@ function App() {
           sensorGrid, setSensorGrid,
           orderNumber, setOrderNumber,
           batches, setBatches,
+          expedited, setExpedited,
           equipment
         }}
       >

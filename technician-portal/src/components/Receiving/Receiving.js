@@ -4,12 +4,10 @@ import { useAppContext } from "../../contexts/app";
 import callApi from "../../utils/api/callApi";
 
 import styles from "../../styles/styles.module.css";
-import { useState } from "react";
 
 function Receiving() {
     const navigate = useNavigate();
-    const { salesOrder, setSalesOrder, setOrder } = useAppContext()
-    const [expedited, setExpedited] = useState(false)
+    const { salesOrder, setSalesOrder, setOrder, expedited, setExpedited } = useAppContext()
 
     const handleSubmit = (event) => {
         event.preventDefault();

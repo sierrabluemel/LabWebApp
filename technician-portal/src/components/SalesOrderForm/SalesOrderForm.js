@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAppContext } from "../../contexts/app";
@@ -8,18 +8,20 @@ import AddBatchMenu from "../AddBatchMenu/AddBatchMenu";
 import DropDown from "../DropDown/DropDown";
 
 import styles from "../../styles/styles.module.css";
+import addWorkDays from "../../utils/addWorkDays";
 
 function SalesOrderForm() {
     const navigate = useNavigate();
     const {
         salesOrder, technicianId, setConfirmationMessage,
-        setPopupMessage, order
+        setPopupMessage, order, expedited
     } = useAppContext()
 
     const [batches, setBatches] = useState([]);
     const [calibrationProcedures, setCalibrationProcedures] = useState([])
     const [selectedOption, setSelectedOption] = useState('');
     const [batchDisplay, setBatchDisplay] = useState(null);
+    const dueDate = useRef(null);
 
     const CUSTOMER_INPUTS = [
         {
@@ -55,6 +57,10 @@ function SalesOrderForm() {
     ]
 
     useEffect(() => {
+        if (!dueDate.current) {
+            const dueDateObject = expedited ? addWorkDays(new Date(), 2) : addWorkDays(new Date(), 7);
+            dueDate.current = `${dueDateObject.getMonth() + 1}/${dueDateObject.getDate()}/${dueDateObject.getFullYear()}`;
+        }
         callApi('get-calibration-procedures')
             .then(response => {
                 setCalibrationProcedures(response);
@@ -72,7 +78,7 @@ function SalesOrderForm() {
         } else {
             setBatchDisplay(null);
         }
-    }, [salesOrder, order, batches, technicianId, setPopupMessage]);
+    }, [salesOrder, order, batches, technicianId, setPopupMessage, expedited]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -102,7 +108,7 @@ function SalesOrderForm() {
     return (
         <div className={styles.menu}>
             <div className={styles.grid_menu}>
-                <h1 className={styles.title}>{salesOrder}</h1>
+                <h1 className={styles.title}>{salesOrder} | Order due: {dueDate.current ? dueDate.current : 'Loading...'}</h1>
                     {CUSTOMER_INPUTS.map((inputItem, index) =>
                         <input
                             key={index + inputItem.placeholder}
