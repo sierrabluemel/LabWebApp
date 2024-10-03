@@ -6,24 +6,12 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar } from 'react-chartjs-2';
 import styles from "../../styles/styles.module.css";
 import callApi from '../../utils/api/callApi';
+import addWorkDays from '../../utils/addWorkDays';
 
 Chart.register(
 	CategoryScale, LinearScale, BarElement,
 	Title, Tooltip, Legend, ChartDataLabels
 );
-
-export function addWorkDays(date, workDays) {
-	for (let i = 0; i < workDays; i++) {
-		date.setDate(date.getDate() + 1);
-		if (date.getDay() === 6) {
-			date.setDate(date.getDate() + 2); // Skip weekend
-		} else if (date.getDay() === 0) {
-			date.setDate(date.getDate() + 1);
-		}
-	}
-
-	return date;
-}
 
 function Metrics() {
 	const today = new Date();

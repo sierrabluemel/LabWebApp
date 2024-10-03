@@ -3,8 +3,6 @@ import Metrics from './Metrics';
 import mockAxios from 'axios';
 import ip from '../../utils/ip/ip';
 
-import { addWorkDays } from './Metrics';
-
 jest.mock('axios');
 jest.mock('react-chartjs-2', () => ({
     Bar: () => null
@@ -63,21 +61,5 @@ describe('Metrics', () => {
         })
         const graphs = screen.getByTestId('graphs')
         expect(graphs).toBeInTheDocument()
-    })
-})
-
-describe('addWorkdays', () => {
-    test('skips weekends from Friday', () => {
-        const startDate = new Date('Fri Sep 06 2024')
-        const endDate = addWorkDays(startDate, 1);
-
-        expect(endDate.toString()).toBe(new Date('Mon Sep 09 2024').toString())
-    })
-
-    test('skips weekends from Saturday', () => {
-        const startDate = new Date('Sat Sep 07 2024')
-        const endDate = addWorkDays(startDate, 1);
-
-        expect(endDate.toString()).toBe(new Date('Mon Sep 09 2024').toString())
     })
 })
