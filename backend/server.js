@@ -927,15 +927,16 @@ app.get('/api/get-sensor-invoice-report', (req, res) => {
         
             return workbook.xlsx.writeFile(outputPath);
         })
-
-        res.download(outputPath, 'sensorBillingReport.xlsx', error => {
-            if (error) {
-                console.error('Error sending file: ', error)
-            }
-            fs.unlink(outputPath, error => {
+        .then(() => {
+            res.download(outputPath, 'sensorBillingReport.xlsx', error => {
                 if (error) {
-                    console.error('Error deleting file: ', error)
+                    console.error('Error sending file: ', error)
                 }
+                fs.unlink(outputPath, error => {
+                    if (error) {
+                        console.error('Error deleting file: ', error)
+                    }
+                })
             })
         })
     })
