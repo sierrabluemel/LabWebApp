@@ -1046,3 +1046,14 @@
     text-align: center;
     font-size: larger;
 }
+
+.date_picker {
+    font-size: large;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.invoice_grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+}

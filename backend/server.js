@@ -15,6 +15,7 @@ const format = require('pg-format');
 const { hashAndValidatePassword, verify } = require("./src/utils/hash-user");
 const path = require("path");
 const synchFetch = require('sync-fetch');
+const ExcelJS = require('exceljs');
 const {
     generateTokens,
     generateToken,
@@ -868,6 +869,75 @@ app.get('/api/set-generator', (req, res) => {
         }
         const equipment = result.rows;
         res.json(equipment);
+    })
+});
+
+app.get('/api/get-sensor-invoice-report', (req, res) => {
+    const startDate = new Date(req.query.start_date);
+    const endDate = new Date(req.query.end_date);
+
+    pool.query(`SELECT generate_certificate_json, sku, calibration_procedure_id, expedited FROM api_certificate
+                INNER JOIN api_sensor ON api_certificate.sensor_id = api_sensor.sensor_id
+                INNER JOIN api_batch ON api_sensor.batch_id = api_batch.batch_id
+                INNER JOIN api_order ON api_batch.order_id = api_order.order_id
+                WHERE timestamp > $1 AND timestamp < $2;`, [startDate, endDate], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
+        }
+        const certificates = result.rows;
+        const certificateInvoiceData = getCertificateInvoiceData(certificates);
+        const templatePath = path.join(__dirname, 'templates', 'sensorBillingReport.xlsx')
+        const outputPath = path.join(__dirname, 'fileOutputs', 'sensorBillingReport.xlsx')
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.xlsx.readFile(templatePath)
+        .then(() => {
+            const worksheet = workbook.getWorksheet(1)
+            worksheet.getCell('F3').value = getDateString(startDate)
+            worksheet.getCell('F4').value = getDateString(endDate)
+
+            worksheet.getCell('C8').value = certificateInvoiceData.calibration_procedure_1.passed;
+            worksheet.getCell('D8').value = certificateInvoiceData.calibration_procedure_1.failed;
+            worksheet.getCell('F8').value = certificateInvoiceData.calibration_procedure_1.expedited;
+
+            worksheet.getCell('C9').value = certificateInvoiceData.calibration_procedure_2.passed;
+            worksheet.getCell('D9').value = certificateInvoiceData.calibration_procedure_2.failed;
+            worksheet.getCell('F9').value = certificateInvoiceData.calibration_procedure_2.expedited;
+            
+            worksheet.getCell('C10').value = certificateInvoiceData.calibration_procedure_3.passed;
+            worksheet.getCell('D10').value = certificateInvoiceData.calibration_procedure_3.failed;
+            worksheet.getCell('F10').value = certificateInvoiceData.calibration_procedure_3.expedited;
+            
+            worksheet.getCell('C11').value = certificateInvoiceData.calibration_procedure_3_no_lead.passed;
+            worksheet.getCell('D11').value = certificateInvoiceData.calibration_procedure_3_no_lead.failed;
+            worksheet.getCell('F11').value = certificateInvoiceData.calibration_procedure_3_no_lead.expedited;
+            
+            worksheet.getCell('C12').value = certificateInvoiceData.calibration_procedure_4.passed;
+            worksheet.getCell('D12').value = certificateInvoiceData.calibration_procedure_4.failed;
+            worksheet.getCell('F12').value = certificateInvoiceData.calibration_procedure_4.expedited;
+            
+            worksheet.getCell('C13').value = certificateInvoiceData.calibration_procedure_5.passed;
+            worksheet.getCell('D13').value = certificateInvoiceData.calibration_procedure_5.failed;
+            worksheet.getCell('F13').value = certificateInvoiceData.calibration_procedure_5.expedited;
+            
+            worksheet.getCell('C14').value = certificateInvoiceData.calibration_procedure_6.passed;
+            worksheet.getCell('D14').value = certificateInvoiceData.calibration_procedure_6.failed;
+            worksheet.getCell('F14').value = certificateInvoiceData.calibration_procedure_6.expedited;
+        
+            return workbook.xlsx.writeFile(outputPath);
+        })
+
+        res.download(outputPath, 'sensorBillingReport.xlsx', error => {
+            if (error) {
+                console.error('Error sending file: ', error)
+            }
+            fs.unlink(outputPath, error => {
+                if (error) {
+                    console.error('Error deleting file: ', error)
+                }
+            })
+        })
     })
 });
 
@@ -1915,4 +1985,48 @@ function auth(req, res, next) {
         console.error(error);
         return res.status(401).json(error);
     }
+}
+
+
+function getCertificateInvoiceData(certificates) {
+    const prodecureData = {
+        passed: 0,
+        failed: 0,
+        expedited: 0
+    }
+    let invoiceData = {
+        calibration_procedure_3_no_lead: JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
+    }
+
+    for (let i=1; i <= 6; i++) {
+        invoiceData[`calibration_procedure_${i}`] = JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
+    }
+
+    for (const certificate of certificates) {
+        const passed = certificate.generate_certificate_json.CS5 === 'PASS'
+        let targetCalibrationProcedure = invoiceData[`calibration_procedure_${certificate.calibration_procedure_id}`]
+
+        if (certificate.calibration_procedure_id === 3) {
+            targetCalibrationProcedure = invoiceData.calibration_procedure_3
+            const splitSku = certificate.sku.split('-');
+            const lastSkuCode = splitSku[splitSku.length - 1];
+            const noLead = lastSkuCode === 'RH';
+            if (noLead) {
+                targetCalibrationProcedure = invoiceData.calibration_procedure_3_no_lead
+            }
+        }
+
+        passed ? targetCalibrationProcedure.passed ++ : targetCalibrationProcedure.failed ++
+        if (certificate.expedited) {
+            targetCalibrationProcedure.expedited ++
+        }
+    }
+
+    return invoiceData
+}
+
+function getDateString(date) {
+    let datestring = (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
+
+    return datestring;
 }

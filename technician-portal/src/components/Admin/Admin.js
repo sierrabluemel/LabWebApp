@@ -5,6 +5,7 @@ import { useAppContext } from '../../contexts/app';
 import ConfirmationPopup from '../ConfirmationPopup/ConfirmationPopup';
 import parseDataBaseDate from '../../utils/parseDataBaseDate';
 import EquipmentRow from './EquipmentRow/EquipmentRow';
+import SensorInvoiceGenerator from './SensorInvoiceGenerator/SensorInvoiceGenerator';
 
 function Admin() {
     const [reference1, setReference1] = useState({});
@@ -206,6 +207,7 @@ function Admin() {
                 </div>
                 <button className={styles.equipment_save_button} onClick={handleSubmit}>Save</button>
             </div>
+            <SensorInvoiceGenerator />
         </>
     )
 }
