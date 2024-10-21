@@ -23,6 +23,8 @@ beforeEach(() => {
                 return Promise.resolve()
             case `http://${ip}/api/change-sensor-heartbeat/`:
                 return Promise.resolve()
+            case `http://${ip}/api/get-active-sensors/`:
+                return Promise.resolve({ data: [] })
             default:
                 return Promise.reject()
         }

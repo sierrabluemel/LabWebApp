@@ -13,7 +13,7 @@ function SensorInvoiceGenerator() {
     const { setPopupMessage } = useAppContext;
 
     function generateReport(event) {
-        fetch(`https://${ip}/api/get-sensor-invoice-report/?start_date=${startDate}&end_date=${endDate}`)
+        fetch(`http://${ip}/api/get-sensor-invoice-report/?start_date=${startDate}&end_date=${endDate}`)
             .then(response => {
                 if (response.ok) {
                     return response.blob();
@@ -26,7 +26,8 @@ function SensorInvoiceGenerator() {
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = `sensor_invoice_report.xlsx`;
+                const dateString = `${startDate.getMonth()+1}_${startDate.getDate()}-${endDate.getMonth()+1}_${endDate.getDate()}`
+                link.download = `sensor_invoice_report_${dateString}.xlsx`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);

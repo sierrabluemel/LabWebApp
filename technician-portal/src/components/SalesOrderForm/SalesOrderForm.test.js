@@ -26,6 +26,8 @@ beforeEach(() => {
         switch (url) {
             case `http://${ip}/api/create-order/`:
                 return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test' }] })
+            case `http://${ip}/api/get-active-sensors/`:
+                return Promise.resolve({ data: [] })
             default:
                 return Promise.reject();
         }

@@ -876,7 +876,7 @@ app.get('/api/get-sensor-invoice-report', (req, res) => {
     const startDate = new Date(req.query.start_date);
     const endDate = new Date(req.query.end_date);
 
-    pool.query(`SELECT generate_certificate_json, sku, calibration_procedure_id, expedited FROM api_certificate
+    pool.query(`SELECT generate_certificate_json, sku, calibration_procedure_id, expedited, customer_order_number FROM api_certificate
                 INNER JOIN api_sensor ON api_certificate.sensor_id = api_sensor.sensor_id
                 INNER JOIN api_batch ON api_sensor.batch_id = api_batch.batch_id
                 INNER JOIN api_order ON api_batch.order_id = api_order.order_id
@@ -924,6 +924,8 @@ app.get('/api/get-sensor-invoice-report', (req, res) => {
             worksheet.getCell('C14').value = certificateInvoiceData.calibration_procedure_6.passed;
             worksheet.getCell('D14').value = certificateInvoiceData.calibration_procedure_6.failed;
             worksheet.getCell('F14').value = certificateInvoiceData.calibration_procedure_6.expedited;
+
+            worksheet.getCell('A18').value = 'Report for ' + [...certificateInvoiceData.tos].join(', ')
         
             return workbook.xlsx.writeFile(outputPath);
         })
@@ -1996,6 +1998,7 @@ function getCertificateInvoiceData(certificates) {
         expedited: 0
     }
     let invoiceData = {
+        tos: new Set(),
         calibration_procedure_3_no_lead: JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
     }
 
@@ -2004,6 +2007,7 @@ function getCertificateInvoiceData(certificates) {
     }
 
     for (const certificate of certificates) {
+        invoiceData.tos.add(certificate.customer_order_number)
         const passed = certificate.generate_certificate_json.CS5 === 'PASS'
         let targetCalibrationProcedure = invoiceData[`calibration_procedure_${certificate.calibration_procedure_id}`]
 
