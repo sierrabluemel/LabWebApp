@@ -13,7 +13,7 @@ function SensorInvoiceGenerator() {
     const { setPopupMessage } = useAppContext;
 
     function generateReport(event) {
-        fetch(`http://${ip}/api/get-sensor-invoice-report/?start_date=${startDate}&end_date=${endDate}`)
+        fetch(`https://${ip}/api/get-sensor-invoice-report/?start_date=${startDate}&end_date=${endDate}`)
             .then(response => {
                 if (response.ok) {
                     return response.blob();
