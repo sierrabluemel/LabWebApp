@@ -422,16 +422,16 @@ app.get('/api/get-calibrations-by-month', (req, res) => {
                 ON api_order.order_id = api_batch.order_id
                 INNER JOIN api_sensor
                 ON api_batch.batch_id = api_sensor.batch_id
-                INNER JOIN api_interaction_log
-                ON api_batch.batch_id = api_interaction_log.batch_id
-                WHERE shipping_end > $1
-                AND shipping_end < $2
+                INNER JOIN api_certificate
+                ON api_sensor.sensor_id = api_certificate.sensor_id
+                WHERE timestamp > $1
+                AND timestamp < $2
                 AND api_sensor.certificate_id IS NOT NULL`, [startDate, endDate], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: `Error executing query: ${error}` });
         }
-        const data = result.rows;
+        const data = removeDuplicateCertificates(result.rows);
         res.json(data);
     })
 });
@@ -873,10 +873,10 @@ app.get('/api/set-generator', (req, res) => {
 });
 
 app.get('/api/get-sensor-invoice-report', (req, res) => {
-    const startDate = new Date(req.query.start_date);
-    const endDate = new Date(req.query.end_date);
+    const startDate = new Date(new Date(req.query.start_date).toDateString());
+    const endDate = new Date(new Date(req.query.end_date).setHours(23, 59, 59, 999));
 
-    pool.query(`SELECT generate_certificate_json, sku, calibration_procedure_id, expedited, customer_order_number FROM api_certificate
+    pool.query(`SELECT api_certificate.sensor_id, api_certificate.timestamp, generate_certificate_json, sku, calibration_procedure_id, expedited, customer_order_number FROM api_certificate
                 INNER JOIN api_sensor ON api_certificate.sensor_id = api_sensor.sensor_id
                 INNER JOIN api_batch ON api_sensor.batch_id = api_batch.batch_id
                 INNER JOIN api_order ON api_batch.order_id = api_order.order_id
@@ -885,7 +885,7 @@ app.get('/api/get-sensor-invoice-report', (req, res) => {
             console.error(error);
             return res.status(500).json({ error: `Error executing query: ${error}` });
         }
-        const certificates = result.rows;
+        const certificates = removeDuplicateCertificates(result.rows);
         const certificateInvoiceData = getCertificateInvoiceData(certificates);
         const templatePath = path.join(__dirname, 'templates', 'sensorBillingReport.xlsx')
         const outputPath = path.join(__dirname, 'fileOutputs', 'sensorBillingReport.xlsx')
@@ -2034,4 +2034,17 @@ function getDateString(date) {
     let datestring = (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
 
     return datestring;
+}
+
+function removeDuplicateCertificates(certificateArray) {
+    const seenCertificates = new Set()
+    return certificateArray.filter(({ sensor_id, timestamp }) => {
+        const dateKey = `${sensor_id}-${getDateString(timestamp)}`
+        if (seenCertificates.has(dateKey)) {
+            return false;
+        } else {
+            seenCertificates.add(dateKey);
+            return true;
+        }
+    })
 }
