@@ -956,9 +956,9 @@ app.get('/api/get-calibration-procedures', (req, res) => {
 });
 
 app.get('/api/lookup-technician', (req, res) => {
-    let technician = req.query.technician;
+    let user_id = req.query.user_id;
 
-    pool.query('SELECT * FROM api_technician WHERE user_id = $1', [technician.id], (error, result) => {
+    pool.query('SELECT * FROM api_technician WHERE user_id = $1', [user_id], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: `Error executing query: ${error}` });

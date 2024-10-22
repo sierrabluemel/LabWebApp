@@ -52,7 +52,7 @@ function SignInMenu() {
         }
       });
 
-      login(response.data);
+      login(response.data.id);
     } catch (error) {
       const errorMessageRaw = error.response
       const errorMessage = errorMessageRaw?.data.error
@@ -61,8 +61,8 @@ function SignInMenu() {
     }
   }
 
-  function login(userObject) {
-    callApi('lookup-technician', { technician: userObject })
+  function login(userId) {
+    callApi('lookup-technician', { user_id: userId })
       .then(technician => {
         technician = technician[0]
         if (technician?.technician_id) {
@@ -80,9 +80,9 @@ function SignInMenu() {
     const loggedInUser = localStorage.getItem('user');
     if (loggedInUser) {
       const foundUser = JSON.parse(loggedInUser);
-      login(foundUser)
+      login(foundUser.user_id)
     }
-  }, [login, navigate]);
+  }, [login]);
 
   return (
     <div className={styles.sign_in_menu}>
