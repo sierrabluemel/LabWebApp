@@ -1,5 +1,5 @@
-import styles from '../../styles/styles.module.css'
-import { useState, useEffect } from 'react'
+import styles from '../../styles/styles.module.css';
+import { useState } from 'react';
 import callApi from '../../utils/api/callApi';
 import { useAppContext } from '../../contexts/app';
 import ConfirmationPopup from '../ConfirmationPopup/ConfirmationPopup';
@@ -140,14 +140,7 @@ function Admin() {
         await Promise.all(promises);
         setPopupMessage('Equipment updated')
     }
-
-    useEffect(() => {
-        callApi('get-equipment')
-            .then(response => {
-                equipment.current = response;
-            })
-    })
-
+    
     return (
         <>
             <div className={styles.menu}>
