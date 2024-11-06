@@ -97,7 +97,11 @@ function Metrics() {
 						}
 						let calibrationProcedureTotals = []
 						for (const calibrationProcedure of calibrationProcedures.current) {
-							calibrationProcedureTotals.push(response.filter(calibrationList => calibrationList.calibration_procedure_id === calibrationProcedure.calibration_procedure_id).length)
+							try {
+								calibrationProcedureTotals.push(response.filter(calibrationList => calibrationList.calibration_procedure_id === calibrationProcedure.calibration_procedure_id).length)
+							} catch (error) {
+								continue
+							}
 						}
 						calibrationProcedureTotals.push(response.length)
 						return calibrationProcedureTotals;

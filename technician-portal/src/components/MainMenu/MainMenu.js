@@ -12,7 +12,7 @@ function MainMenu() {
     const location = useLocation()
     const [equipmentOutOfCalibration, setEquipmentOutOfCalibration] = useState([])
     const [warned, setWarned] = useState(false)
-    const { equipment } = useAppContext()
+    const { equipment, equipmentList } = useAppContext()
 
     useEffect(() => {
         if (warned) {
@@ -20,11 +20,12 @@ function MainMenu() {
         }
         callApi('get-equipment')
             .then(response => {
-                equipment.current = response;
+                equipmentList.current = response;
             })
 
         getEquipment()
             .then(equipmentObject => {
+                equipment.current = equipmentObject;
                 const now = new Date()
                 const keys = Object.keys(equipmentObject)
                 const badEquipment = []

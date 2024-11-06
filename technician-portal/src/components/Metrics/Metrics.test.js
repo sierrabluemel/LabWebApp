@@ -14,7 +14,7 @@ beforeEach(() => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/get-calibrations-by-month/`:
-                return Promise.resolve({ data: [{ order_id: 10000 }, { order_id: 10001 }] })
+                return Promise.resolve({ data: [{ order_id: 10000, calibration_procedure_id: 1 }, { order_id: 10001, calibration_procedure_id: 2 }] })
             case `http://${ip}/api/get-active-sensors/`:
                 return Promise.resolve({ data: [{ sensor_id: 10000, current_location: 'R-C1', received_timestamp: new Date().toISOString() }, { sensor_id: 10001, current_location: 'S-C1', received_timestamp: new Date().toISOString() }] })
             case `http://${ip}/api/get-calibration-procedures/`:

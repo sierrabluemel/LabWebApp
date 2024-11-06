@@ -16,7 +16,19 @@ jest.mock('react-router-dom', () => ({
 }))
 
 beforeEach(() => {
-    jest.clearAllMocks()
+    jest.clearAllMocks();
+
+    global.fetch = jest.fn(() =>
+        Promise.resolve({
+            ok: true,
+            headers: {
+                get: () => 'application/json; charset=utf-8',
+            },
+            blob: () => Promise.resolve(new Blob()),
+        })
+    );
+
+    global.URL.createObjectURL = jest.fn(() => 'blob:http://localhost/some-blob-url');
 
     mockAxios.get.mockImplementation(url => {
         switch (url) {
@@ -182,7 +194,7 @@ test('generating certificates doesn\'t generate errors', async () => {
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/set-batch-active-state/`, { "params": { "batch_id": 1, "active_state": false } })
 })
 
-for (let i = 1; i <= 5; i++) {
+for (let i = 1; i <= 6; i++) {
     test(`calibration procedure ${i} gets triggered`, async () => {
         await act(async () => {
             render(
@@ -204,3 +216,69 @@ for (let i = 1; i <= 5; i++) {
         expect(mockAxios.get).toBeCalledWith('http://127.0.0.1:8000/api/create-certificate/', expect.anything())
     })
 }
+
+test('confirming references makes correct api calls', async () => {
+    const batches = [
+        {
+            batch_id: 1,
+            calibration_procedure_id: 2
+        }
+    ]
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{
+                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
+                orderNumber: 2, batches: batches, setBatches: jest.fn()
+            }}>
+                <Shipping />
+            </AppWrapper>
+        )
+    })
+
+    const confirmationButton = screen.getByText(/confirm/i);
+    expect(confirmationButton).toBeInTheDocument();
+    await act(async () => {
+        fireEvent.click(confirmationButton)
+    })
+    expect(mockAxios.get).toBeCalledWith('http://127.0.0.1:8000/api/verify-equipment-in-shipping/', expect.anything())
+})
+
+test('downloading return record calls api', async () => {
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{
+                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
+                orderNumber: 2, batches: [], setBatches: jest.fn()
+            }}>
+                <Shipping />
+            </AppWrapper>
+        )
+    })
+
+    const downloadReturnRecordButton = screen.getByText(/download return record/i)
+    expect(downloadReturnRecordButton).toBeInTheDocument();
+    await act(async () => {
+        fireEvent.click(downloadReturnRecordButton)
+    })
+    expect(fetch).toBeCalledWith('https://127.0.0.1:8000/api/generate-return-record/?order_id=2')
+})
+
+test('downloading certificates calls api', async () => {
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{
+                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
+                orderNumber: 2, batches: [], setBatches: jest.fn()
+            }}>
+                <Shipping />
+            </AppWrapper>
+        )
+    })
+
+    const downloadCertificatesButton = screen.getByText(/download certificates/i)
+    expect(downloadCertificatesButton).toBeInTheDocument();
+    await act(async () => {
+        fireEvent.click(downloadCertificatesButton)
+    })
+    expect(fetch).toBeCalledWith('https://127.0.0.1:8000/api/generate-order-certificates?order_id=2')
+})

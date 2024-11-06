@@ -162,7 +162,8 @@
         "calibration_certificate_number": "123456",
         "type": "Reference",
         "serial_number": "4729503",
-        "reference_tag": null
+        "reference_tag": null,
+        "certificate_verified": false
     },
     {
         "equipment_id": 16,

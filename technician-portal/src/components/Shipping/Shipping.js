@@ -11,25 +11,30 @@ import { useAppContext } from "../../contexts/app";
 
 import styles from "../../styles/styles.module.css";
 import getEquipment from "../../utils/getEquipment";
+import getReferences from "../../utils/getReferences";
 
 const { addMonths } = require('date-fns');
 
 function Shipping() {
-    const navigate = useNavigate()
-    const certificateList = useRef([])
-
     const {
         setConfirmationMessage, technicianId, setPopupMessage,
         orderNumber, batches, setBatches
     } = useAppContext()
 
+    const navigate = useNavigate()
+    
+    const certificateList = useRef([]);
+    
+    const [references, setReferences] = useState(new Set());
     const [certificateMessage, setCertificateMessage] = useState('');
     const [sensor, setSensor] = useState('');
     const [sensorList, setSensorList] = useState([]);
     const [scannedSensors, setScannedSensors] = useState([]);
+    const isMounted = useRef(false);
 
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [order, setOrder] = useState(null)
+    const [referenceVerificationArray, setReferenceVerificationArray] = useState([]);
 
     const promises = [];
 
@@ -47,14 +52,67 @@ function Shipping() {
             })
     }
 
+    async function getProcedureReferences(calibrationProcedureIds) {
+        const promises = []
+        for (const procedureId of calibrationProcedureIds) {
+            promises.push(getReferences(procedureId).then(referenceResponse => {
+                for (const reference of referenceResponse) {
+                    setReferences(references.add(JSON.stringify(reference))) // reference must become a string to allow Set() to recognize the duplicates
+                }
+            }))
+        }
+        await Promise.all(promises)
+        return references
+    }
+
+    function confirmReferences() {
+        try {
+            for (const reference of references) {
+                if (reference.certificate_verified) {
+                    continue;
+                }
+                const parameters = {
+                    asset_tag: reference.asset_tag,
+                    technician_id: technicianId
+                }
+                callApi('verify-equipment-in-shipping', parameters)
+            }
+            setPopupMessage('References verified');
+        } catch (error) {
+            console.error(error);
+            setPopupMessage('There was an error validating references. Please reload this page')
+        }
+    }
+
     useEffect(() => {
         if (!order) {
+            const calibrationProcedures = new Set()
             getCertificates();
             callApi('get-order-by-id', { 'order_id': orderNumber })
                 .then(response => {
                     setOrder(response);
                     setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
-                })
+                    
+                    if (!isMounted.current) {
+                        isMounted.current = true;
+                        for (const batch of batches) {
+                            calibrationProcedures.add(batch.calibration_procedure_id);
+                        };
+                        getProcedureReferences(calibrationProcedures).then(references => {
+                            const referenceVerifiedStrings = ['The following references must be verified for information to go onto the certificate']
+                            for (let reference of references) {
+                                reference = JSON.parse(reference);
+                                if (!reference.certificate_verified) {
+                                    referenceVerifiedStrings.push(`Reference ${reference.asset_tag} (${reference.description}) will be added to certificates with a calibration date of ${parseDataBaseDate(reference.last_calibration)} and an expiration date of ${parseDataBaseDate(reference.next_calibration)}`)
+                                }
+                            }
+                            if (referenceVerifiedStrings.length > 1) {
+                                setReferenceVerificationArray(referenceVerifiedStrings)
+                            }
+                        })
+                    }
+                    }
+                )
             callApi('get-sensors-by-order-id', { order_id: orderNumber })
                 .then(response => {
                     setSensorList(response)
@@ -69,7 +127,7 @@ function Shipping() {
                 promises.push(callApi('update-batch-technician', {
                     department: 'shipping',
                     technician_id: technicianId,
-                    'batch_id': batch.batch_id
+                    batch_id: batch.batch_id
                 }));
                 promises.push(callApi('set-batch-active-state', {
                     batch_id: batch.batch_id,
@@ -604,7 +662,7 @@ function Shipping() {
                     if (response.headers.get('content-type') === 'application/json; charset=utf-8') {
                         return response.blob();
                     } else {
-                        console.error(`Expecting return record to be 'application/pdf' but instead got '${response.headers.get("content-type")}': ${response}`);
+                        console.error(`Expecting return record to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
                         setPopupMessage(`Failed to generate return record for order ${orderNumber}`);
                     }
                 } else {
@@ -676,7 +734,8 @@ function Shipping() {
     return (
         <>
             <div className={styles.menu}>
-                {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
+            {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
+            {referenceVerificationArray.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />}
 
                 <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'}</h2>
 

@@ -854,8 +854,16 @@ app.get('/api/set-generator', (req, res) => {
     const certificateNumber = req.query.certificate_number;
     const calibrationDate = new Date(req.query.calibration_date);
     const dueDate = new Date(req.query.due_date);
+    const technicianId = req.query.technician_id;
 
     pool.query('UPDATE api_equipment SET reference_tag = $1 WHERE asset_tag = $2', [referenceTag, generatorTag], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error setting generator query: ${error}` });
+        }
+    })
+
+    pool.query('UPDATE api_equipment SET physically_verified = false, certificate_verified = false WHERE asset_tag = $1', [referenceTag], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: `Error setting generator query: ${error}` });
@@ -870,6 +878,40 @@ app.get('/api/set-generator', (req, res) => {
         const equipment = result.rows;
         res.json(equipment);
     })
+
+    createLogEntry(referenceTag, technicianId, 'Reference placed into service');
+});
+
+app.get('/api/verify-equipment-in-testing', (req, res) => {
+    const assetTag = req.query.asset_tag;
+    const technicianId = req.query.technician_id;
+
+    pool.query('UPDATE api_equipment SET physically_verified = true WHERE asset_tag = $1 RETURNING *', [assetTag], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
+        }
+        const equipment = result.rows;
+        res.json(equipment);
+    })
+
+    createLogEntry(assetTag, technicianId, 'Reference verified in testing')
+});
+
+app.get('/api/verify-equipment-in-shipping', (req, res) => {
+    const assetTag = req.query.asset_tag;
+    const technicianId = req.query.technician_id;
+
+    pool.query('UPDATE api_equipment SET certificate_verified = true WHERE asset_tag = $1 RETURNING *', [assetTag], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
+        }
+        const equipment = result.rows;
+        res.json(equipment);
+    })
+
+    createLogEntry(assetTag, technicianId, 'Reference verified in shipping')
 });
 
 app.get('/api/get-sensor-invoice-report', (req, res) => {
@@ -2047,4 +2089,14 @@ function removeDuplicateCertificates(certificateArray) {
             return true;
         }
     })
-}
+};
+
+function createLogEntry(assetTag, technicianId, actionPerformedString) {
+    const now = new Date()
+    pool.query("INSERT INTO api_log (timestamp, asset_tag, action_performed, technician_id) VALUES ($1, $2, $3, $4) RETURNING *", [now, assetTag, actionPerformedString, technicianId], (error, result) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: `Error executing query: ${error}` });
+        }
+    });
+};

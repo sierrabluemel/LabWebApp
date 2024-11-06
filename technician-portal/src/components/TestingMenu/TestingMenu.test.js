@@ -9,7 +9,47 @@ import { act } from 'react-dom/test-utils';
 jest.mock('axios')
 jest.spyOn(global.console, 'error').mockImplementation(() => { });
 
-const equipment = require('../../utils/equipment.test.json')
+const equipmentList = require('../../utils/equipment.test.json')
+const equipment = {
+    current: {
+        reference1: {
+            asset_tag: 'S000114',
+            physically_verified: true
+        },
+        reference2: {
+            asset_tag: 'S000115',
+            physically_verified: true
+        },
+        reference3: {
+            asset_tag: 'S000116',
+            physically_verified: false
+        },
+        rotronic: {
+            asset_tag: 'S000119',
+            physically_verified: true
+        },
+        superDaq: {
+            asset_tag: 'S000134',
+            physically_verified: true
+        },
+        chamber: {
+            asset_tag: 'S000105',
+            physically_verified: false,
+            equipment_id: 5
+        },
+        bath1: {
+            equipment_id: 1
+        },
+        bath2: {
+            equipment_id: 2
+        },
+        bath3: {
+            equipment_id: 3
+        }
+    }
+}
+
+const referenceStrings = {current: ['The following references have been recently changed']}
 
 beforeEach(() => {
     jest.clearAllMocks()
@@ -25,11 +65,11 @@ beforeEach(() => {
             case `http://${ip}/api/get-recent-data/`:
                 return Promise.resolve({ data: [{ "id": 2118719, "lab_humidity": 27.83, "lab_temperature": 17.2, monnit_sensor_data: [{ sensorID: "123456", dataType: 'TemperatureData', dataValue: '27.9', heartbeat: 60, messageDate: '2024-09-04 16:30:57' }], "rotronic_data": { "S000119": { "Humidity": 99.79, "Temperature": 17.53, "stability_data": { "humidity": { "slope": 0.0005911231339541797, "stable": true, "average": 99.806, "assumed_set_point": 100, "standard_deviation": 0.01493279966205042 }, "temperature": { "slope": -0.00012928380874201937, "stable": false, "average": 17.531, "assumed_set_point": 20, "standard_deviation": 0.009001915504969647 } } } }, "generator_readings": null, "devices_under_test": { "886013": -999999, "1066321": -999999, "123456temp": 27.89, '123456humidity': 15 }, "prt_readings_celsius": { "S000114": 16.31538, "S000116": -25.00937, "S000128": 16.2262 }, "timestamp": "2023-10-27T15:38:15.858Z", "super_daq_data": { "S000114": { "Temperature": 16.31542, "stability_data": { "slope": -0.00009503927003926521, "stable": true, "average": 16.313421, "assumed_set_point": 16, "standard_deviation": 0.0027447003270041946 } }, "S000116": { "Temperature": -25.00882, "stability_data": { "slope": 0.00001165216687380225, "stable": true, "average": -25.009349999999998, "assumed_set_point": -25, "standard_deviation": 0.0007345168871248206 } }, "S000128": { "Temperature": 16.22624, "stability_data": { "slope": 0.000034723606026045725, "stable": true, "average": 16.228323, "assumed_set_point": 16, "standard_deviation": 0.0009370732131996917 } } } }] })
             case `http://${ip}/api/get-temperature-reading-range/`:
-                return Promise.resolve({ data: [{ super_daq_data: { S000115: { Temperature: 123 } }, devices_under_test: { '123456temp': 123, '123456humidity': 15 } }] })
+                return Promise.resolve({ data: [{ super_daq_data: { S000115: { Temperature: 123 }, S000116: { Temperature: 123 }, S000114: { Temperature: 123 } }, devices_under_test: { '123456temp': 123, '123456humidity': 15 } }] })
             case `http://${ip}/api/calibrate-sensor/`:
                 return Promise.resolve({ data: { Result: 'failed' } })
             case `http://${ip}/api/get-equipment/`:
-                return Promise.resolve({ data: equipment })
+                return Promise.resolve({ data: equipmentList })
             case `http://${ip}/api/get-humidity-reading-range/`:
                 return Promise.resolve({ data: [{ rotronic_data: { S000119: { Humidity: 12345, Temperature: 12345 } }, devices_under_test: { '123456temp': 123, '123456humidity': 15 } }] })
             default:
@@ -45,9 +85,10 @@ test('TestingMenu renders successfully', async () => {
         render(
             <AppWrapper sharedState={{
                 sensorGrid: [], sensorList: [],
-                setSensorGrid: jest.fn(), setPopupMessage: jest.fn()
+                setSensorGrid: jest.fn(), setPopupMessage: jest.fn(),
+                equipment: equipment, calibrationProcedureId: 1
             }}>
-                <TestingMenu setPoints={[{ temperature: 20 }, { temperature: 20 }, { temperature: 20 }, { temperature: 20 }]} />
+                <TestingMenu referenceStrings={referenceStrings} referencesToVerify={[]} setReferencesToVerify={jest.fn()} setPoints={[{ temperature: 20 }, { temperature: 20 }, { temperature: 20 }, { temperature: 20 }]} />
             </AppWrapper>
         )
     })
@@ -61,9 +102,10 @@ test('initial render sets grid once', async () => {
         render(
             <AppWrapper sharedState={{
                 sensorGrid: [], sensorList: [{ sensor_id: 123456 }],
-                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(), procedureId: 1,
+                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(),
+                procedureId: 1, equipment: equipment, calibrationProcedureId: 1
             }}>
-                <TestingMenu setPoints={[{ temperature: 20 }, { temperature: 20 }, { temperature: 20 }, { temperature: 20 }]} />
+                <TestingMenu referenceStrings={referenceStrings} referencesToVerify={[]} setReferencesToVerify={jest.fn()} setPoints={[{ temperature: 20 }, { temperature: 20 }, { temperature: 20 }, { temperature: 20 }]} />
             </AppWrapper>
         )
     })
@@ -76,9 +118,10 @@ test('pressing set point button creates reading', async () => {
         render(
             <AppWrapper sharedState={{
                 sensorGrid: [], sensorList: [{ sensor_id: 123456 }],
-                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(), procedureId: 1,
+                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(),
+                procedureId: 1, equipment: equipment, calibrationProcedureId: 1
             }}>
-                <TestingMenu setPoints={[{ temperature: 20 }, { temperature: 30 }, { temperature: 40 }, { temperature: 50 }]} />
+                <TestingMenu referenceStrings={referenceStrings} referencesToVerify={[]} setReferencesToVerify={jest.fn()} setPoints={[{ temperature: 20 }, { temperature: 30 }, { temperature: 40 }, { temperature: 50 }]} />
             </AppWrapper>
         )
     })
@@ -96,9 +139,10 @@ test('no stable data throws error', async () => {
         render(
             <AppWrapper sharedState={{
                 sensorGrid: mockSensorGrid, sensorList: [{ sensor_id: 123456 }, { sensor_id: 654321 }],
-                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(), procedureId: 1,
+                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(),
+                procedureId: 1, equipment: equipment, calibrationProcedureId: 1
             }}>
-                <TestingMenu setPoints={[{ temperature: 20 }, { temperature: 30 }, { temperature: 40 }, { temperature: 50 }]} />
+                <TestingMenu referenceStrings={referenceStrings} referencesToVerify={[]} setReferencesToVerify={jest.fn()} setPoints={[{ temperature: 20 }, { temperature: 30 }, { temperature: 40 }, { temperature: 50 }]} />
             </AppWrapper>
         )
     })
@@ -125,7 +169,7 @@ test('no readings throws error', async () => {
             case `http://${ip}/api/calibrate-sensor/`:
                 return Promise.resolve({ data: { Result: 'failed' } })
             case `http://${ip}/api/get-equipment/`:
-                return Promise.resolve({ data: equipment })
+                return Promise.resolve({ data: equipmentList })
             default:
                 return Promise.reject();
         }
@@ -134,9 +178,10 @@ test('no readings throws error', async () => {
         render(
             <AppWrapper sharedState={{
                 sensorGrid: mockSensorGrid, sensorList: [{ sensor_id: 123456 }, { sensor_id: 654321 }],
-                setSensorGrid: jest.fn(), setPopupMessage: jest.fn(), procedureId: 1,
+                setSensorGrid: jest.fn(), setPopupMessage: jest.fn(),
+                procedureId: 1, equipment: equipment, calibrationProcedureId: 1
             }}>
-                <TestingMenu setPoints={[{ temperature: 20 }, { temperature: 30 }, { temperature: 40 }, { temperature: 50 }]} />
+                <TestingMenu referenceStrings={referenceStrings} referencesToVerify={[]} setReferencesToVerify={jest.fn()} setPoints={[{ temperature: 20 }, { temperature: 30 }, { temperature: 40 }, { temperature: 50 }]} />
             </AppWrapper>
         )
     })
@@ -154,9 +199,10 @@ test('pressing humidity set point button creates reading', async () => {
         render(
             <AppWrapper sharedState={{
                 sensorGrid: [], sensorList: [{ sensor_id: 123456 }],
-                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(), procedureId: 3,
+                setSensorGrid: mockSetSensorGrid, setPopupMessage: jest.fn(),
+                procedureId: 3, equipment: equipment, calibrationProcedureId: 1
             }}>
-                <TestingMenu setPoints={[{ temperature: 40, humidity: 20 }, { temperature: 30, humidity: 50 }, { temperature: 20, humidity: 80 }]} />
+                <TestingMenu referenceStrings={referenceStrings} referencesToVerify={[]} setReferencesToVerify={jest.fn()} setPoints={[{ temperature: 40, humidity: 20 }, { temperature: 30, humidity: 50 }, { temperature: 20, humidity: 80 }]} />
             </AppWrapper>
         )
     })

@@ -8,16 +8,16 @@ function EquipmentRow({ generatorText, generatorHint, generatorTag, description,
     const [calibrationDate, setCalibrationDate] = useState('');
     const [dueDate, setDueDate] = useState('');
 
-    const { equipment } = useAppContext();
+    const { equipmentList } = useAppContext();
 
     let currentGenerator;
     let dropdownOptions;
     if (generatorTag) {
-        currentGenerator = equipment.current.filter(asset => asset.asset_tag === generatorTag)[0];
-        dropdownOptions = equipment.current.filter(asset => asset.asset_tag !== currentGenerator.reference_tag);
+        currentGenerator = equipmentList.current.filter(asset => asset.asset_tag === generatorTag)[0];
+        dropdownOptions = equipmentList.current.filter(asset => asset.asset_tag !== currentGenerator.reference_tag);
     } else {
-        currentGenerator = equipment.current.filter(asset => asset.reference_tag === asset.asset_tag)[0];
-        dropdownOptions = equipment.current.filter(asset => asset.asset_tag !== asset.reference_tag);
+        currentGenerator = equipmentList.current.filter(asset => asset.reference_tag === asset.asset_tag)[0];
+        dropdownOptions = equipmentList.current.filter(asset => asset.asset_tag !== asset.reference_tag);
     }
 
     if (!currentGenerator) {
@@ -73,7 +73,7 @@ function EquipmentRow({ generatorText, generatorHint, generatorTag, description,
             </div>
             <select data-testid={generatorText} className={styles.equipment_dropdown} value={referenceTag} onChange={handleDropDownChange}>
                 {
-                    !equipment.current.length > 0 ? <option key={-1}>Loading...</option> : // awaiting response
+                    !equipmentList.current.length > 0 ? <option key={-1}>Loading...</option> : // awaiting response
                         currentGenerator.reference_tag === currentGenerator.asset_tag ? // is the current equipment the SuperDAQ?
                             <option key={-1}>{currentGenerator.asset_tag}</option> :
                             <option key={-1}>{currentGenerator.reference_tag}</option>

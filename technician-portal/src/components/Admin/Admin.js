@@ -16,9 +16,9 @@ function Admin() {
     const [confirmationArray, setConfirmationArray] = useState(false);
     const referenceList = [reference1, reference2, reference3, reference4];
 
-    const { setPopupMessage, equipment } = useAppContext();
+    const { setPopupMessage, equipmentList, technicianId } = useAppContext();
 
-    let currentSuperDaq = equipment.current.filter(asset => asset.reference_tag === asset.asset_tag)[0];
+    let currentSuperDaq = equipmentList.current.filter(asset => asset.reference_tag === asset.asset_tag)[0];
     if (!currentSuperDaq) {
         currentSuperDaq = {};
     }
@@ -86,14 +86,15 @@ function Admin() {
     async function handleConfirm(event) {
         const promises = [];
         if (isReferenceValid(superDaq)) {
-            const currentActiveSuperDaqs = equipment.current.filter(equipment => equipment.reference_tag === equipment.asset_tag);
+            const currentActiveSuperDaqs = equipmentList.current.filter(equipment => equipment.reference_tag === equipment.asset_tag);
             for (const activeSuperDaq of currentActiveSuperDaqs) {
                 const params = {
                     reference_tag: null,
                     generator_tag: activeSuperDaq.asset_tag,
                     certificate_number: activeSuperDaq.calibration_certificate_number,
                     calibration_date: activeSuperDaq.last_calibration,
-                    due_date: activeSuperDaq.next_calibration
+                    due_date: activeSuperDaq.next_calibration,
+                    technician_id: technicianId
                 }
                 callApi('set-generator', params)
             }
@@ -102,7 +103,8 @@ function Admin() {
                 generator_tag: superDaq.referenceTag,
                 certificate_number: superDaq.certificateNumber,
                 calibration_date: superDaq.calibrationDate,
-                due_date: superDaq.dueDate
+                due_date: superDaq.dueDate,
+                technician_id: technicianId
             }
             promises.push(
                 callApi('set-generator', params)
@@ -123,7 +125,8 @@ function Admin() {
                     generator_tag: reference.generatorTag,
                     certificate_number: reference.certificateNumber,
                     calibration_date: reference.calibrationDate,
-                    due_date: reference.dueDate
+                    due_date: reference.dueDate,
+                    technician_id: technicianId
 
                 }
                 promises.push(
@@ -133,6 +136,13 @@ function Admin() {
                             setPopupMessage(`Could not set reference for generator: ${reference.generatorTag}`);
                         })
                 )
+
+                const promise = callApi('get-equipment')
+                .then(equipment => {
+                    equipmentList.current = equipment;
+                })
+
+                promises.push(promise);
             }
         }
         clearForm();

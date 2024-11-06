@@ -29,7 +29,7 @@ beforeEach(() => {
 test('Admin menu renders successfully', async () => {
     await act(async () => {
         render(
-            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipment: {current: equipment} }}>
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipmentList: {current: equipment} }}>
                 <Admin />
             </AppWrapper>
         )
@@ -41,7 +41,7 @@ test('Admin menu renders successfully', async () => {
 test('Changing references with all correct data', async () => {
     await act(async () => {
         render(
-            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipment: {current: equipment} }}>
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipmentList: {current: equipment} }}>
                 <Admin />
             </AppWrapper>
         )

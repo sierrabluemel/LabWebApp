@@ -4,22 +4,21 @@ import callApi from "../../utils/api/callApi";
 import round from "../../utils/round.js";
 import StableTimeDisplay from "../StableTimeDisplay/StableTimeDisplay";
 import { useAppContext } from "../../contexts/app";
-import getEquipment from "../../utils/getEquipment.js";
 import Button from "../Button/Button.js";
+import getReferences from "../../utils/getReferences.js";
 
-function TestingMenu({ setPoints }) {
+function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setReferencesToVerify }) {
     const {
         procedureId: calibrationProcedureId, sensorGrid,
-        sensorList, setSensorGrid, setPopupMessage
+        sensorList, setSensorGrid, setPopupMessage, equipment
     } = useAppContext()
 
     const [point1StableTime, setPoint1StableTime] = useState('Loading...');
     const [point2StableTime, setPoint2StableTime] = useState('Loading...');
     const [point3StableTime, setPoint3StableTime] = useState('Loading...');
-    const selectedSensor = useRef(null);
     const [loadingMessage, setLoadingMessage] = useState('Loading...');
     const refreshed = useRef(false);
-    const equipment = useRef(null);
+    const selectedSensor = useRef(null);
 
     const selectSensor = async (sensorId) => {
         if (selectedSensor.current === sensorId) {
@@ -170,10 +169,6 @@ function TestingMenu({ setPoints }) {
     };
 
     const updateStableTimes = async () => {
-        if (!equipment.current) {
-            const response = await getEquipment();
-            equipment.current = response;
-        }
         if (!setPoints) {
             return;
         }
@@ -208,7 +203,7 @@ function TestingMenu({ setPoints }) {
                 const index = i >= 1 ? i + 1 : i; // Bypass second as found
 
                 let referenceIndex;
-                switch(index) {
+                switch (index) {
                     case 0:
                         referenceIndex = 1;
                         break;
@@ -257,17 +252,6 @@ function TestingMenu({ setPoints }) {
         updateStableTimes();
         updateSensors(sensorList, setSensorGrid, calibrationProcedureId, resolvedReadings, updatedSensor, resolvedRecentReadings);
     };
-
-    useEffect(() => {
-        if (!refreshed.current) {
-            refresh()
-            refreshed.current = true;
-        }
-        const interval = setInterval(() => {
-            refresh();
-        }, 3000);
-        return () => clearInterval(interval);
-    })
 
     const setStableTimesToLoading = () => {
         const setters = [setPoint1StableTime, setPoint2StableTime, setPoint3StableTime];
@@ -494,7 +478,7 @@ function TestingMenu({ setPoints }) {
 
     let menu;
     if (!setPoints) {
-        return <h1 className={styles.title}>Loading...</h1>
+        menu = <h1 className={styles.title}>Loading...</h1>
     } else if (loadingMessage) {
         setLoadingMessage('');
     } else {
@@ -628,16 +612,41 @@ function TestingMenu({ setPoints }) {
                     </div>
                 );
                 break;
-        }
-        if (sensorList.length < 1) {
-            return <h1 className={styles.title}>No sensors found</h1>
-        } else if (loadingMessage) {
-            return <h1 className={styles.title}>Loading...</h1>
-        }
-
-
-        return menu;
+        };
     }
+
+    useEffect(() => {
+        if (!refreshed.current) {
+            refreshed.current = true;
+            refresh()
+
+            getReferences(calibrationProcedureId).then(references => {
+                const unverifiedReferences = []
+                if (referencesToVerify.length === 0) {
+                    for (const reference of references) {
+                        if (!reference.physically_verified) {
+                            const verificationString = `Please verify that equipment ${reference.asset_tag} (${reference.description}) is being used for this test`
+    
+                            unverifiedReferences.push(reference);
+                            referenceStrings.current = [...referenceStrings.current, verificationString];
+                        }
+                    }
+                    setReferencesToVerify(unverifiedReferences);
+                }
+            })
+        }
+        const interval = setInterval(() => {
+            refresh();
+        }, 3000);
+        return () => clearInterval(interval);
+    })
+    if (sensorList.length < 1) {
+        menu = <h1 className={styles.title}>No sensors found</h1>
+    } else if (loadingMessage) {
+        menu = <h1 className={styles.title}>Loading...</h1>
+    }
+
+    return menu;
 }
 
 export default TestingMenu;

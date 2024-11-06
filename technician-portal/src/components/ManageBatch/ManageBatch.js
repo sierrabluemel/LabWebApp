@@ -26,6 +26,8 @@ function ManageBatch() {
     const readings = useRef(null);
     const setPoint = useRef(null);
     const [isMounted, setIsMounted] = useState(false);
+    const [referencesToVerify, setReferencesToVerify] = useState([]);
+    const referenceStrings = useRef(['The following references have been recently changed'])
 
     const getSetPoints = async () => {
         const response = await callApi('get-calibration-procedures')
@@ -46,6 +48,16 @@ function ManageBatch() {
                 })
         }
     })
+
+    async function verifyReferences() {
+        const promises = []
+        for (const reference of referencesToVerify) {
+            promises.push(callApi('verify-equipment-in-testing', { asset_tag: reference.asset_tag, technician_id: technicianId }))
+        }
+
+        await Promise.all(promises);
+        setPopupMessage('Equipment verified')
+    }
 
     const downloadWorkOrder = () => {
         const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/generate-work-order?batch_id=${batchNumber}` : `http://${ip}/api/generate-work-order?batch_id=${batchNumber}`
@@ -208,6 +220,7 @@ function ManageBatch() {
     return (
         <>
             <div className={styles.menu}>
+                {referencesToVerify.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />}
                 {confirmationArray.length > 0 ? <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={handleSensorConfirm} /> : <></>}
                 <div className={styles.grid_menu}>
                     <h1 className={styles.title}>{'Batch: ' + batchNumber + (currentLocation ? ` | Current location: ${currentLocation}` : ` | No location set`)}</h1>
@@ -226,9 +239,9 @@ function ManageBatch() {
                 </div>
                 <div className={styles.test_menu}>
                     <h1 className={styles.title}>{`Calibration Procedure: ${procedureId}`}</h1>
-                    {setPoint.current ? 
-                    <TestingMenu readings={readings} setPoints={setPoint.current} /> :
-                    <></>}
+                    {setPoint.current ?
+                        <TestingMenu readings={readings} setPoints={setPoint.current} referenceStrings={referenceStrings} referencesToVerify={referencesToVerify} setReferencesToVerify={setReferencesToVerify} /> :
+                        <></>}
                 </div>
             </div>
         </>
