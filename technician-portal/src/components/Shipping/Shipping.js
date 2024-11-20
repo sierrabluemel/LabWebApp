@@ -67,7 +67,8 @@ function Shipping() {
 
     function confirmReferences() {
         try {
-            for (const reference of references) {
+            for (let reference of references) {
+                reference = JSON.parse(reference);
                 if (reference.certificate_verified) {
                     continue;
                 }
