@@ -1,0 +1,2 @@
+nohup python3 /home/admin/print-documents.py > /home/admin/nohup.out 2>&1 &
+autossh -fN -M 20000 -R 4000:localhost:8000 -i /home/admin/brandtw_monnit_prod.pem ubuntu@ec2-3-134-9-110.us-east-2.compute.amazonaws.com

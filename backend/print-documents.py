@@ -2,16 +2,11 @@ from flask import Flask, request
 from flask_cors import CORS
 from zebra import Zebra
 import cups
-import os
 
 app = Flask(__name__)
 CORS(app)
 z = Zebra()
-z.setqueue('ZTC-ZT230-200dpi-ZPL')
-print('Starting ssh')
-command_string = 'autossh -M 20000 -R 4000:localhost:8000 -i "brandtw_monnit_prod.pem" ubuntu@ec2-3-134-9-110.us-east-2.compute.amazonaws.com'
-os.system(f"gnome-terminal -e '{command_string}'")
-print('ssh successful')
+z.setqueue('zebra')
 
 @app.route('/print-label/', methods=['GET', 'POST'])
 def print_labels():
@@ -27,13 +22,13 @@ def print_labels():
 @app.route('/print-pdf/', methods=['GET', 'POST'])
 def test():
     data = request.data
-    with open('recentPdf.pdf', 'wb') as file:
+    with open('/home/admin/recentPdf.pdf', 'wb') as file:
         file.write(data)
 
     conn = cups.Connection()
-    printerName = 'HP-ColorLaserJet-M255-M256'
+    printerName = 'hp-color'
     job_id = conn.createJob(printerName, 'Print PDF Job', {})
-    conn.printFile(printerName, 'recentPdf.pdf', 'recentPdf.pdf', {})
+    conn.printFile(printerName, '/home/admin/recentPdf.pdf', '/home/admin/recentPdf.pdf', {})
     conn.cancelJob(job_id)
     return 'Printed PDF successfully'
 
