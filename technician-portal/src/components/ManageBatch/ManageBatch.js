@@ -28,12 +28,7 @@ function ManageBatch() {
     const [isMounted, setIsMounted] = useState(false);
     const [referencesToVerify, setReferencesToVerify] = useState([]);
     const referenceStrings = useRef(['The following references have been recently changed'])
-
-    const getSetPoints = async () => {
-        const response = await callApi('get-calibration-procedures')
-        const currentProcedure = response.filter(procedure => procedure.calibration_procedure_id === procedureId)[0];
-        return currentProcedure.set_points;
-    }
+    const [calibrationProcedureDescription, setCalibrationProcedureDescription] = useState('');
 
     useEffect(() => {
         callApi('get-batch-by-id', { batch_id: batchNumber })
@@ -41,11 +36,12 @@ function ManageBatch() {
                 setCurrentLocation(response.current_location)
             })
         if (!isMounted) {
-            getSetPoints()
-                .then(point => {
-                    setPoint.current = point;
-                    setIsMounted(true);
-                })
+            callApi('get-calibration-procedures').then(response => {
+                const currentProcedure = response.filter(procedure => procedure.calibration_procedure_id === procedureId)[0];
+                setPoint.current = currentProcedure.set_points;
+                setCalibrationProcedureDescription(currentProcedure.calibration_procedure);
+                setIsMounted(true);
+            })
         }
     })
 
@@ -238,7 +234,7 @@ function ManageBatch() {
                     </form>
                 </div>
                 <div className={styles.test_menu}>
-                    <h1 className={styles.title}>{`Calibration Procedure: ${procedureId}`}</h1>
+                    <h1 className={styles.title}><span className={styles[`calibration_${procedureId}`]}>CP: {procedureId}</span> | {calibrationProcedureDescription}</h1>
                     {setPoint.current ?
                         <TestingMenu readings={readings} setPoints={setPoint.current} referenceStrings={referenceStrings} referencesToVerify={referencesToVerify} setReferencesToVerify={setReferencesToVerify} /> :
                         <></>}
