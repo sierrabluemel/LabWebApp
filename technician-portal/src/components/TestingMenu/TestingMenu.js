@@ -13,9 +13,14 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         sensorList, setSensorGrid, setPopupMessage, equipment
     } = useAppContext()
 
+    const [stableTimes, setStableTimes] = useState(setPoints.map(() => 'Loading...'));
+
     const [point1StableTime, setPoint1StableTime] = useState('Loading...');
     const [point2StableTime, setPoint2StableTime] = useState('Loading...');
     const [point3StableTime, setPoint3StableTime] = useState('Loading...');
+    const [point4StableTime, setPoint4StableTime] = useState('Loading...');
+    const [point5StableTime, setPoint5StableTime] = useState('Loading...');
+    const [point6StableTime, setPoint6StableTime] = useState('Loading...');
     const [loadingMessage, setLoadingMessage] = useState('Loading...');
     const refreshed = useRef(false);
     const selectedSensor = useRef(null);
@@ -42,10 +47,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             let currentReadingCell = (<div className={styles.grid_entry}></div>);
             let referenceReadingCell = (<div className={styles.grid_entry}></div>);
             let firstCell = null;
-            let referenceCell = null;
             let elementClass = styles.grid_row;
             for (let i = 0; i < sensorList.length; i++) {
-                let sensorReadings = {};
+                let sensorReadings = [];
+                const sensorStyles = [];
                 const sensor = sensorList[i % sensorList.length];
                 const readings = allReadings[i];
                 let style = '';
@@ -86,10 +91,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                             default:
                                 if (calibrationProcedureId === 6) {
                                     elementClass = styles.grid_row_6;
+                                } else if (calibrationProcedureId === 7) {
+                                    elementClass = styles.grid_row_10;
                                 }
 
                                 firstCell = (<div className={styles.grid_entry}>{tempReferenceReadings.setPoint0}</div>);
-                                referenceCell = (<div className={sensorReadings.set_point_0_style}>{sensorReadings.set_point_0}</div>);
 
                                 const findReadings = readings.find((reading) => (reading.set_point === setPoints[j]['temperature'] && reading.type === 'temperature'));
                                 if (findReadings) {
@@ -99,13 +105,13 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                     if (!readingObject.pass) {
                                         pass = false;
                                     }
-                                    sensorReadings[`set_point_${j}_style`] = (pass) ? styles.grid_entry_green : styles.grid_entry_red;
+                                    sensorStyles.push((pass) ? styles.grid_entry_green : styles.grid_entry_red);
                                 } else {
-                                    sensorReadings[`set_point_${j}_style`] = styles.grid_entry;
+                                    sensorStyles.push(styles.grid_entry);
                                     break;
                                 }
 
-                                sensorReadings[`set_point_${j}`] = sensorReadingString;
+                                sensorReadings.push(sensorReadingString);
                                 tempReferenceReadings[`setPoint${j}`] = referenceString;
                                 break;
 
@@ -125,13 +131,14 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                         if (!readingObject.pass) {
                                             pass = false;
                                         }
-                                        sensorReadings[`set_point_${j + 1}_style`] = (pass) ? styles.grid_entry_green : styles.grid_entry_red;
+                                        sensorStyles.push((pass) ? styles.grid_entry_green : styles.grid_entry_red);
                                     } else {
-                                        sensorReadings[`set_point_${j + 1}_style`] = styles.grid_entry;
+                                        sensorStyles.push(styles.grid_entry);
                                         break;
                                     }
                                 }
-                                sensorReadings[`set_point_${j + 1}`] = sensorReadingString;
+
+                                sensorReadings.push(sensorReadingString);
                                 tempReferenceReadings[`setPoint${j + 1}`] = referenceString;
                                 break;
                         }
@@ -140,15 +147,18 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         }
                     }
                 }
+
+                if (calibrationProcedureId === 3) {
+                    sensorStyles.shift();
+                }
+
                 newSensorGrid.push(
                     <div className={`${elementClass} ${style}`} key={sensor.sensor_id}>
                         <button className={styles.default_button} onClick={() => selectSensor(sensor.sensor_id)}>{sensor.sensor_id}</button>
                         {currentReadingCell}
-                        {referenceCell}
-                        <div className={sensorReadings.set_point_1_style}>{sensorReadings.set_point_1}</div>
-                        <div className={sensorReadings.set_point_2_style}>{sensorReadings.set_point_2}</div>
-                        <div className={sensorReadings.set_point_3_style}>{sensorReadings.set_point_3}</div>
-                        {calibrationProcedureId === 6 ? <div className={sensorReadings.set_point_4_style}>{sensorReadings.set_point_4}</div> : <></>}
+                        {sensorStyles.map((style, index) => {
+                            return <div className={style} key={index}>{sensorReadings[index]}</div>
+                        })}
                     </div>
                 );
             }
@@ -156,11 +166,14 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 <div className={elementClass} key={'1'}>
                     <div className={styles.grid_entry}>Reference</div>
                     {referenceReadingCell}
-                    {firstCell}
+                    {setPoints.map((setPoint, index) => {
+                        return <div className={styles.grid_entry} key={index}>{tempReferenceReadings[`setPoint${index}`]}</div>
+                    })}
+                    {/* {firstCell}
                     <div className={styles.grid_entry}>{tempReferenceReadings.setPoint1}</div>
                     <div className={styles.grid_entry}>{tempReferenceReadings.setPoint2}</div>
                     <div className={styles.grid_entry}>{tempReferenceReadings.setPoint3}</div>
-                    {calibrationProcedureId === 6 ? <div className={styles.grid_entry}>{tempReferenceReadings.setPoint4}</div> : <></>}
+                    {calibrationProcedureId === 6 ? <div className={styles.grid_entry}>{tempReferenceReadings.setPoint4}</div> : <></>} */}
                 </div>)
             setSensorGrid(newSensorGrid);
         } catch (error) {
@@ -173,8 +186,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             return;
         }
 
+        const newStableTimes = [];
 
-        let stableTime;
         const now = new Date()
         const setters = [setPoint1StableTime, setPoint2StableTime, setPoint3StableTime];
         const references = [equipment.current.reference1.asset_tag, equipment.current.reference2.asset_tag, equipment.current.reference3.asset_tag]
@@ -182,63 +195,82 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             if (!setPoints) {
                 return;
             }
-            if (calibrationProcedureId === 3) {
-                stableTime = await callApi('get-last-humidity-stable-reading', {
-                    'set_point': setPoints[i].humidity,
-                    'reference': equipment.current.rotronic.asset_tag
-                })
-            } else if (calibrationProcedureId === 5) {
-                stableTime = await callApi('get-last-humidity-stable-reading', {
-                    'set_point': setPoints[i + 1].temperature,
-                    'type': 'temperature',
-                    'reference': equipment.current.rotronic.asset_tag
-                })
-            } else if (calibrationProcedureId === 1) {
-                stableTime = await callApi('get-last-temperature-stable-reading', {
-                    'set_point': setPoints[i + 1].temperature,
-                    'reference': references[i],
-                    'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria)
-                });
-            } else if (calibrationProcedureId === 6) {
-                const index = i >= 1 ? i + 1 : i; // Bypass second as found
 
-                let referenceIndex;
-                switch (index) {
-                    case 0:
-                        referenceIndex = 1;
-                        break;
-                    case 2:
-                        referenceIndex = 0;
-                        break;
-                    case 3:
-                        referenceIndex = 2;
-                        break;
-                    default:
-                        break;
-                }
+            let params = {};
+            let endpoint = 'get-last-temperature-stable-reading';
+            switch (calibrationProcedureId) {
+                case 3:
+                    endpoint = 'get-last-humidity-stable-reading';
+                    params = {
+                        'set_point': setPoints[i].humidity,
+                        'reference': equipment.current.rotronic.asset_tag
+                    };
+                    break;
+                case 5:
+                    endpoint = 'get-last-humidity-stable-reading';
+                    params = {
+                        'set_point': setPoints[i + 1].temperature,
+                        'type': 'temperature',
+                        'reference': equipment.current.rotronic.asset_tag
+                    };
+                    break;
+                case 1:
+                    params = {
+                        'set_point': setPoints[i + 1].temperature,
+                        'reference': references[i],
+                        'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria)
+                    };
+                    break;
+                case 6:
+                    const index = i >= 1 ? i + 1 : i; // Bypass second as found
 
-                stableTime = await callApi('get-last-temperature-stable-reading', {
-                    'set_point': setPoints[index + 1].temperature,
-                    'reference': references[referenceIndex],
-                    'stability_criteria': JSON.stringify(setPoints[index + 1].stabilityCriteria)
-                });
-            } else {
-                stableTime = await callApi('get-last-temperature-stable-reading', {
-                    'set_point': setPoints[i + 1].temperature,
-                    'reference': references[1],
-                    'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria)
-                });
+                    let referenceIndex;
+                    switch (index) {
+                        case 0:
+                            referenceIndex = 1;
+                            break;
+                        case 2:
+                            referenceIndex = 0;
+                            break;
+                        case 3:
+                            referenceIndex = 2;
+                            break;
+                        default:
+                            break;
+                    }
+
+                    params = {
+                        'set_point': setPoints[index + 1].temperature,
+                        'reference': references[referenceIndex],
+                        'stability_criteria': JSON.stringify(setPoints[index + 1].stabilityCriteria)
+                    };
+                    break;
+                default:
+                    params = {
+                        'set_point': setPoints[i + 1].temperature,
+                        'reference': references[1],
+                        'stability_criteria': JSON.stringify(setPoints[i + 1].stabilityCriteria)
+                    };
+                    break;
             }
+
+            const stableTime = await callApi(endpoint, params)
+
             const totalSeconds = parseInt((now.getTime() - new Date(stableTime[1]).getTime()) / 1000);
             const minutesAgo = parseInt(totalSeconds / 60)
             if (isNaN(minutesAgo)) {
                 setters[i](`None found`);
+                newStableTimes.push('None found');
             } else if (minutesAgo > 0) {
                 setters[i](`Stable ${minutesAgo} minutes ago`);
+                newStableTimes.push(`Stable ${minutesAgo} minutes ago`);
             } else {
                 setters[i](`Stable`);
+                newStableTimes.push('Stable');
             }
         }
+        newStableTimes.unshift(newStableTimes[0]);
+        setStableTimes(newStableTimes);
     }
 
     const refresh = async (updatedSensor = selectedSensor.current) => {
@@ -288,9 +320,9 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         return finalReadings;
     }
 
-    const createTemperatureReading = async (setPointObject, referenceAssetID, generatorId, tolerance, uncertainty, reference, calibrate = false) => {
+    async function createTemperatureReading(setPointObject, generatorId, reference, calibrate = false) {
         const setPoint = setPointObject.temperature;
-        const readings = await getStableTemperatureReading(sensorList, setPointObject, referenceAssetID);
+        const readings = await getStableTemperatureReading(sensorList, setPointObject, reference.asset_tag);
         const labReadings = await callApi('get-recent-data');
         if (!labReadings[0].lab_humidity || !labReadings[0].lab_temperature) {
             setPopupMessage('No lab readings available for this reading');
@@ -316,8 +348,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     'sensor_id': sensor.sensor_id,
                     'generator_id': generatorId,
                     'reference_id': reference.equipment_id,
-                    'tolerance': tolerance,
-                    'uncertainty': uncertainty,
+                    'tolerance': setPointObject.readingCriteria.tolerance,
+                    'uncertainty': setPointObject.readingCriteria.uncertainty,
                 }
                 if (calibrate) {
                     callApi('calibrate-sensor', { 'sensor_id': sensor.sensor_id, 'target_reading': parameters.reference_reading })
@@ -400,6 +432,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
         let referenceHumidity = readings.map((item) => item.rotronic_data[reference].Humidity).filter((value) => value !== undefined);
         let referenceTemperature = readings.map((item) => item.rotronic_data[reference].Temperature).filter((value) => value !== undefined);
+
         referenceHumidity = round(referenceHumidity.reduce((a, b) => a + b, 0) / referenceHumidity.length);
         referenceTemperature = round(referenceTemperature.reduce((a, b) => a + b, 0) / referenceTemperature.length);
         readings = readings.map((item) => item.devices_under_test);
@@ -492,16 +525,25 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         <div className={styles.grid_row}>
                             <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
                             <Button onClick={() => { setStableTimesToLoading(); refresh() }} innerText='Refresh' />
-                            <Button onClick={() => createTemperatureReading(setPoints[0], equipment.current.reference1.asset_tag, equipment.current.bath1.equipment_id, 1, 0.02, equipment.current.reference1, true)} innerText='As Found' />
-                            <Button onClick={() => createTemperatureReading(setPoints[1], equipment.current.reference1.asset_tag, equipment.current.bath1.equipment_id, 1, 0.02, equipment.current.reference1)} innerText={`${setPoints[1].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[2], equipment.current.reference2.asset_tag, equipment.current.bath2.equipment_id, 1, 0.028, equipment.current.reference2)} innerText={`${setPoints[2].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[3], equipment.current.reference3.asset_tag, equipment.current.bath3.equipment_id, 1, 0.068, equipment.current.reference3)} innerText={`${setPoints[3].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[0], equipment.current.bath1.equipment_id, equipment.current.reference1, true)} innerText='As Found' />
+                            <Button onClick={() => createTemperatureReading(setPoints[1], equipment.current.bath1.equipment_id, equipment.current.reference1)} innerText={`${setPoints[1].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[2], equipment.current.bath2.equipment_id, equipment.current.reference2)} innerText={`${setPoints[2].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[3], equipment.current.bath3.equipment_id, equipment.current.reference3)} innerText={`${setPoints[3].temperature}°C`} />
+
                             <div className={styles.grid_entry}>Stable times</div>
                             <div className={styles.grid_entry}></div>
                             <StableTimeDisplay stableTime={point1StableTime} />
                             <StableTimeDisplay stableTime={point1StableTime} />
                             <StableTimeDisplay stableTime={point2StableTime} />
                             <StableTimeDisplay stableTime={point3StableTime} />
+
+
+                            <div className={styles.grid_entry}>Stable times 2</div>
+                            <div className={styles.grid_entry}></div>
+                            {stableTimes.map(stableTime => {
+                                return <StableTimeDisplay stableTime={stableTime} />;
+                            })}
+
                         </div>
                         {sensorGrid}
                     </div>
@@ -513,10 +555,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         <div className={styles.grid_row}>
                             <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
                             <Button onClick={() => { setStableTimesToLoading(); refresh() }} innerText='Refresh' />
-                            <Button onClick={() => createTemperatureReading(setPoints[0], equipment.current.reference2.asset_tag, 2, 1, 0.021, equipment.current.reference2, true)} innerText='As Found' />
-                            <Button onClick={() => createTemperatureReading(setPoints[1], equipment.current.reference2.asset_tag, 2, 1, 0.021, equipment.current.reference2)} innerText={`${setPoints[1].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[2], equipment.current.reference2.asset_tag, 17, 1, 0.047, equipment.current.reference2)} innerText={`${setPoints[2].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[3], equipment.current.reference2.asset_tag, 18, 1.5, 0.018, equipment.current.reference2)} innerText={`${setPoints[3].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[0], 2, equipment.current.reference2, true)} innerText='As Found' />
+                            <Button onClick={() => createTemperatureReading(setPoints[1], 2, equipment.current.reference2)} innerText={`${setPoints[1].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[2], 17, equipment.current.reference2)} innerText={`${setPoints[2].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[3], 18, equipment.current.reference2)} innerText={`${setPoints[3].temperature}°C`} />
                             <div className={styles.grid_entry}>Stable times</div>
                             <div className={styles.grid_entry}></div>
                             <StableTimeDisplay stableTime={point1StableTime} />
@@ -553,10 +595,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         <div className={styles.grid_row}>
                             <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
                             <Button onClick={() => { setStableTimesToLoading(); refresh() }} innerText='Refresh' />
-                            <Button onClick={() => createTemperatureReading(setPoints[0], equipment.current.reference2.asset_tag, 17, 1, 0.011, equipment.current.reference2, true)} innerText='As Found' />
-                            <Button onClick={() => createTemperatureReading(setPoints[1], equipment.current.reference2.asset_tag, 17, 1, 0.011, equipment.current.reference2)} innerText={`${setPoints[1].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[2], equipment.current.reference2.asset_tag, 17, 1, 0.089, equipment.current.reference2)} innerText={`${setPoints[2].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[3], equipment.current.reference2.asset_tag, 17, 1, 0.022, equipment.current.reference2)} innerText={`${setPoints[3].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[0], 17, equipment.current.reference2, true)} innerText='As Found' />
+                            <Button onClick={() => createTemperatureReading(setPoints[1], 17, equipment.current.reference2)} innerText={`${setPoints[1].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[2], 17, equipment.current.reference2)} innerText={`${setPoints[2].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[3], 17, equipment.current.reference2)} innerText={`${setPoints[3].temperature}°C`} />
                             <div className={styles.grid_entry}>Stable times</div>
                             <div className={styles.grid_entry}></div>
                             <StableTimeDisplay stableTime={point1StableTime} />
@@ -595,11 +637,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         <div className={styles.grid_row_6}>
                             <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
                             <Button onClick={() => { setStableTimesToLoading(); refresh() }} innerText='Refresh' />
-                            <Button onClick={() => createTemperatureReading(setPoints[0], equipment.current.reference2.asset_tag, equipment.current.bath2.equipment_id, 1, 0.028, equipment.current.reference2, true)} innerText={`As Found (${setPoints[1].temperature}°C)`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[1], equipment.current.reference2.asset_tag, equipment.current.bath2.equipment_id, 1, 0.028, equipment.current.reference2)} innerText={`${setPoints[1].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[2], equipment.current.reference1.asset_tag, equipment.current.bath1.equipment_id, 1, 0.02, equipment.current.reference1, true)} innerText={`As Found (${setPoints[3].temperature}°C)`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[3], equipment.current.reference1.asset_tag, equipment.current.bath1.equipment_id, 1, 0.02, equipment.current.reference1)} innerText={`${setPoints[3].temperature}°C`} />
-                            <Button onClick={() => createTemperatureReading(setPoints[4], equipment.current.reference3.asset_tag, equipment.current.bath3.equipment_id, 1, 0.068, equipment.current.reference3)} innerText={`${setPoints[4].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[0], equipment.current.bath2.equipment_id, equipment.current.reference2, true)} innerText={`As Found (${setPoints[1].temperature}°C)`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[1], equipment.current.bath2.equipment_id, equipment.current.reference2)} innerText={`${setPoints[1].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[2], equipment.current.bath1.equipment_id, equipment.current.reference1, true)} innerText={`As Found (${setPoints[3].temperature}°C)`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[3], equipment.current.bath1.equipment_id, equipment.current.reference1)} innerText={`${setPoints[3].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[4], equipment.current.bath3.equipment_id, equipment.current.reference3)} innerText={`${setPoints[4].temperature}°C`} />
                             <div className={styles.grid_entry}>Stable times</div>
                             <div className={styles.grid_entry}></div>
                             <StableTimeDisplay stableTime={point1StableTime} />
@@ -610,6 +652,37 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         </div>
                         {sensorGrid}
                     </div>
+                );
+                break;
+            case 7:
+                menu = (
+                    <div className={styles.testing_grid}>
+                        <div className={styles.grid_row_10}>
+                            <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
+                            <Button onClick={() => { setStableTimesToLoading(); refresh() }} innerText='Refresh' />
+                            <Button onClick={() => createTemperatureReading(setPoints[0], 17, equipment.current.reference2, true)} innerText='As Found' />
+                            <Button onClick={() => createTemperatureReading(setPoints[1], 17, equipment.current.reference2)} innerText={`${setPoints[1].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[2], 17, equipment.current.reference2)} innerText={`${setPoints[2].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[3], 17, equipment.current.reference2)} innerText={`${setPoints[3].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[4], 17, equipment.current.reference2)} innerText={`${setPoints[4].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[5], 17, equipment.current.reference2)} innerText={`${setPoints[5].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[6], 17, equipment.current.reference2)} innerText={`${setPoints[6].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[7], 17, equipment.current.reference2)} innerText={`${setPoints[7].temperature}°C`} />
+                            <Button onClick={() => createTemperatureReading(setPoints[8], 17, equipment.current.reference2)} innerText={`${setPoints[8].temperature}°C`} />
+                            <div className={styles.grid_entry}>Stable times</div>
+                            <div className={styles.grid_entry}></div>
+                            <StableTimeDisplay stableTime={point1StableTime} />
+                            <StableTimeDisplay stableTime={point1StableTime} />
+                            <StableTimeDisplay stableTime={point2StableTime} />
+                            <StableTimeDisplay stableTime={point3StableTime} />
+                            <StableTimeDisplay stableTime={point4StableTime} />
+                            <StableTimeDisplay stableTime={point5StableTime} />
+                            <StableTimeDisplay stableTime={point6StableTime} />
+                            <StableTimeDisplay stableTime={point5StableTime} />
+                            <StableTimeDisplay stableTime={point6StableTime} />
+                        </div>
+                        {sensorGrid}
+                    </div >
                 );
                 break;
         };
@@ -626,7 +699,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     for (const reference of references) {
                         if (!reference.physically_verified) {
                             const verificationString = `Please verify that equipment ${reference.asset_tag} (${reference.description}) is being used for this test`
-    
+
                             unverifiedReferences.push(reference);
                             referenceStrings.current = [...referenceStrings.current, verificationString];
                         }

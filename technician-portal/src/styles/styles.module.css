@@ -183,6 +183,20 @@
     border-radius: 4px;
 }
 
+.calibration_7 {
+    background-color: red;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.calibration_8 {
+    background-color: yellow;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
 .home_button {
     width: 130px;
     height: 60px;
@@ -378,7 +392,7 @@
 
 .grid_row {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, 15.8%);
     gap: 10px;
     max-width: 100%;
     margin-top: 10px;
@@ -392,7 +406,7 @@
 
 .grid_row_6 {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, 13.55%);
     gap: 10px;
     max-width: 100%;
     margin-top: 10px;
@@ -402,6 +416,25 @@
 .grid_row_6 .default_button {
     margin: 0;
     width: 100%;
+}
+
+.grid_row_10 {
+    display: grid;
+    grid-template-columns: repeat(11, 9%);
+    gap: 10px;
+    max-width: 100%;
+    margin-top: 10px;
+    transition-duration: 0.25s;
+}
+
+.grid_row_10 .default_button {
+    margin: 0;
+    width: 100%;
+}
+
+.testing_grid {
+    display: grid;
+    overflow-x: auto;
 }
 
 .humidity_grid {
@@ -657,6 +690,7 @@
     list-style: none;
     text-align: center;
     background-color: #f2f2f2;
+    overflow-y: auto;
 }
 
 .equipment {
