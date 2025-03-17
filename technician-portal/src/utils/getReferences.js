@@ -17,12 +17,14 @@ export default function getReferences(calibrationProcedureId) {
                     ]
                 case 2:
                 case 4:
+                case 7:
                     return [
                         equipment.superDaq,
                         equipment.reference2
                     ]
                 case 3:
                 case 5:
+                case 8:
                     return [
                         equipment.rotronic
                     ]

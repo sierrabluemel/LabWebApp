@@ -277,7 +277,7 @@
     width: 70%;
     box-sizing: border-box;
     margin: 64px 15% 0 15%;
-    padding: 20px;
+    padding: 10px;
 }
 
 .default_text_box {
@@ -392,10 +392,10 @@
 
 .grid_row {
     display: grid;
-    grid-template-columns: repeat(6, 15.8%);
+    grid-template-columns: repeat(6, 15.5%);
     gap: 10px;
     max-width: 100%;
-    margin-top: 10px;
+    margin-bottom: 10px;
     transition-duration: 0.25s;
 }
 
@@ -409,7 +409,7 @@
     grid-template-columns: repeat(7, 13.55%);
     gap: 10px;
     max-width: 100%;
-    margin-top: 10px;
+    margin-bottom: 10px;
     transition-duration: 0.25s;
 }
 
@@ -423,7 +423,7 @@
     grid-template-columns: repeat(11, 9%);
     gap: 10px;
     max-width: 100%;
-    margin-top: 10px;
+    margin-bottom: 10px;
     transition-duration: 0.25s;
 }
 
