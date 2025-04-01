@@ -1,5 +1,4 @@
 const express = require('express');
-const request = require('request');
 const { BlobServiceClient } = require("@azure/storage-blob");
 const { Pool } = require('pg');
 const cors = require('cors');
@@ -575,15 +574,15 @@ app.get('/api/get-temperature-reading-range', (req, res) => {
     let timestamp = req.query.timestamp;
 
     if (!seconds) {
-        seconds = 30;
+        seconds = 90;
     }
     if (timestamp) {
         timestamp = new Date(timestamp).getTime();
     }
     const start = new Date(timestamp - (seconds * 1000));
-    const end = new Date(start.getTime() - (seconds * 1000));
+    const end = new Date(timestamp);
 
-    rollingDataPool.query(`SELECT timestamp, devices_under_test, super_daq_data FROM rolling_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`, [end, start], (error, result) => {
+    rollingDataPool.query(`SELECT timestamp, devices_under_test, super_daq_data FROM rolling_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp DESC`, [start, end], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: `Error executing query: ${error}` });
@@ -759,11 +758,13 @@ app.get('/api/get-active-sensors', (req, res) => {
     })
 });
 
-app.get('/api/get-readings', (req, res) => {
+app.get('/api/get-recent-readings', (req, res) => {
     const sensors = req.query.sensors;
     const sensorIds = sensors.split(',').map(sensor => parseInt(sensor.trim()));
+    const now = new Date();
+    const earliestReadingDate = new Date(now.setDate(now.getDate()-30)).toISOString()
 
-    pool.query('SELECT * FROM api_reading WHERE sensor_id = ANY($1::int[]) AND timestamp IS NOT NULL ORDER BY timestamp DESC', [sensorIds], (error, result) => {
+    pool.query('SELECT * FROM api_reading WHERE sensor_id = ANY($1::int[]) AND timestamp IS NOT NULL AND timestamp > $2 ORDER BY timestamp DESC', [sensorIds, earliestReadingDate], (error, result) => {
         if (error) {
             console.error(error);
             return res.status(500).json({ error: `Error executing query: ${error}` });
@@ -1348,7 +1349,6 @@ app.get('/api/remove-sensor', (req, res) => {
 
     let url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
     const parameters = {
-        'NetworkID': 94464,
         'SensorID': sensorId,
         'CheckDigit': checkDigit,
         'reportInterval': 120,
@@ -1812,18 +1812,17 @@ async function uploadPdfToAzure(pdfBytes, fileName) {
     });
 }
 
-async function printPdf(pdfBytes) {
-    request.post('http://localhost:4000/print-pdf/', {
+function printPdf(pdfBytes) {
+    fetch('http://localhost:4000/print-pdf/', {
+        method: 'POST',
         body: pdfBytes,
-    },
-        function (error, response, body) {
-            if (response) {
-                if (!response.body || response.body !== 'Printed PDF successfully' || error) {
-                    console.error('Error printing pdf: ', error ? error : 'No error code')
-                }
-            }
+    })
+    .then((response, err) => {
+        if (err) {
+            console.error('Error printing pdf: ', err)
         }
-    )
+
+    })
 }
 
 async function addSensorsToReturnRecord(bytes, sensorList) {
