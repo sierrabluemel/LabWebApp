@@ -1,15 +1,19 @@
 import axios from 'axios';
 import ip from '../ip/ip';
 
-async function callApi(endPoint, parameters) {
+function callApi(endPoint, parameters) {
   const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/${endPoint}/` : `http://${ip}/api/${endPoint}/`;
+  let token = localStorage.getItem("jwt");
 
-  try {
-    const response = await axios.get(url, { params: parameters });
-    return response.data;
-  } catch (error) {
-    return error;
-  }
+  return axios.get(url, {
+    params: parameters,
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+    .then((response) => {
+      return response.data
+    })
 }
 
 export default callApi;

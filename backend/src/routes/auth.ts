@@ -1,0 +1,200 @@
+import { Request, Response } from "express";
+import jwt from '../utils/jwt'
+import crypt from "../utils/crypt";
+import config from "../utils/config";
+import sendMailVerification from "../utils/mail";
+import user from "../models/user";
+
+const authRoutes = {
+    signIn: async (req: Request, res: Response) => {
+        const { email, password } = req.body;
+
+        user.getByEmail(email)
+            .then(async (u) => {
+                if (!u) {
+                    res.status(404).json({ error: `User not found` });
+                    return
+                }
+                if (!u.isVerified) {
+                    res.status(403).json({ error: `User has not been verified` });
+                    return
+                }
+                const isComparePassword = await crypt.verify(password, u.password);
+
+                if (!isComparePassword) {
+                    res.status(400).json({ error: `Username and password are not correct` });
+                    return;
+                }
+                delete u.password;
+                const { accessToken, refreshToken } = jwt.generateTokens(
+                    u,
+                    config.JWT_SECRET_KEY
+                );
+                u = {
+                    ...u,
+                    'access-token': accessToken,
+                }
+                res.status(200).json(u);
+            })
+    },
+    signUp: async (req: Request, res: Response) => {
+        const { email, password, lastName, firstName } = req.body;
+
+        user.getByEmail(email)
+            .then(async (u) => {
+                if (u) {
+                    res.status(409).json({ error: `User with that email already exists` });
+                    return;
+                }
+                const hashPass = await crypt.hashAndValidatePassword(
+                    password,
+                    Number(process.env.SALT_ROUNDS || 10)
+                );
+                return user.createUser(firstName, lastName, email, hashPass)
+            })
+            .then(async (u) => {
+                const userConfirmationToken = {
+                    id: u.id,
+                    email: u.email,
+                };
+                const token = jwt.generateToken(
+                    userConfirmationToken,
+                    process.env.JWT_SECRET_KEY,
+                    "30m"
+                );
+                console.log('token :>> ', token);
+                await sendMailVerification("VERIFICATION_ACCOUNT", {
+                    email,
+                    token,
+                });
+                res.status(201).json(u);
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json("Error creating user");
+            });
+
+    },
+    verify: (req: Request, res: Response) => {
+        const { token } = req.body;
+        const tokenDecode = jwt.verify(token, process.env.JWT_SECRET_KEY) as any;
+        user.setVerified(tokenDecode.id, true)
+            .then(() => {
+                return res.status(200).json({ message: 'Success' });
+            });
+    },
+    resendVerifyEmail: async (req: Request, res: Response) => {
+        const { email } = req.body;
+
+        user.getByEmail(email)
+            .then(async (u) => {
+                if (!u) {
+                    res.status(404).json({ error: `User not found` });
+                    return;
+                }
+                const userConfirmationToken = {
+                    id: u.id,
+                    email: u.email,
+                };
+                const token = jwt.generateToken(
+                    userConfirmationToken,
+                    process.env.JWT_SECRET_KEY,
+                    "30m"
+                );
+                return sendMailVerification("VERIFICATION_ACCOUNT", {
+                    email,
+                    token,
+                });
+            })
+            .then(() => {
+                res.status(200).json({
+                    message:
+                        "Email sent successfully. Please check your email for further instructions.",
+                });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json("Unable to resend email");
+            })
+    },
+    forgotPassword: async (req: Request, res: Response) => {
+        const { email } = req.body;
+
+        user.getByEmail(email)
+            .then((u) => {
+                if (!u) {
+                    res.status(404).json({ error: `User not found` });
+                    return;
+                }
+                const userConfirmationToken = {
+                    id: u.id,
+                    email: u.email,
+                };
+                const token = jwt.generateToken(
+                    userConfirmationToken,
+                    process.env.JWT_SECRET_KEY,
+                    "30m"
+                );
+                return sendMailVerification("FORGOT_PASSWORD", {
+                    email,
+                    token,
+                });
+            })
+            .then(() => {
+                res.status(200).json({
+                    message:
+                        "Password reset request successfully processed. Please check your email for further instructions.",
+                });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Unable to send password reset" });
+            })
+    },
+    resendForgotPasswordEmail: async (req: Request, res: Response) => {
+        // Don't even know why this is a separate route
+        return authRoutes.forgotPassword(req, res);
+    },
+    verifyResetPassword: async (req: Request, res: Response) => {
+        const { email } = jwt.decode(
+            req.headers.authorization?.replace("Bearer ", "") || ""
+        ) as any;
+
+        user.getByEmail(email)
+            .then(async (u) => {
+                if (!u) {
+                    res.status(404).json({ error: `User not found` });
+                    return;
+                }
+                const hashPass = await crypt.hashAndValidatePassword(
+                    req.body.newPassword,
+                    Number(process.env.SALT_ROUNDS || 10)
+                );
+                return user.changePassword(u.id, hashPass);
+            })
+            .then((u) => {
+                delete u.password;
+                res.status(200).json(u);
+            })
+            .catch((err) => {
+
+            });
+    },
+    me: (req: Request, res: Response) => {
+        const reqUser = req.user;
+
+        user.getById(reqUser.id)
+            .then((u) => {
+                if (!u) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+                res.status(200).json(u);
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: 'Error' });
+            });
+    }
+}
+
+export default authRoutes

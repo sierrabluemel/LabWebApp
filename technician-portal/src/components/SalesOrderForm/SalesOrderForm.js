@@ -65,35 +65,35 @@ function SalesOrderForm() {
             .then(response => {
                 setCalibrationProcedures(response);
             })
-        if (batches.length > 0) {
-            setBatchDisplay(batches.map((batch, index) => (
-                <AddBatchMenu
-                    key={index}
-                    calibrationProcedureId={batch.calibration_procedure_id}
-                    batchNumber={batch.batch_id}
-                    batches={batches}
-                    setBatches={setBatches}
-                />
-            )))
-        } else {
+        if (!batches.length || batches.length == 0) {
             setBatchDisplay(null);
+            return;
         }
+        setBatchDisplay(batches.map((batch, index) => (
+            <AddBatchMenu
+                key={index}
+                calibrationProcedureId={batch.calibration_procedure_id}
+                batchNumber={batch.batch_id}
+                batches={batches}
+                setBatches={setBatches}
+            />
+        )))
     }, [salesOrder, order, batches, technicianId, setPopupMessage, expedited]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
         for (const batch of batches) {
-            if (batch.batch_id) {
-                callApi('log-batch-interaction', {
-                    department: 'receiving',
-                    start: false,
-                    technician_id: technicianId,
-                    batch_id: batch.batch_id
+            if (!batch.batch_id)
+                continue;
+            callApi('log-batch-interaction', {
+                department: 'receiving',
+                start: false,
+                technician_id: technicianId,
+                batch_id: batch.batch_id
+            })
+                .catch(error => {
+                    console.error(error);
                 })
-                    .catch(error => {
-                        console.error(error);
-                    })
-            }
         }
         setConfirmationMessage(`Order: ${order} was created successfully`);
         navigate('/confirmation');
@@ -109,15 +109,15 @@ function SalesOrderForm() {
         <div className={styles.menu}>
             <div className={styles.grid_menu}>
                 <h1 className={styles.title}>{salesOrder} | Order due: {dueDate.current ? dueDate.current : 'Loading...'}</h1>
-                    {CUSTOMER_INPUTS.map((inputItem, index) =>
-                        <input
-                            key={index + inputItem.placeholder}
-                            type={inputItem.type}
-                            className={styles.default_text_box}
-                            placeholder={inputItem.placeholder}
-                            defaultValue={inputItem.defaultValue}
-                        />
-                    )}
+                {CUSTOMER_INPUTS.map((inputItem, index) =>
+                    <input
+                        key={index + inputItem.placeholder}
+                        type={inputItem.type}
+                        className={styles.default_text_box}
+                        placeholder={inputItem.placeholder}
+                        defaultValue={inputItem.defaultValue}
+                    />
+                )}
                 <DropDown
                     options={calibrationProcedures}
                     selectedOption={selectedOption}

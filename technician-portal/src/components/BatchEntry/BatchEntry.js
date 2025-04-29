@@ -37,17 +37,18 @@ function BatchEntry() {
 
         const handleButtonClick = (batch) => {
             setBatchNumber(batch.batch_id);
-            if (technicianId) {
-                callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
-                setProcedureId(batch.calibration_procedure_id);
-                callApi('get-sensors', { 'batch_id': batch.batch_id })
-                    .then(data => {
-                        setSensorList(data);
-                        navigate('/manageBatch');
-                    })
-            } else {
+            if (!technicianId) {
                 setPopupMessage('Please sign in');
+                return;
             }
+            callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
+                .then(() => { })
+            setProcedureId(batch.calibration_procedure_id);
+            callApi('get-sensors', { 'batch_id': batch.batch_id })
+                .then(data => {
+                    setSensorList(data);
+                    navigate('/manageBatch');
+                })
         }
         if (batches.length === 1 && isMounted) {
             callApi('get-batches-by-active-state', { active: true })
@@ -59,30 +60,30 @@ function BatchEntry() {
                         setBatches([<h1 className={styles.title} key={'fillerKey'}>No batches found</h1>]);
                         return;
                     }
-                    getBatchSensors(response)
-                        .then(response => {
-                            const batchList = []
-                            const orders = response.filter((batch, index, self) => index === self.findIndex(b => b.order_id === batch.order_id)).sort((a, b) => a.order_id - b.order_id)
-
-                            for (const order of orders) {
-                                const batches = [...new Set(response.filter(batch => batch.order_id === order.order_id))].sort((a, b) => a.batch_id - b.batch_id);
-                                const receivedDate = parseDataBaseDate(batches[0].received_timestamp);
-                                batchList.push(
-                                    <div key={orders.indexOf(order)}>
-                                        <hr />
-                                        <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h1>
-                                        {batches.map((batch, index) => {
-                                            return <BatchDisplay batch={batch} handleButtonClick={handleButtonClick} key={index} />
-                                        })}
-                                    </div>
-                                )
-                            }
-
-                            if (isMounted) {
-                                setBatches(batchList);
-                            }
-                        });
+                    return getBatchSensors(response)
                 })
+                .then(response => {
+                    const batchList = []
+                    const orders = response.filter((batch, index, self) => index === self.findIndex(b => b.order_id === batch.order_id)).sort((a, b) => a.order_id - b.order_id)
+
+                    for (const order of orders) {
+                        const batches = [...new Set(response.filter(batch => batch.order_id === order.order_id))].sort((a, b) => a.batch_id - b.batch_id);
+                        const receivedDate = parseDataBaseDate(batches[0].received_timestamp);
+                        batchList.push(
+                            <div key={orders.indexOf(order)}>
+                                <hr />
+                                <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h1>
+                                {batches.map((batch, index) => {
+                                    return <BatchDisplay batch={batch} handleButtonClick={handleButtonClick} key={index} />
+                                })}
+                            </div>
+                        )
+                    }
+
+                    if (isMounted) {
+                        setBatches(batchList);
+                    }
+                });
         }
 
         return () => {
@@ -96,20 +97,20 @@ function BatchEntry() {
             setPopupMessage('Please sign in');
             return;
         }
-        if (parseInt(batchNumber)) {
-            callApi('get-batch-by-id', { 'batch_id': batchNumber })
-                .then(batch => {
-                    callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
-                    setProcedureId(batch.calibration_procedure_id);
-                    callApi('get-sensors', { 'batch_id': batchNumber })
-                        .then(data => {
-                            setSensorList(data);
-                        })
-                    navigate('/manageBatch');
-                })
-        } else {
+        if (isNaN(parseInt(batchNumber))) {
             setPopupMessage('Batch must be a number')
+            return;
         }
+        callApi('get-batch-by-id', { 'batch_id': batchNumber })
+            .then(batch => {
+                callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
+                setProcedureId(batch.calibration_procedure_id);
+                return callApi('get-sensors', { 'batch_id': batchNumber })
+            })
+            .then(data => {
+                setSensorList(data);
+                navigate('/manageBatch');
+            })
     }
 
     const handleChange = (event) => {

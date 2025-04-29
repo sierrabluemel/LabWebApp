@@ -45,33 +45,33 @@ function OrderEntry() {
         }
         callApi('get-order-by-id', { order_id: orderNumber })
             .then(response => {
-                if (response.order_id) {
-                    callApi('get-batches-by-order-id', { order_id: orderNumber })
-                        .then(batches => {
-                            setBatches(batches);
-                            for (const batch of batches) {
-                                callApi('log-batch-interaction', {
-                                    department: 'shipping',
-                                    start: true,
-                                    technician_id: technicianId,
-                                    batch_id: batch.batch_id
-                                })
-                            }
-                        })
-                    navigate('/shipping')
-                } else {
+                if (!response.order_id) {
                     setPopupMessage(`Could not find order: ${orderNumber}`)
+                    return
                 }
+                return callApi('get-batches-by-order-id', { order_id: orderNumber })
+            })
+            .then(batches => {
+                setBatches(batches);
+                for (const batch of batches) {
+                    callApi('log-batch-interaction', {
+                        department: 'shipping',
+                        start: true,
+                        technician_id: technicianId,
+                        batch_id: batch.batch_id
+                    })
+                }
+                navigate('/shipping')
             })
     }
 
     useEffect(() => {
-        if (!activeOrders) {
-            callApi('get-orders-to-ship')
-                .then(orders => {
-                    setActiveOrders(orders.sort((a, b) => a.order_id - b.order_id));
-                })
-        }
+        if (activeOrders)
+            return;
+        callApi('get-orders-to-ship')
+            .then(orders => {
+                setActiveOrders(orders.sort((a, b) => a.order_id - b.order_id));
+            })
     }, [activeOrders, technicianId, orderNumber])
 
     return (

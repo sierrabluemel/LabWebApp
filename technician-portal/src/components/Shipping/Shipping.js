@@ -22,9 +22,9 @@ function Shipping() {
     } = useAppContext()
 
     const navigate = useNavigate()
-    
+
     const certificateList = useRef([]);
-    
+
     const [references, setReferences] = useState(new Set());
     const [certificateMessage, setCertificateMessage] = useState('');
     const [sensor, setSensor] = useState('');
@@ -41,14 +41,13 @@ function Shipping() {
     const getCertificates = () => {
         callApi('get-certificates-by-order-id', { order_id: orderNumber })
             .then(certificates => {
-                if (certificates.length > 0) {
-                    const fullDate = new Date(certificates[0].timestamp)
-                    const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
-                    setCertificateMessage(`Certificates generated on ${dateString}`);
-                    certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
-                } else {
+                if (!certificates.length || certificates.length == 0) {
                     setCertificateMessage('No certificates found')
                 }
+                const fullDate = new Date(certificates[0].timestamp)
+                const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
+                setCertificateMessage(`Certificates generated on ${dateString}`);
+                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
     }
 
@@ -66,84 +65,87 @@ function Shipping() {
     }
 
     function confirmReferences() {
-        try {
-            for (let reference of references) {
-                reference = JSON.parse(reference);
-                if (reference.certificate_verified) {
-                    continue;
-                }
-                const parameters = {
-                    asset_tag: reference.asset_tag,
-                    technician_id: technicianId
-                }
-                callApi('verify-equipment-in-shipping', parameters)
+        for (let reference of references) {
+            reference = JSON.parse(reference);
+            if (reference.certificate_verified) {
+                continue;
             }
-            setPopupMessage('References verified');
-        } catch (error) {
-            console.error(error);
-            setPopupMessage('There was an error validating references. Please reload this page')
+            const parameters = {
+                asset_tag: reference.asset_tag,
+                technician_id: technicianId
+            }
+            callApi('verify-equipment-in-shipping', parameters)
+                .catch((err) => {
+                    console.error(err);
+                    setPopupMessage('There was an error validating references. Please reload this page')
+                })
         }
+        setPopupMessage('References verified');
     }
 
     useEffect(() => {
-        if (!order) {
-            const calibrationProcedures = new Set()
-            getCertificates();
-            callApi('get-order-by-id', { 'order_id': orderNumber })
-                .then(response => {
-                    setOrder(response);
-                    setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
-                    
-                    if (!isMounted.current) {
-                        isMounted.current = true;
-                        for (const batch of batches) {
-                            calibrationProcedures.add(batch.calibration_procedure_id);
-                        };
-                        getProcedureReferences(calibrationProcedures).then(references => {
-                            const referenceVerifiedStrings = ['The following references must be verified for information to go onto the certificate']
-                            for (let reference of references) {
-                                reference = JSON.parse(reference);
-                                if (!reference.certificate_verified) {
-                                    referenceVerifiedStrings.push(`Reference ${reference.asset_tag} (${reference.description}) will be added to certificates with a calibration date of ${parseDataBaseDate(reference.last_calibration)} and an expiration date of ${parseDataBaseDate(reference.next_calibration)}`)
-                                }
+        if (order)
+            return;
+        const calibrationProcedures = new Set()
+        getCertificates();
+        callApi('get-order-by-id', { 'order_id': orderNumber })
+            .then(response => {
+                setOrder(response);
+                setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
+
+                if (!isMounted.current) {
+                    isMounted.current = true;
+                    for (const batch of batches) {
+                        calibrationProcedures.add(batch.calibration_procedure_id);
+                    };
+                    getProcedureReferences(calibrationProcedures).then(references => {
+                        const referenceVerifiedStrings = ['The following references must be verified for information to go onto the certificate']
+                        for (let reference of references) {
+                            reference = JSON.parse(reference);
+                            if (!reference.certificate_verified) {
+                                referenceVerifiedStrings.push(`Reference ${reference.asset_tag} (${reference.description}) will be added to certificates with a calibration date of ${parseDataBaseDate(reference.last_calibration)} and an expiration date of ${parseDataBaseDate(reference.next_calibration)}`)
                             }
-                            if (referenceVerifiedStrings.length > 1) {
-                                setReferenceVerificationArray(referenceVerifiedStrings)
-                            }
-                        })
-                    }
-                    }
-                )
-            callApi('get-sensors-by-order-id', { order_id: orderNumber })
-                .then(response => {
-                    setSensorList(response)
-                })
-        }
+                        }
+                        if (referenceVerifiedStrings.length > 1) {
+                            setReferenceVerificationArray(referenceVerifiedStrings)
+                        }
+                    })
+                }
+            })
+            .catch((err) => {
+                console.error(err)
+            })
+        callApi('get-sensors-by-order-id', { order_id: orderNumber })
+            .then(response => {
+                setSensorList(response)
+            })
+            .catch((err) => {
+                console.error(err)
+            })
     })
 
     const generateCertificates = async () => {
         setCertificateMessage('Loading...');
-        try {
-            for (const batch of batches) {
-                promises.push(callApi('update-batch-technician', {
-                    department: 'shipping',
-                    technician_id: technicianId,
-                    batch_id: batch.batch_id
-                }));
-                promises.push(callApi('set-batch-active-state', {
-                    batch_id: batch.batch_id,
-                    active_state: false
-                }));
-            }
-
-            await Promise.all(promises);
-
-            await createCertificates();
-            getCertificates();
-
-        } catch (error) {
-            console.error(error);
+        for (const batch of batches) {
+            promises.push(callApi('update-batch-technician', {
+                department: 'shipping',
+                technician_id: technicianId,
+                batch_id: batch.batch_id
+            }).catch((err) => {
+                console.error(err);
+            }));
+            promises.push(callApi('set-batch-active-state', {
+                batch_id: batch.batch_id,
+                active_state: false
+            }).catch((err) => {
+                console.error(err);
+            }));
         }
+
+        await Promise.all(promises);
+
+        await createCertificates();
+        getCertificates();
     };
 
     const createCertificates = async () => {
@@ -959,8 +961,8 @@ function Shipping() {
     return (
         <>
             <div className={styles.menu}>
-            {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
-            {referenceVerificationArray.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />}
+                {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
+                {referenceVerificationArray.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />}
 
                 <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'}</h2>
 

@@ -18,37 +18,37 @@ function LocationEntry({ sensorList }) {
       'location': location,
       'batch_id': batchNumber
     })
-      .then(response => {
-        if (!response.error) {
-          setPopupMessage(`Batch moved to ${location}`);
-          navigate('/manageBatch');
-          if (location.startsWith('S')) {
-            callApi('log-batch-interaction', {
-              department: 'testing',
-              start: false,
-              technician_id: technicianId,
-              batch_id: batchNumber
-            })
-
-            for (const sensor of sensorList) {
-              callApi('change-sensor-heartbeat', {
-                sensor_id: sensor.sensor_id,
-                heartbeat: 120
-              })
-            }
-            
-          } else if (location.startsWith('T')) {
-            callApi('log-batch-interaction', {
-              department: 'testing',
-              start: true,
-              technician_id: technicianId,
-              batch_id: batchNumber
-            })
-          }
-        } else {
-          setPopupMessage('The batch was not moved successfully');
-          console.error(response.error)
+      .then(() => {
+        if (location.startsWith('T')) {
+          callApi('log-batch-interaction', {
+            department: 'testing',
+            start: true,
+            technician_id: technicianId,
+            batch_id: batchNumber
+          })
+          return;
         }
+        if (!location.startsWith('S'))
+          return;
+
+        setPopupMessage(`Batch moved to ${location}`);
+        navigate('/manageBatch');
+        callApi('log-batch-interaction', {
+          department: 'testing',
+          start: false,
+          technician_id: technicianId,
+          batch_id: batchNumber
+        })
+        for (const sensor of sensorList) {
+          callApi('change-sensor-heartbeat', {
+            sensor_id: sensor.sensor_id,
+            heartbeat: 120
+          })
+        }
+      })
+      .catch((err) => {
+        setPopupMessage('The batch was not moved successfully');
+        console.error(err)
       })
   }
 

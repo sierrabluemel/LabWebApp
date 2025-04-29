@@ -13,7 +13,7 @@ function SensorInvoiceGenerator() {
     const { setPopupMessage } = useAppContext;
 
     function generateReport(event) {
-        fetch(`https://${ip}/api/get-sensor-invoice-report/?start_date=${startDate}&end_date=${endDate}`)
+        fetch(`https://${ip}/api/get-sensor-invoice-report/?start_date=${startDate}&end_date=${endDate}`, { headers: { Authorization: `Bearer ${localStorage.getItem("jwt")}` } })
             .then(response => {
                 if (response.ok) {
                     return response.blob();
@@ -26,7 +26,7 @@ function SensorInvoiceGenerator() {
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                const dateString = `${startDate.getMonth()+1}_${startDate.getDate()}-${endDate.getMonth()+1}_${endDate.getDate()}`
+                const dateString = `${startDate.getMonth() + 1}_${startDate.getDate()}-${endDate.getMonth() + 1}_${endDate.getDate()}`
                 link.download = `sensor_invoice_report_${dateString}.xlsx`;
                 document.body.appendChild(link);
                 link.click();
@@ -37,22 +37,22 @@ function SensorInvoiceGenerator() {
             });
     }
 
-return (
-    <div className={styles.menu}>
-        <h1 className={styles.title}>Sensor Invoices</h1>
-        <div className={styles.invoice_grid}>
-            <div>
-                <label htmlFor="startDate">Start Date</label>
-                <DatePicker id="startDate" className={styles.date_picker} selected={startDate} onChange={date => setStartDate(date)} />
+    return (
+        <div className={styles.menu}>
+            <h1 className={styles.title}>Sensor Invoices</h1>
+            <div className={styles.invoice_grid}>
+                <div>
+                    <label htmlFor="startDate">Start Date</label>
+                    <DatePicker id="startDate" className={styles.date_picker} selected={startDate} onChange={date => setStartDate(date)} />
+                </div>
+                <div>
+                    <label htmlFor="endDate">End Date</label>
+                    <DatePicker id="endDate" className={styles.date_picker} selected={endDate} onChange={date => setEndDate(date)} />
+                </div>
+                <Button innerText={'Generate report'} onClick={generateReport} />
             </div>
-            <div>
-                <label htmlFor="endDate">End Date</label>
-                <DatePicker id="endDate" className={styles.date_picker} selected={endDate} onChange={date => setEndDate(date)} />
-            </div>
-            <Button innerText={'Generate report'} onClick={generateReport} />
         </div>
-    </div>
-)
+    )
 }
 
 export default SensorInvoiceGenerator;
