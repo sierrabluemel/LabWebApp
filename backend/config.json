@@ -1,0 +1,6 @@
+{
+    "gatewayMaximumHeartbeatsPerSecond": 3,
+    "stagingNetworks": [94464],
+    "anyFrequencyNetworks": [123905, 123906, 123907],
+    "commonFrequencyOnlyNetworks": [123908]
+}

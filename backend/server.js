@@ -22,6 +22,8 @@ const {
     verify: verifyToken,
 } = require("./src/utils/jwt");
 
+const config = require('./config.json');
+
 const azureConnectionString = process.env.AZURE_CONNECTION_STRING;
 const monnitSecretKey = process.env.IMONNIT_API_SECRET_KEY_ID;
 const monnitKey = process.env.IMONNIT_API_KEY_ID;
@@ -915,77 +917,65 @@ app.get('/api/verify-equipment-in-shipping', (req, res) => {
     createLogEntry(assetTag, technicianId, 'Reference verified in shipping')
 });
 
-app.get('/api/get-sensor-invoice-report', (req, res) => {
-    const startDate = new Date(new Date(req.query.start_date).toDateString());
-    const endDate = new Date(new Date(req.query.end_date).setHours(23, 59, 59, 999));
+app.get('/api/get-sensor-invoice-report', async (req, res) => {
+        const startDate = new Date(new Date(req.query.start_date).toDateString());
+        const endDate = new Date(new Date(req.query.end_date).setHours(23, 59, 59, 999));
 
-    pool.query(`SELECT api_certificate.sensor_id, api_certificate.timestamp, generate_certificate_json, sku, calibration_procedure_id, expedited, customer_order_number FROM api_certificate
+        let calibrationProcedures = await pool.query('SELECT * FROM api_calibration_procedure ORDER BY calibration_procedure_id')
+        calibrationProcedures = calibrationProcedures.rows
+
+        pool.query(`SELECT api_certificate.sensor_id, api_certificate.timestamp, generate_certificate_json, sku, calibration_procedure_id, expedited, customer_order_number FROM api_certificate
                 INNER JOIN api_sensor ON api_certificate.sensor_id = api_sensor.sensor_id
                 INNER JOIN api_batch ON api_sensor.batch_id = api_batch.batch_id
                 INNER JOIN api_order ON api_batch.order_id = api_order.order_id
-                WHERE timestamp > $1 AND timestamp < $2;`, [startDate, endDate], (error, result) => {
-        if (error) {
-            console.error(error);
-            return res.status(500).json({ error: `Error executing query: ${error}` });
-        }
-        const certificates = removeDuplicateCertificates(result.rows);
-        const certificateInvoiceData = getCertificateInvoiceData(certificates);
-        const templatePath = path.join(__dirname, 'templates', 'sensorBillingReport.xlsx')
-        const outputPath = path.join(__dirname, 'fileOutputs', 'sensorBillingReport.xlsx')
+                WHERE timestamp > $1 AND timestamp < $2;`, [startDate, endDate], async (error, result) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({ error: `Error executing query: ${error}` });
+            }
+            const certificates = removeDuplicateCertificates(result.rows);
+            
+            const certificateInvoiceData = await getCertificateInvoiceData(certificates, calibrationProcedures)
+            const templatePath = path.join(__dirname, 'templates', 'sensorBillingReport.xlsx');
+            const outputPath = path.join(__dirname, 'fileOutputs', 'sensorBillingReport.xlsx');
 
-        const workbook = new ExcelJS.Workbook();
-        workbook.xlsx.readFile(templatePath)
-        .then(() => {
-            const worksheet = workbook.getWorksheet(1)
-            worksheet.getCell('F3').value = getDateString(startDate)
-            worksheet.getCell('F4').value = getDateString(endDate)
+            const workbook = new ExcelJS.Workbook();
+            workbook.xlsx.readFile(templatePath)
+                .then(() => {
+                    const worksheet = workbook.getWorksheet(1);
+                    worksheet.getCell('F3').value = getDateString(startDate);
+                    worksheet.getCell('F4').value = getDateString(endDate);
 
-            worksheet.getCell('C8').value = certificateInvoiceData.calibration_procedure_1.passed;
-            worksheet.getCell('D8').value = certificateInvoiceData.calibration_procedure_1.failed;
-            worksheet.getCell('F8').value = certificateInvoiceData.calibration_procedure_1.expedited;
+                    const firstRow = 8
+                    let procedure3Copy = JSON.parse(JSON.stringify(calibrationProcedures[2])) // Create copy
+                    procedure3Copy.calibration_procedure_id = '3_no_lead'
 
-            worksheet.getCell('C9').value = certificateInvoiceData.calibration_procedure_2.passed;
-            worksheet.getCell('D9').value = certificateInvoiceData.calibration_procedure_2.failed;
-            worksheet.getCell('F9').value = certificateInvoiceData.calibration_procedure_2.expedited;
-            
-            worksheet.getCell('C10').value = certificateInvoiceData.calibration_procedure_3.passed;
-            worksheet.getCell('D10').value = certificateInvoiceData.calibration_procedure_3.failed;
-            worksheet.getCell('F10').value = certificateInvoiceData.calibration_procedure_3.expedited;
-            
-            worksheet.getCell('C11').value = certificateInvoiceData.calibration_procedure_3_no_lead.passed;
-            worksheet.getCell('D11').value = certificateInvoiceData.calibration_procedure_3_no_lead.failed;
-            worksheet.getCell('F11').value = certificateInvoiceData.calibration_procedure_3_no_lead.expedited;
-            
-            worksheet.getCell('C12').value = certificateInvoiceData.calibration_procedure_4.passed;
-            worksheet.getCell('D12').value = certificateInvoiceData.calibration_procedure_4.failed;
-            worksheet.getCell('F12').value = certificateInvoiceData.calibration_procedure_4.expedited;
-            
-            worksheet.getCell('C13').value = certificateInvoiceData.calibration_procedure_5.passed;
-            worksheet.getCell('D13').value = certificateInvoiceData.calibration_procedure_5.failed;
-            worksheet.getCell('F13').value = certificateInvoiceData.calibration_procedure_5.expedited;
-            
-            worksheet.getCell('C14').value = certificateInvoiceData.calibration_procedure_6.passed;
-            worksheet.getCell('D14').value = certificateInvoiceData.calibration_procedure_6.failed;
-            worksheet.getCell('F14').value = certificateInvoiceData.calibration_procedure_6.expedited;
+                    calibrationProcedures.splice(2, 0, procedure3Copy)
 
-            worksheet.getCell('A18').value = 'Report for ' + [...certificateInvoiceData.tos].join(', ')
-        
-            return workbook.xlsx.writeFile(outputPath);
-        })
-        .then(() => {
-            res.download(outputPath, 'sensorBillingReport.xlsx', error => {
-                if (error) {
-                    console.error('Error sending file: ', error)
-                }
-                fs.unlink(outputPath, error => {
-                    if (error) {
-                        console.error('Error deleting file: ', error)
-                    }
+                    calibrationProcedures.map((calibrationProcedure, index) => {
+                        worksheet.getCell(`C${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].passed;
+                        worksheet.getCell(`D${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].failed;
+                        worksheet.getCell(`F${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].expedited;
+                    })
+
+                    worksheet.getCell('A20').value = 'Report for ' + [...certificateInvoiceData.customerOrderNumbers].join(', ');
+
+                    return workbook.xlsx.writeFile(outputPath);
                 })
-            })
-        })
-    })
-});
+                .then(() => {
+                    res.download(outputPath, 'sensorBillingReport.xlsx', error => {
+                        if (error) {
+                            console.error('Error sending file: ', error);
+                        }
+                        fs.unlink(outputPath, error => {
+                            if (error) {
+                                console.error('Error deleting file: ', error);
+                            }
+                        });
+                    });
+                });
+        });
+    });
 
 app.get('/api/get-calibration-procedures', (req, res) => {
     pool.query('SELECT * FROM api_calibration_procedure ORDER BY calibration_procedure_id', (error, result) => {
@@ -1181,7 +1171,7 @@ app.get('/api/calibrate-sensor', (req, res) => {
 });
 
 
-app.get('/api/create-sensor', (req, res) => {
+app.get('/api/create-sensor', async (req, res) => {
     let sensorId = req.query.sensor_id;
     let checkDigit = req.query.check_digit;
     let batchId = req.query.batch_id;
@@ -1189,7 +1179,7 @@ app.get('/api/create-sensor', (req, res) => {
     const manufacturer = 'Monnit Corporation';
     let url = `https://www.imonnit.com/json/AssignSensor/`;
     const parameters = {
-        'NetworkID': 94464,
+        'NetworkID': config.stagingNetworks[0],
         'SensorID': sensorId,
         'CheckDigit': checkDigit,
         'reportInterval': 1,
@@ -1201,11 +1191,11 @@ app.get('/api/create-sensor', (req, res) => {
     };
 
 
-    let response = monnitFetch(`${url}?${params.toString()}`)
+    let response = await monnitFetch(`${url}?${params.toString()}`)
     url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
-    response = monnitFetch(`${url}?${params.toString()}`)
+    response = await monnitFetch(`${url}?${params.toString()}`)
     url = 'https://www.imonnit.com/json/LookUpSensor/'
-    response = monnitFetch(`${url}?${params.toString()}`)
+    response = await monnitFetch(`${url}?${params.toString()}`)
     sku = response['Result']['SKU'];
     pool.query("INSERT INTO api_sensor (sensor_id, check_digit, manufacturer, sku, batch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *", [sensorId, checkDigit, manufacturer, sku, batchId], (error, result) => {
         if (error) {
@@ -1745,6 +1735,81 @@ app.get('/api/delete-batch', (req, res) => {
     })
 });
 
+app.get('/api/move-sensors-to-network-group', async (req, res) => {
+    const networkGroup = req.query.network_group;
+    const sensors = JSON.parse(req.query.sensors);
+
+    let networkIDs = []
+    switch (networkGroup) {
+        case 'staging':
+            networkIDs.push(...config.stagingNetworks);
+            break
+        case 'testing_all_frequencies':
+            networkIDs.push(...config.anyFrequencyNetworks);
+            break
+        case 'testing_all_networks':
+            networkIDs.push(...config.anyFrequencyNetworks);
+            networkIDs.push(...config.commonFrequencyOnlyNetworks);
+            break
+        default:
+            return res.status(500).json({ Error: 'Invalid network group' });
+    }
+
+    monnitFetch('https://www.imonnit.com/json/SensorListFull')
+    .then(response => {
+        let allSensors = response.Result
+        for (let sensor of allSensors) {
+            // Converting minutes per heartbeat to heartbeats per second
+            sensor.heartbeatsPerSecond = 60 / (sensor.ReportInterval*60) / 60;
+            
+            sensors.includes(sensor.SensorID) ? sensor.moving = true : sensor.moving = false
+        }
+
+        let sensorsToMove = allSensors.filter(sensor => sensor.moving === true);
+
+        let networkHeartbeats = networkIDs.map(networkID => {
+            const sensorsOnNetwork = allSensors.filter(sensor => sensor.CSNetID === networkID)
+            let heartbeatsPerSecond = 0
+            sensorsOnNetwork.map(sensor => {
+                heartbeatsPerSecond += sensor.heartbeatsPerSecond
+            })
+            return {
+                networkID,
+                heartbeatsPerSecond,
+            }
+        })
+
+        let networksToAddTo = [];
+        for (const sensorToMove of sensorsToMove) {
+            const currentNetwork = networkHeartbeats.filter(network => network.networkID === sensorToMove.CSNetID)[0];
+            if (networksToAddTo.length < 1) {
+                const lowestCapacity = Math.min(...networkHeartbeats.map(network => network.heartbeatsPerSecond))
+                networksToAddTo = networkHeartbeats.filter(network => {
+                    return network.heartbeatsPerSecond === lowestCapacity;
+                })
+            }
+            const nextNetwork = networksToAddTo[0];
+            const sensor = allSensors.filter(sensor => sensor.SensorID === sensorToMove.SensorID)[0];
+            const inCurrentNetworkGroup = networkIDs.filter(networkID => networkID === sensor.CSNetID)[0];
+            if (!inCurrentNetworkGroup || currentNetwork?.heartbeatsPerSecond > nextNetwork.heartbeatsPerSecond) {
+                // TODO add new monnit api call to move sensor whitelist
+                monnitFetch(`https://www.imonnit.com/json/AssignSensor?NetworkID=${nextNetwork.networkID}&SensorID=${sensor.SensorID}&CheckDigit=${sensor.CheckDigit}`);
+                if (currentNetwork) {
+                    currentNetwork.heartbeatsPerSecond -= sensor.heartbeatsPerSecond;
+                }
+                nextNetwork.heartbeatsPerSecond += sensor.heartbeatsPerSecond
+                networksToAddTo.shift();
+            }
+        }
+    
+        res.json({ Result: 'Success'})
+    })
+    .catch(err => {
+        res.status(500).json({ Error: 'Could not move sensors' })
+        console.error(`Error moving sensors: ${err}`)
+    })
+})
+
 async function fillForm(template, fields) {
     const pdfBytes = fs.readFileSync(`templates/${template}`);
     const pdfDoc = await PDFDocument.load(pdfBytes);
@@ -1912,7 +1977,7 @@ async function addSensorsToReturnRecord(bytes, sensorList) {
     return modifiedPdfBytes;
 }
 
-function monnitFetch(url) {
+async function monnitFetch(url) {
     let status = 429;
     let attempts = 0;
     let response = null;
@@ -2032,23 +2097,23 @@ function auth(req, res, next) {
 }
 
 
-function getCertificateInvoiceData(certificates) {
+async function getCertificateInvoiceData(certificates, calibrationProcedures) {
     const prodecureData = {
         passed: 0,
         failed: 0,
         expedited: 0
     }
     let invoiceData = {
-        tos: new Set(),
+        customerOrderNumbers: new Set(),
         calibration_procedure_3_no_lead: JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
     }
-
-    for (let i=1; i <= 6; i++) {
+    
+    for (let i=1; i <= calibrationProcedures.length; i++) {
         invoiceData[`calibration_procedure_${i}`] = JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
     }
 
     for (const certificate of certificates) {
-        invoiceData.tos.add(certificate.customer_order_number)
+        invoiceData.customerOrderNumbers.add(certificate.customer_order_number)
         const passed = certificate.generate_certificate_json.CS5 === 'PASS'
         let targetCalibrationProcedure = invoiceData[`calibration_procedure_${certificate.calibration_procedure_id}`]
 
@@ -2062,12 +2127,12 @@ function getCertificateInvoiceData(certificates) {
             }
         }
 
+
         passed ? targetCalibrationProcedure.passed ++ : targetCalibrationProcedure.failed ++
         if (certificate.expedited) {
             targetCalibrationProcedure.expedited ++
         }
     }
-
     return invoiceData
 }
 
