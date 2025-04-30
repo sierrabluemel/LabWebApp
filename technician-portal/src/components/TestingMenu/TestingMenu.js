@@ -319,50 +319,53 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
     async function createTemperatureReading(setPointObject, generatorId, reference, calibrate = false) {
         const setPoint = setPointObject.temperature;
         const readings = await getStableTemperatureReading(sensorList, setPointObject, reference.asset_tag);
-        const labReadings = await callApi('get-recent-data');
-        if (!labReadings[0].lab_humidity || !labReadings[0].lab_temperature) {
-            setPopupMessage('No lab readings available for this reading');
-            return;
-        }
-        for (const sensor of sensorList) {
-            if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current)) {
-                continue;
-            } else if (!readings) {
-                setPopupMessage(`Could not get stable data`);
-                return;
-            } else if (readings[`${sensor.sensor_id}temp`] === undefined) {
-                setPopupMessage(`No stable data found for sensor: ${sensor.sensor_id}`);
-                return;
-            } else {
-                const parameters = {
-                    'type': 'temperature',
-                    'set_point': setPoint,
-                    'reference_reading': readings.referenceTemperature,
-                    'sensor_reading': readings[`${sensor.sensor_id}temp`],
-                    'lab_rh': labReadings[0].lab_humidity,
-                    'lab_temperature': labReadings[0].lab_temperature,
-                    'sensor_id': sensor.sensor_id,
-                    'generator_id': generatorId,
-                    'reference_id': reference.equipment_id,
-                    'tolerance': setPointObject.readingCriteria.tolerance,
-                    'uncertainty': setPointObject.readingCriteria.uncertainty,
+
+        callApi('get-recent-data')
+            .then((labReadings) => {
+                if (!labReadings.lab_humidity || !labReadings.lab_temperature) {
+                    setPopupMessage('No lab readings available for this reading');
+                    return;
                 }
-                if (calibrate) {
-                    callApi('calibrate-sensor', { 'sensor_id': sensor.sensor_id, 'target_reading': parameters.reference_reading })
-                        .then(response => {
-                            if (response.Result !== 'Success') {
-                                setPopupMessage(`Could not calibrate sensor ${sensor.sensor_id}, please try again`)
-                                console.error(response)
-                                return;
-                            }
-                        })
+                for (const sensor of sensorList) {
+                    if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current)) {
+                        continue;
+                    } else if (!readings) {
+                        setPopupMessage(`Could not get stable data`);
+                        return;
+                    } else if (readings[`${sensor.sensor_id}temp`] === undefined) {
+                        setPopupMessage(`No stable data found for sensor: ${sensor.sensor_id}`);
+                        return;
+                    } else {
+                        const parameters = {
+                            'type': 'temperature',
+                            'set_point': setPoint,
+                            'reference_reading': readings.referenceTemperature,
+                            'sensor_reading': readings[`${sensor.sensor_id}temp`],
+                            'lab_rh': labReadings.lab_humidity,
+                            'lab_temperature': labReadings.lab_temperature,
+                            'sensor_id': sensor.sensor_id,
+                            'generator_id': generatorId,
+                            'reference_id': reference.equipment_id,
+                            'tolerance': setPointObject.readingCriteria.tolerance,
+                            'uncertainty': setPointObject.readingCriteria.uncertainty,
+                        }
+                        if (calibrate) {
+                            callApi('calibrate-sensor', { 'sensor_id': sensor.sensor_id, 'target_reading': parameters.reference_reading })
+                                .then(response => {
+                                    if (response.Result !== 'Success') {
+                                        setPopupMessage(`Could not calibrate sensor ${sensor.sensor_id}, please try again`)
+                                        console.error(response)
+                                        return;
+                                    }
+                                })
+                        }
+                        callApi('create-reading', parameters)
+                            .then(() => {
+                                refresh();
+                            })
+                    }
                 }
-                callApi('create-reading', parameters)
-                    .then(() => {
-                        refresh();
-                    })
-            }
-        }
+            })
     }
 
     const createRotronicTemperatureReading = async (setPointObject, referenceAssetID, generatorId, referenceId, tolerance, uncertainty, calibrate = false) => {
@@ -453,53 +456,52 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         for (const type of ['humidity', 'temperature']) {
             if (!humidityAverages.referenceHumidity || !humidityAverages.referenceTemperature) {
                 setPopupMessage('No stable data found!');
-            } else {
-                for (const sensor of sensorList) {
-                    if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current)) {
-                        continue;
-                    }
-                    if (!humidityAverages[`${sensor.sensor_id}humidity`] || !humidityAverages[`${sensor.sensor_id}temp`]) {
-                        setPopupMessage(`No stable data found for sensor: ${sensor.sensor_id}`);
-                        return;
-                    } else {
-                        let referenceReading;
-                        let sensorReading;
-                        let setPoint;
-                        let tolerance;
-                        let uncertainty;
-
-                        if (type === 'humidity') {
-                            referenceReading = humidityAverages.referenceHumidity;
-                            sensorReading = humidityAverages[`${sensor.sensor_id}humidity`];
-                            setPoint = setPoints[setPointsSetPoint].humidity;
-                            tolerance = 5;
-                            uncertainty = humidityUncertainty;
-                        } else {
-                            referenceReading = humidityAverages.referenceTemperature;
-                            sensorReading = humidityAverages[`${sensor.sensor_id}temp`];
-                            setPoint = setPoints[setPointsSetPoint].temperature;
-                            tolerance = 1;
-                            uncertainty = temperatureUncertainty;
-                        }
-                        const parameters = {
-                            'type': type,
-                            'set_point': setPoint,
-                            'reference_reading': referenceReading,
-                            'sensor_reading': sensorReading,
-                            'lab_rh': readings[0].lab_humidity,
-                            'lab_temperature': readings[0].lab_temperature,
-                            'sensor_id': sensor.sensor_id,
-                            'generator_id': equipment.current.chamber.equipment_id,
-                            'reference_id': equipment.current.rotronic.equipment_id,
-                            'tolerance': tolerance,
-                            'uncertainty': uncertainty,
-                        }
-                        promises.push(callApi('create-reading', parameters))
-                    }
-                }
-                await Promise.all(promises);
-                refresh();
+                continue
             }
+            for (const sensor of sensorList) {
+                if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current)) {
+                    continue;
+                }
+                if (!humidityAverages[`${sensor.sensor_id}humidity`] || !humidityAverages[`${sensor.sensor_id}temp`]) {
+                    setPopupMessage(`No stable data found for sensor: ${sensor.sensor_id}`);
+                    return;
+                }
+                let referenceReading;
+                let sensorReading;
+                let setPoint;
+                let tolerance;
+                let uncertainty;
+
+                if (type === 'humidity') {
+                    referenceReading = humidityAverages.referenceHumidity;
+                    sensorReading = humidityAverages[`${sensor.sensor_id}humidity`];
+                    setPoint = setPoints[setPointsSetPoint].humidity;
+                    tolerance = 5;
+                    uncertainty = humidityUncertainty;
+                } else {
+                    referenceReading = humidityAverages.referenceTemperature;
+                    sensorReading = humidityAverages[`${sensor.sensor_id}temp`];
+                    setPoint = setPoints[setPointsSetPoint].temperature;
+                    tolerance = 1;
+                    uncertainty = temperatureUncertainty;
+                }
+                const parameters = {
+                    'type': type,
+                    'set_point': setPoint,
+                    'reference_reading': referenceReading,
+                    'sensor_reading': sensorReading,
+                    'lab_rh': readings[0].lab_humidity,
+                    'lab_temperature': readings[0].lab_temperature,
+                    'sensor_id': sensor.sensor_id,
+                    'generator_id': equipment.current.chamber.equipment_id,
+                    'reference_id': equipment.current.rotronic.equipment_id,
+                    'tolerance': tolerance,
+                    'uncertainty': uncertainty,
+                }
+                promises.push(callApi('create-reading', parameters))
+            }
+            await Promise.all(promises);
+            refresh();
         }
     }
 
@@ -685,17 +687,16 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
             getReferences(calibrationProcedureId).then(references => {
                 const unverifiedReferences = []
-                if (referencesToVerify.length === 0) {
-                    for (const reference of references) {
-                        if (!reference.physically_verified) {
-                            const verificationString = `Please verify that equipment ${reference.asset_tag} (${reference.description}) is being used for this test`
-
-                            unverifiedReferences.push(reference);
-                            referenceStrings.current = [...referenceStrings.current, verificationString];
-                        }
-                    }
-                    setReferencesToVerify(unverifiedReferences);
+                if (referencesToVerify.length !== 0)
+                    return;
+                for (const reference of references) {
+                    if (reference.physically_verified)
+                        continue
+                    const verificationString = `Please verify that equipment ${reference.asset_tag} (${reference.description}) is being used for this test`
+                    unverifiedReferences.push(reference);
+                    referenceStrings.current = [...referenceStrings.current, verificationString];
                 }
+                setReferencesToVerify(unverifiedReferences);
             })
         }
         const interval = setInterval(() => {

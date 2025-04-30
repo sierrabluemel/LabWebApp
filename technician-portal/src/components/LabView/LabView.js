@@ -27,8 +27,7 @@ function LabView() {
 
     const updateData = () => {
         callApi('get-recent-data')
-            .then(response => {
-                const data = response[0];
+            .then(data => {
                 setAggregatorStyle(data);
 
                 const referenceArray = [];
@@ -42,13 +41,23 @@ function LabView() {
                 setLabReadings(`${data.lab_humidity}%RH @ ${data.lab_temperature}°C`)
                 setReferenceList(referenceArray)
             })
+            .catch((err) => {
+            })
     }
+
+    const getEquipment = () => {
+        callApi('get-equipment')
+            .then(equipment => {
+                setEquipmentList(equipment);
+            })
+            .catch((err) => {
+                setTimeout(getEquipment, 1000);
+            })
+    }
+
     useEffect(() => {
         if (equipmentList.length === 0) {
-            callApi('get-equipment')
-                .then(equipment => {
-                    setEquipmentList(equipment);
-                })
+            getEquipment();
         }
         const interval = setInterval(updateData, 3000);
         return () => clearInterval(interval);

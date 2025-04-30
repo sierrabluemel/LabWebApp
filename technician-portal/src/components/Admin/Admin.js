@@ -67,13 +67,13 @@ function Admin() {
                    and a due date of ${parseDataBaseDate(new Date(superDaq.dueDate).toISOString())}`)
         };
         for (const reference of referenceList) {
-            if (isReferenceValid(reference)) {
-                warningMessage.push(
-                    `Generator ${reference.generatorTag} will be set to ${reference.referenceTag}
-                     with a certificate number of ${reference.certificateNumber},
-                      a calibration date of ${parseDataBaseDate(new Date(reference.calibrationDate).toISOString())},
-                       and a due date of ${parseDataBaseDate(new Date(reference.dueDate).toISOString())}`)
-            }
+            if (!isReferenceValid(reference))
+                continue;
+            warningMessage.push(
+                `Generator ${reference.generatorTag} will be set to ${reference.referenceTag}
+                    with a certificate number of ${reference.certificateNumber},
+                    a calibration date of ${parseDataBaseDate(new Date(reference.calibrationDate).toISOString())},
+                    and a due date of ${parseDataBaseDate(new Date(reference.dueDate).toISOString())}`)
         }
 
         if (warningMessage.length > 1) {
@@ -97,6 +97,8 @@ function Admin() {
                     technician_id: technicianId
                 }
                 callApi('set-generator', params)
+                    .then(() => { })
+                    .catch(() => { });
             }
             const params = {
                 reference_tag: superDaq.referenceTag,
@@ -108,6 +110,7 @@ function Admin() {
             }
             promises.push(
                 callApi('set-generator', params)
+                    .then(() => { })
                     .catch(error => {
                         console.error(error);
                         return setPopupMessage(`Could not set SuperDAQ`);
@@ -116,41 +119,40 @@ function Admin() {
         }
 
         for (const reference of referenceList) {
-            if (Object.keys(reference).length === 0) { // Check if reference is empty Object
+            if (Object.keys(reference).length === 0) // Check if reference is empty Object
                 continue;
+            if (!isReferenceValid(reference))
+                continue;
+            const params = {
+                reference_tag: reference.referenceTag,
+                generator_tag: reference.generatorTag,
+                certificate_number: reference.certificateNumber,
+                calibration_date: reference.calibrationDate,
+                due_date: reference.dueDate,
+                technician_id: technicianId
+
             }
-            if (isReferenceValid(reference)) {
-                const params = {
-                    reference_tag: reference.referenceTag,
-                    generator_tag: reference.generatorTag,
-                    certificate_number: reference.certificateNumber,
-                    calibration_date: reference.calibrationDate,
-                    due_date: reference.dueDate,
-                    technician_id: technicianId
+            promises.push(
+                callApi('set-generator', params)
+                    .catch(error => {
+                        console.error(error);
+                        setPopupMessage(`Could not set reference for generator: ${reference.generatorTag}`);
+                    })
+            )
 
-                }
-                promises.push(
-                    callApi('set-generator', params)
-                        .catch(error => {
-                            console.error(error);
-                            setPopupMessage(`Could not set reference for generator: ${reference.generatorTag}`);
-                        })
-                )
-
-                const promise = callApi('get-equipment')
+            const promise = callApi('get-equipment')
                 .then(equipment => {
                     equipmentList.current = equipment;
                 })
 
-                promises.push(promise);
-            }
+            promises.push(promise);
         }
         clearForm();
         setPopupMessage('Loading...')
         await Promise.all(promises);
         setPopupMessage('Equipment updated')
     }
-    
+
     return (
         <>
             <div className={styles.menu}>

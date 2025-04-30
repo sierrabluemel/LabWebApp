@@ -15,15 +15,14 @@ const addSensor = async (sensor, batchId) => {
     'check_digit': checkDigit,
     'batch_id': batchId,
   }
-  try {
-    const response = await callApi('create-sensor', parameters);
-    if (!response[0]['sensor_id']) {
-      return false;
-    }
-  } catch (error) {
-    return false;
-  }
-  return true;
+
+  return callApi('create-sensor', parameters)
+    .then((response) => {
+      return !isNaN(parseInt(response['sensor_id'] ?? ""));
+    })
+    .catch((err) => {
+      return false
+    })
 };
 
 export default addSensor;

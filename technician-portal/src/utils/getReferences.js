@@ -1,8 +1,7 @@
 import getEquipment from "./getEquipment";
 
-
 export default function getReferences(calibrationProcedureId) {
-    const references = getEquipment()
+    return getEquipment()
         .then(equipment => {
             switch (calibrationProcedureId) {
                 default:
@@ -30,6 +29,4 @@ export default function getReferences(calibrationProcedureId) {
                     ]
             }
         })
-
-    return references;
 }

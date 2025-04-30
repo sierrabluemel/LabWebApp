@@ -44,35 +44,31 @@ function SignInMenu() {
       return
     }
 
-    try {
-      const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/auth/sign-in` : `http://${ip}/api/auth/sign-in`;
-      const response = await axios.post(url, form, {
-        headers: {
-          'x-api-key': "T7vidLgPfCkGQHYlBbQz416qkKeyQUkFFxFOLUAVYE0"
-        }
+    const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/auth/sign-in` : `http://${ip}/api/auth/sign-in`;
+    axios.post(url, form, {})
+      .then((response) => {
+        console.log(response.data)
+        localStorage.setItem("jwt", response.data["access-token"]);
+        login(response.data.id);
+      })
+      .catch((error) => {
+        const errorMessageRaw = error.response
+        const errorMessage = errorMessageRaw?.data.error
+
+        setPopupMessage(errorMessage);
       });
-
-      login(response.data.id);
-    } catch (error) {
-      const errorMessageRaw = error.response
-      const errorMessage = errorMessageRaw?.data.error
-
-      setPopupMessage(errorMessage);
-    }
   }
 
   function login(userId) {
     callApi('lookup-technician', { user_id: userId })
       .then(technician => {
-        technician = technician[0]
-        if (technician?.technician_id) {
-          setTechnicianId(technician.technician_id);
-          setTechnician(technician);
-          localStorage.setItem('user', JSON.stringify(technician))
-          navigate('/');
-        } else {
+        if (!technician || !technician.technician_id) {
           setPopupMessage('It looks like there is no technician profile connected with that account. If you believe this is an error, please contact your manager.')
         }
+        setTechnicianId(technician.technician_id);
+        setTechnician(technician);
+        localStorage.setItem('user', JSON.stringify(technician))
+        navigate('/');
       })
   }
 

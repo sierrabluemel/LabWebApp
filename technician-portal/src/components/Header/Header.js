@@ -25,6 +25,7 @@ function Header({ title }) {
     setTechnician({});
     setTechnicianId(0);
     localStorage.clear('user')
+    localStorage.clear('jwt')
     navigate('/signIn')
   }
   return (
