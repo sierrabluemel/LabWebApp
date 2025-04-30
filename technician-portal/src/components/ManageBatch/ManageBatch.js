@@ -141,7 +141,6 @@ function ManageBatch() {
                 if (!location.startsWith('S')) {
                     return;
                 }
-
                 callApi('log-batch-interaction', {
                     department: 'testing',
                     start: false,
@@ -152,6 +151,11 @@ function ManageBatch() {
                 callApi('set-batch-active-state', {
                     batch_id: batchNumber,
                     active_state: false
+                })
+
+                callApi('move-sensors-to-network-group', {
+                    sensors: sensorList.map(sensor => sensor.sensor_id),
+                    network_group: 'staging'
                 })
 
                 for (const sensor of sensorList) {

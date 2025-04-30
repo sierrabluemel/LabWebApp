@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import styles from "../../styles/styles.module.css";
-import round from "../../utils/round";
+import { round } from "../../utils/customMath.js";
 
 function Equipment({ assetId, readings, description, openedEquipment, updateData }) {
     let referenceColor;

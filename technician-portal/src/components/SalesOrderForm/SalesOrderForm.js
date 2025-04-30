@@ -65,7 +65,7 @@ function SalesOrderForm() {
             .then(response => {
                 setCalibrationProcedures(response);
             })
-        if (!batches.length || batches.length == 0) {
+        if (!batches.length || batches.length === 0) {
             setBatchDisplay(null);
             return;
         }

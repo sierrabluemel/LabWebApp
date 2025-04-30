@@ -6,6 +6,8 @@ import { Request, Response } from "express";
 import { removeDuplicateCertificates, getCertificateInvoiceData, getDateString } from "../methods/common";
 import sensor from "../models/sensor";
 import certificate from "../models/certificate";
+import misc from "../models/misc";
+const sillyConfig = require('../../config.json');
 
 const sensorRoutes = {
     getSensors: (req: Request, res: Response) => {
@@ -44,11 +46,12 @@ const sensorRoutes = {
         const endDate = new Date(new Date(req.query.end_date as string ?? "").setHours(23, 59, 59, 999));
 
         certificate.invoiceReport(startDate, endDate)
-            .then((data) => {
+            .then(async (data) => {
                 const certificates = removeDuplicateCertificates(data);
                 const certificateInvoiceData = getCertificateInvoiceData(certificates) as any;
                 const templatePath = path.join(__dirname, 'templates', 'sensorBillingReport.xlsx')
                 const outputPath = path.join(__dirname, 'fileOutputs', 'sensorBillingReport.xlsx')
+                let calibrationProcedures = await misc.getCalibrationProcedures();
 
                 const workbook = new ExcelJS.Workbook();
                 workbook.xlsx.readFile(templatePath)
@@ -57,35 +60,19 @@ const sensorRoutes = {
                         worksheet.getCell('F3').value = getDateString(startDate)
                         worksheet.getCell('F4').value = getDateString(endDate)
 
-                        worksheet.getCell('C8').value = certificateInvoiceData.calibration_procedure_1.passed;
-                        worksheet.getCell('D8').value = certificateInvoiceData.calibration_procedure_1.failed;
-                        worksheet.getCell('F8').value = certificateInvoiceData.calibration_procedure_1.expedited;
+                        const firstRow = 8
+                        let procedure3Copy = JSON.parse(JSON.stringify(calibrationProcedures[2])) // Create copy
+                        procedure3Copy.calibration_procedure_id = '3_no_lead'
 
-                        worksheet.getCell('C9').value = certificateInvoiceData.calibration_procedure_2.passed;
-                        worksheet.getCell('D9').value = certificateInvoiceData.calibration_procedure_2.failed;
-                        worksheet.getCell('F9').value = certificateInvoiceData.calibration_procedure_2.expedited;
+                        calibrationProcedures.splice(2, 0, procedure3Copy)
 
-                        worksheet.getCell('C10').value = certificateInvoiceData.calibration_procedure_3.passed;
-                        worksheet.getCell('D10').value = certificateInvoiceData.calibration_procedure_3.failed;
-                        worksheet.getCell('F10').value = certificateInvoiceData.calibration_procedure_3.expedited;
+                        calibrationProcedures.map((calibrationProcedure, index) => {
+                            worksheet.getCell(`C${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].passed;
+                            worksheet.getCell(`D${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].failed;
+                            worksheet.getCell(`F${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].expedited;
+                        })
 
-                        worksheet.getCell('C11').value = certificateInvoiceData.calibration_procedure_3_no_lead.passed;
-                        worksheet.getCell('D11').value = certificateInvoiceData.calibration_procedure_3_no_lead.failed;
-                        worksheet.getCell('F11').value = certificateInvoiceData.calibration_procedure_3_no_lead.expedited;
-
-                        worksheet.getCell('C12').value = certificateInvoiceData.calibration_procedure_4.passed;
-                        worksheet.getCell('D12').value = certificateInvoiceData.calibration_procedure_4.failed;
-                        worksheet.getCell('F12').value = certificateInvoiceData.calibration_procedure_4.expedited;
-
-                        worksheet.getCell('C13').value = certificateInvoiceData.calibration_procedure_5.passed;
-                        worksheet.getCell('D13').value = certificateInvoiceData.calibration_procedure_5.failed;
-                        worksheet.getCell('F13').value = certificateInvoiceData.calibration_procedure_5.expedited;
-
-                        worksheet.getCell('C14').value = certificateInvoiceData.calibration_procedure_6.passed;
-                        worksheet.getCell('D14').value = certificateInvoiceData.calibration_procedure_6.failed;
-                        worksheet.getCell('F14').value = certificateInvoiceData.calibration_procedure_6.expedited;
-
-                        worksheet.getCell('A18').value = 'Report for ' + [...certificateInvoiceData.tos].join(', ')
+                        worksheet.getCell('A20').value = 'Report for ' + [...certificateInvoiceData.customerOrderNumbers].join(', ');
 
                         return workbook.xlsx.writeFile(outputPath);
                     })
@@ -149,7 +136,7 @@ const sensorRoutes = {
         let url = `https://www.imonnit.com/json/AssignSensor/`;
 
         const parameters = {
-            'NetworkID': 94464,
+            'NetworkID': sillyConfig.stagingNetworks[0],
             'SensorID': sensorId,
             'CheckDigit': checkDigit,
             'reportInterval': 1,
@@ -255,7 +242,6 @@ const sensorRoutes = {
 
         let url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
         const parameters = {
-            'NetworkID': 94464,
             'SensorID': sensorId,
             'CheckDigit': checkDigit,
             'reportInterval': 120,
@@ -278,6 +264,81 @@ const sensorRoutes = {
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: "Error removing sensor." })
+            })
+    },
+    moveSensorsToNetworkGroup: (req: Request, res: Response) => {
+        const networkGroup = req.query.network_group;
+        const sensors = JSON.parse(req.query.sensors as string ?? "");
+
+        let networkIDs = []
+        switch (networkGroup) {
+            case 'staging':
+                networkIDs.push(...sillyConfig.stagingNetworks);
+                break
+            case 'testing_all_frequencies':
+                networkIDs.push(...sillyConfig.anyFrequencyNetworks);
+                break
+            case 'testing_all_networks':
+                networkIDs.push(...sillyConfig.anyFrequencyNetworks);
+                networkIDs.push(...sillyConfig.commonFrequencyOnlyNetworks);
+                break
+            default:
+                res.status(500).json({ Error: 'Invalid network group' });
+                return
+        }
+
+        monnitFetch('https://www.imonnit.com/json/SensorListFull')
+            .then(response => {
+                let allSensors = response.Result
+                for (let sensor of allSensors) {
+                    // Converting minutes per heartbeat to heartbeats per second
+                    sensor.heartbeatsPerSecond = 60 / (sensor.ReportInterval * 60) / 60;
+
+                    sensors.includes(sensor.SensorID) ? sensor.moving = true : sensor.moving = false
+                }
+
+                let sensorsToMove = allSensors.filter((sensor: any) => sensor.moving === true);
+
+                let networkHeartbeats = networkIDs.map(networkID => {
+                    const sensorsOnNetwork = allSensors.filter((sensor: any) => sensor.CSNetID === networkID)
+                    let heartbeatsPerSecond = 0
+                    sensorsOnNetwork.map((sensor: any) => {
+                        heartbeatsPerSecond += sensor.heartbeatsPerSecond
+                    })
+                    return {
+                        networkID,
+                        heartbeatsPerSecond,
+                    }
+                })
+
+                let networksToAddTo = [] as any[];
+                for (const sensorToMove of sensorsToMove) {
+                    const currentNetwork = networkHeartbeats.filter(network => network.networkID === sensorToMove.CSNetID)[0];
+                    if (networksToAddTo.length < 1) {
+                        const lowestCapacity = Math.min(...networkHeartbeats.map(network => network.heartbeatsPerSecond))
+                        networksToAddTo = networkHeartbeats.filter(network => {
+                            return network.heartbeatsPerSecond === lowestCapacity;
+                        })
+                    }
+                    const nextNetwork = networksToAddTo[0];
+                    const sensor = allSensors.filter((sensor: any) => sensor.SensorID === sensorToMove.SensorID)[0];
+                    const inCurrentNetworkGroup = networkIDs.filter(networkID => networkID === sensor.CSNetID)[0];
+                    if (!inCurrentNetworkGroup || currentNetwork?.heartbeatsPerSecond > nextNetwork.heartbeatsPerSecond) {
+                        // TODO add new monnit api call to move sensor whitelist
+                        monnitFetch(`https://www.imonnit.com/json/AssignSensor?NetworkID=${nextNetwork.networkID}&SensorID=${sensor.SensorID}&CheckDigit=${sensor.CheckDigit}`);
+                        if (currentNetwork) {
+                            currentNetwork.heartbeatsPerSecond -= sensor.heartbeatsPerSecond;
+                        }
+                        nextNetwork.heartbeatsPerSecond += sensor.heartbeatsPerSecond
+                        networksToAddTo.shift();
+                    }
+                }
+
+                res.json({ Result: 'Success' })
+            })
+            .catch(err => {
+                res.status(500).json({ Error: 'Could not move sensors' })
+                console.error(`Error moving sensors: ${err}`)
             })
     },
 };

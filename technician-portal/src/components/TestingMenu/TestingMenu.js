@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import styles from "../../styles/styles.module.css";
 import callApi from "../../utils/api/callApi";
-import round from "../../utils/round.js";
+import { round, average, standardDeviation } from "../../utils/customMath.js";
 import StableTimeDisplay from "../StableTimeDisplay/StableTimeDisplay";
 import { useAppContext } from "../../contexts/app";
 import Button from "../Button/Button.js";
@@ -265,7 +265,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         const promises = [];
 
         for (const sensor of sensorList) {
-            promises.push(callApi("get-readings", { sensors: sensor.sensor_id }));
+            promises.push(callApi("get-recent-readings", { sensors: sensor.sensor_id }));
         }
         const resolvedRecentReadings = await callApi('get-recent-data');
         const resolvedReadings = await Promise.all(promises);
@@ -287,21 +287,32 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         } else if (finalSetPoint === '-998.00') {
             finalSetPoint = '-25.00';
         }
-        const data = await callApi('get-last-temperature-stable-reading', { 'set_point': finalSetPoint, 'reference': reference, 'stability_criteria': JSON.stringify(setPointObject.stabilityCriteria) });
-        console.log(new Date(), data);
-        if (!data[1]) {
+        const lastStableReading = await callApi('get-last-temperature-stable-reading', { 'set_point': finalSetPoint, 'reference': reference, 'stability_criteria': JSON.stringify(setPointObject.stabilityCriteria) });
+        
+        if (!lastStableReading[1]) {
             setPopupMessage('Unable to find stable data');
             return;
         }
-        let readings = await callApi('get-temperature-reading-range', { 'timestamp': data[1] });
-        console.log(readings)
-        let referenceTemperature = readings[0].super_daq_data[reference].Temperature;
-        readings = readings[0].devices_under_test;
+        let readings = await callApi('get-temperature-reading-range', { 'timestamp': lastStableReading[1] });
+
+        let referenceTemperature = readings[0].super_daq_data[reference].stability_data.average;
 
         let finalReadings = { 'referenceTemperature': referenceTemperature };
+
         for (const sensor of sensorList) {
-            finalReadings[`${sensor.sensor_id}temp`] = readings[`${sensor.sensor_id}temp`];
+            const referenceAndSensorDifference = [] // Array to contain the difference between the reference reading and sensor reading over the course of the 90 seconds
+
+            const readingList = readings.map(reading => { // Get sensor readings from range to perform calculations
+                const referenceReading = reading.super_daq_data[reference].Temperature;
+                const sensorReading = reading.devices_under_test[`${sensor.sensor_id}temp`];
+
+                referenceAndSensorDifference.push(round(referenceReading - sensorReading, 5));
+                return sensorReading;
+            })
+
+            finalReadings[`${sensor.sensor_id}temp`] = round(average(readingList), 1);
         }
+
         return finalReadings;
     }
 
@@ -407,9 +418,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     callApi('calibrate-sensor', { 'sensor_id': sensorId, 'target_reading': parameters.reference_reading })
                 }
                 callApi('create-reading', parameters)
-                    .then(() => {
-                        refresh();
-                    })
+                    .then(() => refresh())
             }
         }
     }

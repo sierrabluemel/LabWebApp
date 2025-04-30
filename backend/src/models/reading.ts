@@ -1,7 +1,7 @@
 import { executeNonQuery, executeQuery, executeQuerySingleReturn, pool, rollingDataPool } from "../utils/db";
 
 let reading = {
-    getReadingsBySensorIds: (sensorIds: Array<number>) => {
+    getRecentReadingsBySensorIds: (sensorIds: Array<number>, earliestReadingDate: string) => {
         return executeQuery(pool, `
             SELECT
                 *
@@ -10,9 +10,10 @@ let reading = {
             WHERE
                 SENSOR_ID = ANY ($1::INT[])
                 AND TIMESTAMP IS NOT NULL
+                AND TIMESTAMP > $2
             ORDER BY
                 TIMESTAMP DESC
-        `, [sensorIds]);
+        `, [sensorIds, earliestReadingDate]);
     },
     getReadingsBySensorId: (sensorId: number) => {
         return executeQuery(pool, `
