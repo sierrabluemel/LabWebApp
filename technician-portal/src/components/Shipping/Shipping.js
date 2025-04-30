@@ -41,7 +41,7 @@ function Shipping() {
     const getCertificates = () => {
         callApi('get-certificates-by-order-id', { order_id: orderNumber })
             .then(certificates => {
-                if (!certificates.length || certificates.length == 0) {
+                if (!certificates.length || certificates.length === 0) {
                     setCertificateMessage('No certificates found')
                 }
                 const fullDate = new Date(certificates[0].timestamp)

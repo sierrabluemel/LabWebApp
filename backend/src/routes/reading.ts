@@ -2,11 +2,13 @@ import { Request, Response } from "express";
 import reading from "../models/reading";
 
 const readingRoutes = {
-    getReadings: (req: Request, res: Response) => {
+    getRecentReadings: (req: Request, res: Response) => {
         const sensors = req.query.sensors as string;
         const sensorIds = sensors.split(',').map(sensor => parseInt(sensor.trim()));
+        const now = new Date();
+        const earliestReadingDate = new Date(now.setDate(now.getDate() - 30)).toISOString();
 
-        reading.getReadingsBySensorIds(sensorIds)
+        reading.getRecentReadingsBySensorIds(sensorIds, earliestReadingDate)
             .then((readings) => {
                 res.json(readings);
             })

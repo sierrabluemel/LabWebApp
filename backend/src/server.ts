@@ -84,6 +84,7 @@ app.get('/api/get-sensors-by-order-id', auth, sensorRoutes.getSensorsByOrderId);
 app.get('/api/get-sensors-by-batch-id', auth, sensorRoutes.getSensorsByBatchId);
 app.get('/api/remove-sensor-from-batch', auth, sensorRoutes.removeSensorFromBatch);
 app.get('/api/remove-sensor', auth, sensorRoutes.removeSensor);
+app.get('/api/move-sensors-to-network-group', auth, sensorRoutes.moveSensorsToNetworkGroup);
 
 // Batch routes
 app.get('/api/get-batch-by-id', auth, batchRoutes.getBatchById);
@@ -100,7 +101,7 @@ app.get('/api/generate-work-order', auth, batchRoutes.generateWorkOrder);
 app.get('/api/delete-batch', auth, batchRoutes.deleteBatch);
 
 // Reading routes
-app.get('/api/get-readings', auth, readingRoutes.getReadings);
+app.get('/api/get-recent-readings', auth, readingRoutes.getRecentReadings);
 app.get('/api/get-readings-by-sensor-id', auth, readingRoutes.getReadingsBySensorId);
 app.get('/api/create-reading', auth, readingRoutes.createReading);
 

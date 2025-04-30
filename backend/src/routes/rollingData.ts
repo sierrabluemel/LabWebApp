@@ -135,10 +135,10 @@ const rollingDataRoutes = {
         let timestamp = new Date(req.query.timestamp as string).getTime();
 
         if (isNaN(seconds)) {
-            seconds = 30;
+            seconds = 90;
         }
         const start = new Date(timestamp - (seconds * 1000));
-        const end = new Date(start.getTime() - (seconds * 1000));
+        const end = new Date(timestamp);
 
         rollingData.getTemperatureDataInTimeRange(start, end)
             .then((data) => {

@@ -71,17 +71,21 @@ const pdf = {
         });
     },
     printPdf: (pdfBytes: Blob | Buffer) => {
-        request.post('http://localhost:4000/print-pdf/', {
+        fetch('http://localhost:4000/print-pdf/', {
+            method: 'POST',
             body: pdfBytes,
-        },
-            function (error, response, body) {
-                if (response) {
-                    if (!response.body || response.body !== 'Printed PDF successfully' || error) {
-                        console.error('Error printing pdf: ', error ? error : 'No error code')
-                    }
+        })
+            .then((response) => {
+                return response.text()
+            })
+            .then((response) => {
+                if (response !== 'Printed PDF successfully') {
+                    console.error('Error printing pdf: No error code')
                 }
-            }
-        )
+            })
+            .catch((err) => {
+                console.error('Error printing pdf: ', err)
+            })
     },
     addSensorsToReturnRecord: async (bytes: any, sensorList: any[]) => {
 
