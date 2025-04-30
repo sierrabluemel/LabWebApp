@@ -17,15 +17,15 @@ function BatchEntry() {
     const [batches, setBatches] = useState([<h1 className={styles.title} key={'fillerKey'}>Loading...</h1>]);
 
     async function getBatchSensors(batches) {
-        const promises = []
-        for (const batch of batches) {
-            promises.push(callApi('get-sensors', { batch_id: batch.batch_id })
+
+        let test = await Promise.all(batches.map((b) => {
+            return callApi('get-sensors', { batch_id: b.batch_id })
                 .then(sensors => {
-                    batches[batches.indexOf(batch)].sensors = sensors;
-                }))
-        }
-        await Promise.all(promises);
-        return batches;
+                    return { ...b, sensors }
+                })
+        }))
+        console.log(test)
+        return test
     }
 
     useEffect(() => {
@@ -83,7 +83,10 @@ function BatchEntry() {
                     if (isMounted) {
                         setBatches(batchList);
                     }
-                });
+                })
+                .catch((err) => {
+                    console.error(err)
+                })
         }
 
         return () => {
