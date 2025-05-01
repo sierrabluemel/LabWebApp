@@ -18,14 +18,13 @@ function BatchEntry() {
 
     async function getBatchSensors(batches) {
 
-        let test = await Promise.all(batches.map((b) => {
+        let allSensors = await Promise.all(batches.map((b) => {
             return callApi('get-sensors', { batch_id: b.batch_id })
                 .then(sensors => {
                     return { ...b, sensors }
                 })
         }))
-        console.log(test)
-        return test
+        return allSensors
     }
 
     useEffect(() => {
