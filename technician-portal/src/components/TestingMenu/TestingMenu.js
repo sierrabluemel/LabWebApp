@@ -46,7 +46,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 const sensor = sensorList[i % sensorList.length];
                 const readings = allReadings[i];
                 let style = '';
-                const thisMessage = recentReadings[0].monnit_sensor_data.filter(sensorReading => sensorReading.sensorID === `${sensor.sensor_id}`)[0]
+                const thisMessage = recentReadings.monnit_sensor_data.filter(sensorReading => sensorReading.sensorID === `${sensor.sensor_id}`)[0]
                 if (sensor.sensor_id === selectedSensor) {
                     style = styles.selected_sensor;
                 }
@@ -57,7 +57,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         let pass = true;
                         let readingObject = {}
 
-                        if (recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
+                        if (recentReadings.devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
                             const heartbeat = thisMessage.heartbeat;
 
                             let heartbeatString = '';
@@ -67,12 +67,12 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                 heartbeatString = `(${heartbeat}s)`
                             }
 
-                            currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}</div>;
+                            currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings.devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}</div>;
 
                             if (calibrationProcedureId === 3 || calibrationProcedureId === 8) {
                                 currentReadingCell = <div className={styles.grid_entry_green}>
-                                    {`${recentReadings[0].devices_under_test[`${sensor.sensor_id}humidity`].toFixed(2)}%RH\n
-                                    ${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}
+                                    {`${recentReadings.devices_under_test[`${sensor.sensor_id}humidity`].toFixed(2)}%RH\n
+                                    ${recentReadings.devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}
                                 </div>
                             }
                         } else {
