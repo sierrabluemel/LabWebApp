@@ -47,7 +47,6 @@ function SignInMenu() {
     const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/auth/sign-in` : `http://${ip}/api/auth/sign-in`;
     axios.post(url, form, {})
       .then((response) => {
-        console.log(response.data)
         localStorage.setItem("jwt", response.data["access-token"]);
         login(response.data.id);
       })

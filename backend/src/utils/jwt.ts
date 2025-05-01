@@ -15,7 +15,7 @@ const jwt = {
         try {
             return jsonwebtoken.decode(token);
         } catch (error) {
-            console.log('JWT decode error ', error);
+            console.error('JWT decode error ', error);
         }
     },
     verify: (token: any, secretKey: any) => {

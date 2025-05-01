@@ -123,7 +123,7 @@ const sensorRoutes = {
                 res.json(response);
             })
             .catch((err) => {
-                console.log(err);
+                console.error(err);
                 res.status(500).json("Unable to calibrate sensor");
             })
     },
