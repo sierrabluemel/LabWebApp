@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from 'axios';
-
 import { useAppContext } from "../../contexts/app";
 import callApi from "../../utils/api/callApi";
-import ip from "../../utils/ip/ip";
+import callApiAdvanced from "../../utils/api/callApiAdvanced";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 import TestingMenu from "../TestingMenu/TestingMenu";
 
@@ -56,9 +54,7 @@ function ManageBatch() {
     }
 
     const downloadWorkOrder = () => {
-        const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/generate-work-order?batch_id=${batchNumber}` : `http://${ip}/api/generate-work-order?batch_id=${batchNumber}`
-        let token = localStorage.getItem("jwt");
-        axios.get(url, { responseType: 'blob', headers: { Authorization: `Bearer ${token}` } })
+        callApiAdvanced(`api/generate-work-order?batch_id=${batchNumber}`, { responseType: 'blob' })
             .then(response => {
                 if (response.status === 200) {
                     const contentType = response.headers['content-type']

@@ -4,8 +4,35 @@ import crypt from "../utils/crypt";
 import config from "../utils/config";
 import sendMailVerification from "../utils/mail";
 import user from "../models/user";
+import { JWT_ACCESS_TIMESPAN, JWT_REFRESH_TIMESPAN } from "../constants";
 
 const authRoutes = {
+    refresh: async (req: Request, res: Response) => {
+        const token = req.header("Refresh");
+        if (!token || !token.startsWith("Bearer ")) {
+            res.status(401).json({ message: "Unauthorized" });
+            return
+        }
+        const authToken = token.split(" ")[1];
+        try {
+            const { email, tokenType } = jwt.verify(authToken, config.JWT_SECRET_KEY) as any;
+            if (tokenType !== "refresh") {
+                res.status(403).json({ message: "Forbidden" });
+                return
+            }
+
+            user.getByEmail(email)
+                .then((u) => {
+                    delete u.password;
+                    u.tokenType = "auth"
+                    const accessToken = jwt.generateToken(u, JWT_ACCESS_TIMESPAN)
+                    res.status(200).json(accessToken);
+                })
+        } catch (error) {
+            console.error(error);
+            res.status(401).json("Failed to verify token");
+        }
+    },
     signIn: async (req: Request, res: Response) => {
         const { email, password } = req.body;
 
@@ -26,13 +53,18 @@ const authRoutes = {
                     return;
                 }
                 delete u.password;
-                const { accessToken, refreshToken } = jwt.generateTokens(
-                    u,
-                    config.JWT_SECRET_KEY
-                );
+
+                u.tokenType = "auth"
+
+                const refreshToken = jwt.generateToken({ email, tokenType: "refresh" }, JWT_REFRESH_TIMESPAN)
+                const accessToken = jwt.generateToken(u, JWT_ACCESS_TIMESPAN)
+
+                delete u.tokenType;
+
                 u = {
                     ...u,
-                    'access-token': accessToken,
+                    accessToken,
+                    refreshToken,
                 }
                 res.status(200).json(u);
             })
@@ -59,7 +91,6 @@ const authRoutes = {
                 };
                 const token = jwt.generateToken(
                     userConfirmationToken,
-                    process.env.JWT_SECRET_KEY,
                     "30m"
                 );
                 console.log('token :>> ', token);
@@ -77,7 +108,7 @@ const authRoutes = {
     },
     verify: (req: Request, res: Response) => {
         const { token } = req.body;
-        const tokenDecode = jwt.verify(token, process.env.JWT_SECRET_KEY) as any;
+        const tokenDecode = jwt.verify(token, config.JWT_SECRET_KEY) as any;
         user.setVerified(tokenDecode.id, true)
             .then(() => {
                 return res.status(200).json({ message: 'Success' });
@@ -98,7 +129,6 @@ const authRoutes = {
                 };
                 const token = jwt.generateToken(
                     userConfirmationToken,
-                    process.env.JWT_SECRET_KEY,
                     "30m"
                 );
                 return sendMailVerification("VERIFICATION_ACCOUNT", {
@@ -132,7 +162,6 @@ const authRoutes = {
                 };
                 const token = jwt.generateToken(
                     userConfirmationToken,
-                    process.env.JWT_SECRET_KEY,
                     "30m"
                 );
                 return sendMailVerification("FORGOT_PASSWORD", {

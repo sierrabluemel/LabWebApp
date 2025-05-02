@@ -2,7 +2,6 @@ import fs from 'fs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import qrcode from 'qrcode'
 import { BlobServiceClient } from '@azure/storage-blob';
-import request from 'request'
 
 const pdf = {
     fillForm: async (template: string, fields: string[]) => {
