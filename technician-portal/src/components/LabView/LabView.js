@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import callApi from "../../utils/api/callApi";
 import styles from "../../styles/styles.module.css";
 import Equipment from "../Equipment/Equipment";
+import { useAppContext } from "../../contexts/app";
 
 function LabView() {
     const [aggregatorStatusDotStyle, setAggregatorStatusDotStyle] = useState(styles.status_dot_red);
@@ -10,6 +11,7 @@ function LabView() {
     const equipmentList = useRef([]);
     const openedEquipment = useRef('');
     const isMounted = useRef(false);
+    const { technicianId } = useAppContext();
 
     const setAggregatorStyle = (data) => {
         let now = new Date()
@@ -54,7 +56,7 @@ function LabView() {
             setTimeout(getEquipment, 3000)
             return;
         }
-        callApi('get-equipment')
+        return callApi('get-equipment')
             .then(equipment => {
                 equipmentList.current = equipment;
             })
