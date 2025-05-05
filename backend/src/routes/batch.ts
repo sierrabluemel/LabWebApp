@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { PDFDocument } from "pdf-lib";
 import batch from "../models/batch";
 import sensor from "../models/sensor";
+import { parseIntNullable } from "../utils/common";
 
 const batchRoutes = {
     getBatchById: (req: Request, res: Response) => {
@@ -64,9 +65,9 @@ const batchRoutes = {
         let currentLocation = req.query.current_location as string;
         let orderId = parseInt(req.query.order_id as string ?? "");
         let calibrationProcedureId = parseInt(req.query.calibration_procedure_id as string ?? "");
-        let receivingTechnicianId = parseInt(req.query.receiving_technician_id as string ?? "");
-        let testingTechnicianId = parseInt(req.query.testing_technician_id as string ?? "");
-        let shippingTechnicianId = parseInt(req.query.shipping_technician_id as string ?? "");
+        let receivingTechnicianId = parseIntNullable(req.query.receiving_technician_id as string ?? "");
+        let testingTechnicianId = parseIntNullable(req.query.testing_technician_id as string ?? "");
+        let shippingTechnicianId = parseIntNullable(req.query.shipping_technician_id as string ?? "");
 
         batch.createBatch(currentLocation, orderId, calibrationProcedureId, receivingTechnicianId, testingTechnicianId, shippingTechnicianId)
             .then((result) => {
@@ -150,7 +151,7 @@ const batchRoutes = {
             .then((result) => {
                 let query;
 
-                if (result.rows[0]) {
+                if (result) {
                     query = `UPDATE api_interaction_log SET ${column1} = $1, ${column2} = $2 WHERE batch_id = $3 RETURNING *`;
                 } else {
                     query = `INSERT INTO api_interaction_log (${column1}, ${column2}, batch_id) values ($1, $2, $3) RETURNING *`;

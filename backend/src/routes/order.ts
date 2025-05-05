@@ -5,8 +5,8 @@ import { isNullOrEmpty } from "../utils/common";
 
 const orderRoutes = {
     createOrder: (req: Request, res: Response) => {
-        let timestamp = req.query.received_timestamp as string;
-        let customerOrderNumber = parseInt(req.query.customer_order_number as string ?? "");
+        let timestamp = req.query.received_timestamp as string ?? new Date();
+        let customerOrderNumber = req.query.customer_order_number as string ?? "";
         let customerId = parseInt(req.query.customer_id as string ?? "");
         let expedited = eval(req.query.expedited as string);
 
@@ -14,7 +14,7 @@ const orderRoutes = {
             !timestamp ||
             isNaN(customerId) ||
             (expedited != true && expedited != false) ||
-            isNaN(customerOrderNumber)) {
+            !customerOrderNumber) {
             res.status(500).json({ error: "Missing arguments" });
             return;
         }

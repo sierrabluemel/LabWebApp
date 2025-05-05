@@ -44,7 +44,7 @@ const batch = {
                 BATCH_ID DESC
         `, [state]);
     },
-    createBatch: (currentLocation: string, orderId: number, calibrationProcedureId: number, receivingTechnicianId: number, testingTechnicianId: number, shippingTechnicianId: number) => {
+    createBatch: (currentLocation: string, orderId: number, calibrationProcedureId: number, receivingTechnicianId: number | null, testingTechnicianId: number | null, shippingTechnicianId: number | null) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
                 API_BATCH (

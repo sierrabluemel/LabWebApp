@@ -40,6 +40,7 @@ const readingRoutes = {
         let referenceId = parseInt(req.query.reference_id as string ?? "");
         let uncertainty = parseFloat(req.query.uncertainty as string ?? "");
         let tolerance = parseFloat(req.query.tolerance as string ?? "");
+        let standardDeviation = parseFloat(req.query.standard_deviation as string ?? "");
         let pass = false;
 
         if (Math.abs(referenceReading - sensorReading) < tolerance) {
@@ -48,7 +49,7 @@ const readingRoutes = {
         if (isNaN(sensorReading)) {
             sensorReading = null!;
         }
-        reading.createReading(type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass)
+        reading.createReading(type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass, standardDeviation)
             .then((r) => {
                 res.json(r);
             })

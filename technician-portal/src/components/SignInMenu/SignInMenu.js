@@ -43,16 +43,15 @@ function SignInMenu() {
 			return
 		}
 
-		apiPost('auth/sign-in', form, {})
-			.then((response) => {
-				console.log(response.data)
-				localStorage.setItem("jwt", response.data["accessToken"]);
-				localStorage.setItem("refresh", response.data["refreshToken"]);
-				login(response.data.id);
-			})
-			.catch((error) => {
-				const errorMessageRaw = error.response
-				const errorMessage = errorMessageRaw?.data.error
+    apiPost('auth/sign-in', form, {})
+      .then((response) => {
+        localStorage.setItem("jwt", response.data["accessToken"]);
+        localStorage.setItem("refresh", response.data["refreshToken"]);
+        login(response.data.id);
+      })
+      .catch((error) => {
+        const errorMessageRaw = error.response
+        const errorMessage = errorMessageRaw?.data.error
 
 				setPopupMessage(errorMessage);
 			});

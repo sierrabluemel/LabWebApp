@@ -1,7 +1,7 @@
 import { executeNonQuery, executeQuery, executeQuerySingleReturn, pool } from "../utils/db";
 
 const order = {
-    createOrder: (receivedTimestamp: string, customerOrderNumber: number, customerId: number, expedited: boolean) => {
+    createOrder: (receivedTimestamp: string, customerOrderNumber: string, customerId: number, expedited: boolean) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
                 API_ORDER (

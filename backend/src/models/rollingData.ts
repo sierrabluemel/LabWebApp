@@ -28,7 +28,8 @@ const rollingData = {
     getDataSinceTime: (startTime: Date) => {
         return executeQuery(rollingDataPool, `
             SELECT
-                *
+                TIMESTAMP,
+                SUPER_DAQ_DATA
             FROM
                 ROLLING_DATA
             WHERE

@@ -93,7 +93,7 @@ function App() {
                 <Route path='*' element={<PageNotFound />} />
               </Routes>
             </div>
-            <LabView />
+            {technicianId ? <LabView /> : <></>}
           </div>
         </Router>
       </AppWrapper>

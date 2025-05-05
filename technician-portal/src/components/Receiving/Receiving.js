@@ -17,7 +17,7 @@ function Receiving() {
             expedited: expedited
         })
             .then(response => {
-                setOrder(response[0].order_id);
+                setOrder(response.order_id);
                 navigate('/createSalesOrder');
             })
     }
