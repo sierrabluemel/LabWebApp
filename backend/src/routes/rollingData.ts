@@ -5,7 +5,7 @@ const rollingDataRoutes = {
     getOnlineSensors: (req: Request, res: Response) => {
         rollingData.getOnlineSensors()
             .then((result) => {
-                res.status(200).json(result.monnit_sensor_data.map((s: any) => s.sensorID))
+                res.status(200).json(result.monnit_sensor_data.map((s: any) => parseInt(s.sensorID)))
             })
             .catch((err) => {
                 console.error(err);
@@ -99,8 +99,7 @@ const rollingDataRoutes = {
                     if (reference_data && 'stability_data' in reference_data) {
                         const stabilityData = reference_data.stability_data;
                         if (stabilityData.slope < stabilityCriteria.slope && stabilityData.standard_deviation < stabilityCriteria.standardDeviation && Math.abs(stabilityData.assumed_set_point - stabilityData.average) < stabilityCriteria.difference && stabilityData.assumed_set_point === setPoint) {
-                            res.json([stabilityData, row.timestamp]);
-                            return;
+                            return res.json([stabilityData, row.timestamp]);
                         }
                     }
                 }

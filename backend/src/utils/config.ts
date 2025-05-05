@@ -39,7 +39,7 @@ const getConfig = (): ENV => {
         PROD_DB_CONNECTION: JSON.parse(process.env.PROD_DB_CONNECTION),
         ROLLING_DATA_CONNECTION: JSON.parse(process.env.ROLLING_DATA_CONNECTION),
         IMONNIT_API_KEY_ID: process.env.IMONNIT_API_KEY_ID,
-        IMONNIT_API_SECRET_KEY_ID: process.env.IMONNIT_API_KEY_ID,
+        IMONNIT_API_SECRET_KEY_ID: process.env.IMONNIT_API_SECRET_KEY_ID,
         AZURE_CONNECTION_STRING: process.env.AZURE_CONNECTION_STRING,
         FRONT_END_DOMAIN: process.env.FRONT_END_DOMAIN,
         JWT_SECRET_KEY: process.env.JWT_SECRET_KEY,

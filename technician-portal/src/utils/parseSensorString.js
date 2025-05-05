@@ -37,7 +37,7 @@ const parseSensorString = sensorString => {
     } else if (!isNaN(checkDigit)) { // Check digit is a number
         throw new Error('Check digit should only contain letters');
     }
-    return [sensorId, checkDigit];
+    return [parseInt(sensorId), checkDigit];
 }
 
 export default parseSensorString;

@@ -25,22 +25,22 @@ function ManageBatch() {
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
     const setPoint = useRef(null);
-    const [isMounted, setIsMounted] = useState(false);
+    const isMounted = useRef(false);
     const [referencesToVerify, setReferencesToVerify] = useState([]);
     const referenceStrings = useRef(['The following references have been recently changed'])
     const [calibrationProcedureDescription, setCalibrationProcedureDescription] = useState('');
 
     useEffect(() => {
-        callApi('get-batch-by-id', { batch_id: batchNumber })
-            .then(response => {
-                setCurrentLocation(response.current_location)
-            })
-        if (!isMounted) {
+        if (!isMounted.current) {
+            callApi('get-batch-by-id', { batch_id: batchNumber })
+                .then(response => {
+                    setCurrentLocation(response.current_location)
+                })
             callApi('get-calibration-procedures').then(response => {
                 const currentProcedure = response.filter(procedure => procedure.calibration_procedure_id === procedureId)[0];
                 setPoint.current = currentProcedure.set_points;
                 setCalibrationProcedureDescription(currentProcedure.calibration_procedure);
-                setIsMounted(true);
+                isMounted.current = true;
             })
         }
     })
@@ -187,8 +187,7 @@ function ManageBatch() {
     }
 
     const handleSensorConfirm = () => {
-        const sensorId = parseInt(parseSensorString(sensor)[0]);
-        const checkDigit = parseInt(parseSensorString(sensor)[1]);
+        const [sensorId, checkDigit] = parseSensorString(sensor);
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
             callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit });
             callApi('remove-sensor-from-batch', { sensor_id: sensorId })
@@ -197,8 +196,9 @@ function ManageBatch() {
                     setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
                 })
         } else {
-            callApi('create-sensor', { sensor_id: sensorId, check_digit: sensor.split(':')[1], batch_id: batchNumber })
+            callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })
                 .then(response => {
+                    console.log(response)
                     if (response.sensor_id !== sensorId) {
                         setPopupMessage(response.Result);
                         return;
@@ -206,6 +206,7 @@ function ManageBatch() {
                     return callApi('get-sensors', { 'batch_id': batchNumber })
                 })
                 .then(data => {
+                    console.log(data)
                     setSensorList(data);
                     setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
                 })

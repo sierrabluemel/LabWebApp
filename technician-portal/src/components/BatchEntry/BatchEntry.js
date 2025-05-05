@@ -62,6 +62,9 @@ function BatchEntry() {
                     return getBatchSensors(response)
                 })
                 .then(response => {
+                    if (!response) {
+                        return;
+                    }
                     const batchList = []
                     const orders = response.filter((batch, index, self) => index === self.findIndex(b => b.order_id === batch.order_id)).sort((a, b) => a.order_id - b.order_id)
 

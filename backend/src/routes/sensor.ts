@@ -2,7 +2,7 @@ import monnitFetch from "../utils/monnit";
 import fs from 'fs'
 import path from 'path'
 import ExcelJS from 'exceljs'
-import { Request, Response } from "express";
+import { Request, response, Response } from "express";
 import { removeDuplicateCertificates, getCertificateInvoiceData, getDateString } from "../methods/common";
 import sensor from "../models/sensor";
 import certificate from "../models/certificate";
@@ -139,8 +139,8 @@ const sensorRoutes = {
             'NetworkID': sillyConfig.stagingNetworks[0],
             'SensorID': sensorId,
             'CheckDigit': checkDigit,
-            'reportInterval': 1,
-            'activeStateInterval': 1,
+            'reportInterval': 2,
+            'activeStateInterval': 2,
         } as any;
         const params = new URLSearchParams();
         for (const parameter in parameters) {
@@ -167,7 +167,7 @@ const sensorRoutes = {
                 if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
                     sensor.setBatchId(sensorId, batchId)
                         .then((result) => {
-                            res.json([result]);
+                            res.json(result);
                         })
                         .catch((err) => {
                             console.error(err);
