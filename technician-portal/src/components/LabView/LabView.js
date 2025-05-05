@@ -24,6 +24,10 @@ function LabView() {
     }
 
     const updateData = () => {
+        if (!technicianId) {
+            return;
+        }
+
         callApi('get-recent-data')
             .then(data => {
                 setAggregatorStyle(data);
@@ -44,8 +48,13 @@ function LabView() {
             })
     }
 
-    const getEquipment = async () => {
-        return callApi('get-equipment')
+
+    const getEquipment = () => {
+        if (!technicianId) {
+            setTimeout(getEquipment, 3000)
+            return;
+        }
+        callApi('get-equipment')
             .then(equipment => {
                 equipmentList.current = equipment;
             })

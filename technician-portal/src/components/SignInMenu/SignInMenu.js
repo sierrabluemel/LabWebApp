@@ -2,10 +2,9 @@
 import styles from "../../styles/styles.module.css";
 import { useEffect, useState } from "react";
 import { useAppContext } from "../../contexts/app";
-import axios from "axios";
-import ip from "../../utils/ip/ip";
 import { useNavigate } from "react-router-dom";
 import callApi from "../../utils/api/callApi";
+import apiPost from "../../utils/api/apiPost";
 
 const FORM_VALUES = [
   {
@@ -44,10 +43,10 @@ function SignInMenu() {
       return
     }
 
-    const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/auth/sign-in` : `http://${ip}/api/auth/sign-in`;
-    axios.post(url, form, {})
+    apiPost('auth/sign-in', form, {})
       .then((response) => {
-        localStorage.setItem("jwt", response.data["access-token"]);
+        localStorage.setItem("jwt", response.data["accessToken"]);
+        localStorage.setItem("refresh", response.data["refreshToken"]);
         login(response.data.id);
       })
       .catch((error) => {

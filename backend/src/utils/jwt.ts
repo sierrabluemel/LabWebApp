@@ -1,22 +1,14 @@
 import jsonwebtoken from "jsonwebtoken"
+import config from '../utils/config'
 
 const jwt = {
-    generateToken: (payload: any, secretKey: any, expiresIn = "1d") => {
-        return jsonwebtoken.sign(payload, secretKey, {
+    generateToken: (payload: any, expiresIn: any) => {
+        return jsonwebtoken.sign(payload, config.JWT_SECRET_KEY, {
             expiresIn,
         } as jsonwebtoken.SignOptions);
     },
-    generateTokens: (payload: any, secretKey: any, expiresIn = "1d") => {
-        const accessToken = jwt.generateToken(payload, secretKey, expiresIn);
-        const refreshToken = jwt.generateToken(payload, secretKey, "7d");
-        return { accessToken, refreshToken };
-    },
     decode: (token: any) => {
-        try {
-            return jsonwebtoken.decode(token);
-        } catch (error) {
-            console.error('JWT decode error ', error);
-        }
+        return jsonwebtoken.decode(token);
     },
     verify: (token: any, secretKey: any) => {
         return jsonwebtoken.verify(token, secretKey);

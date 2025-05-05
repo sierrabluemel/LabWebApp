@@ -55,6 +55,7 @@ app.get('/api/get-sensor-data', bufferRoutes.getSensorData);
 app.post("/api/auth/sign-in", authRoutes.signIn);
 app.post("/api/auth/sign-up", authRoutes.signUp);
 app.post("/api/auth/verify", authRoutes.verify);
+app.get("/api/auth/refresh", authRoutes.refresh);
 app.post("/api/auth/resend-verify-email", authRoutes.resendVerifyEmail);
 app.post("/api/auth/forgot-password", authRoutes.forgotPassword);
 app.post("/api/auth/resend-forgot-password-email", authRoutes.resendForgotPasswordEmail);
