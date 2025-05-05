@@ -68,6 +68,10 @@ const authRoutes = {
                 }
                 res.status(200).json(u);
             })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json("Error logging in user");
+            });
     },
     signUp: async (req: Request, res: Response) => {
         const { email, password, lastName, firstName } = req.body;

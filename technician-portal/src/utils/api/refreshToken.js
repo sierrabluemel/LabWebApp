@@ -15,4 +15,5 @@ export default function refreshToken() {
             localStorage.setItem("jwt", response.data);
             refreshing = false;
         })
+    return promise
 }

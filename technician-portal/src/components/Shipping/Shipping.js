@@ -36,7 +36,6 @@ function Shipping() {
     const [order, setOrder] = useState(null)
     const [referenceVerificationArray, setReferenceVerificationArray] = useState([]);
 
-    const promises = [];
 
     const getCertificates = () => {
         callApi('get-certificates-by-order-id', { order_id: orderNumber })
@@ -125,21 +124,25 @@ function Shipping() {
     })
 
     const generateCertificates = async () => {
+        const promises = [];
         setCertificateMessage('Loading...');
         for (const batch of batches) {
-            promises.push(callApi('update-batch-technician', {
-                department: 'shipping',
-                technician_id: technicianId,
-                batch_id: batch.batch_id
-            }).catch((err) => {
-                console.error(err);
-            }));
-            promises.push(callApi('set-batch-active-state', {
-                batch_id: batch.batch_id,
-                active_state: false
-            }).catch((err) => {
-                console.error(err);
-            }));
+            promises.push(
+                callApi('update-batch-technician', {
+                    department: 'shipping',
+                    technician_id: technicianId,
+                    batch_id: batch.batch_id
+                })
+                    .then(() => {
+                        return callApi('set-batch-active-state', {
+                            batch_id: batch.batch_id,
+                            active_state: false
+                        })
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                    })
+            );
         }
 
         await Promise.all(promises);
@@ -844,17 +847,16 @@ function Shipping() {
             setPopupMessage(`No certificates found for sensor ${sensor}`)
             return;
         }
-        try {
-            callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
-                .then(() => {
-                    setScannedSensors([...scannedSensors, sensorId])
-                })
-        } catch (error) {
-            console.error(error)
-            setPopupMessage('Unable to print label');
-            return;
-        }
-        setSensor('');
+        callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
+            .then(setScannedSensors([...scannedSensors, sensorId]))
+            .catch((err) => {
+                console.error(err)
+                setPopupMessage('Unable to print label');
+                return;
+            })
+            .finally(() => {
+                setSensor('');
+            })
     }
 
 
@@ -863,19 +865,19 @@ function Shipping() {
             setPopupMessage(`There are no certificates to print`)
         }
 
-        try {
-            callApi('generate-order-certificates', { order_id: orderNumber, print: true })
-            for (const certificate of certificateList.current) {
-                callApi('generate-certificate', {
-                    certificate_id: certificate.certificate_id,
-                    upload: true,
-                })
-            }
-        } catch (error) {
-            console.error(error)
-            setPopupMessage('Unable to print certificates');
-            return;
-        }
+        callApi('generate-order-certificates', { order_id: orderNumber, print: true })
+            .then(() => {
+                return Promise.all(certificateList.current.map((certificate) => {
+                    return callApi('generate-certificate', {
+                        certificate_id: certificate.certificate_id,
+                        upload: true,
+                    })
+                }))
+            }).catch((error) => {
+                console.error(error)
+                setPopupMessage('Unable to print certificates');
+                return;
+            })
     }
 
     const printReturnRecord = () => {
@@ -942,20 +944,23 @@ function Shipping() {
     }
 
     const endShipping = () => {
-        callApi('set-order-active-state', { order_id: orderNumber, active_state: false });
-
-        for (const batch of batches) {
-            callApi('remove-batch-location', { batch_id: batch.batch_id });
-            callApi('log-batch-interaction', {
-                department: 'shipping',
-                start: false,
-                technician_id: technicianId,
-                batch_id: batch.batch_id
-            });
-        }
-
-        setConfirmationMessage(`Order: ${orderNumber} closed, please add ${order.customer_order_number} to the slack channel`);
-        navigate('/confirmation');
+        callApi('set-order-active-state', { order_id: orderNumber, active_state: false })
+            .then(Promise.all(batches.map((batch) => {
+                return callApi('remove-batch-location', { batch_id: batch.batch_id })
+                    .then(callApi('log-batch-interaction', {
+                        department: 'shipping',
+                        start: false,
+                        technician_id: technicianId,
+                        batch_id: batch.batch_id
+                    }))
+            })))
+            .then(() => {
+                setConfirmationMessage(`Order: ${orderNumber} closed, please add ${order.customer_order_number} to the slack channel`);
+                navigate('/confirmation');
+            })
+            .catch((err) => {
+                console.error(err)
+            })
     }
 
     return (
