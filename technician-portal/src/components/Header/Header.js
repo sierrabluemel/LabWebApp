@@ -12,7 +12,7 @@ function Header({ title }) {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'))
     if (!user && location.pathname !== '/signIn') {
-      navigate('/signIn');
+      handleSubmit();
     } else if (isMounted.current === false && user) {
       setTechnician(user);
       setTechnicianId(1);
@@ -26,6 +26,7 @@ function Header({ title }) {
     setTechnicianId(0);
     localStorage.clear('user')
     localStorage.clear('jwt')
+    localStorage.clear('refresh')
     navigate('/signIn')
   }
   return (

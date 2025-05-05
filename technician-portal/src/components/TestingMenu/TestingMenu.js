@@ -169,17 +169,13 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             return;
         }
 
-        const newStableTimes = [];
-
         const now = new Date();
         const references = [equipment.current.reference1.asset_tag, equipment.current.reference2.asset_tag, equipment.current.reference3.asset_tag]
-        for (let i = 0; i < setPoints.length; i++) {
-            if (!setPoints) {
-                return;
-            }
+        if (!setPoints) {
+            return;
+        }
 
-            const setPoint = setPoints[i];
-
+        setStableTimes(await Promise.all(setPoints.map(async (setPoint, i) => {
             let finalSetPoint = setPoint.temperature;
             let reference = references[i - 1];
             if (parseFloat(setPoint.temperature) < -990) {
@@ -250,26 +246,27 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             const totalSeconds = parseInt((now.getTime() - new Date(stableTime[1]).getTime()) / 1000);
             const minutesAgo = parseInt(totalSeconds / 60)
             if (isNaN(minutesAgo)) {
-                newStableTimes.push('None found');
+                return 'None found';
             } else if (minutesAgo > 0) {
-                newStableTimes.push(`Stable ${minutesAgo} minutes ago`);
+                return `Stable ${minutesAgo} minutes ago`;
             } else {
-                newStableTimes.push('Stable');
+                return 'Stable';
             }
-        }
-        setStableTimes(newStableTimes);
+        })));
     }
 
     const refresh = async (updatedSensor = selectedSensor.current) => {
-        const promises = [];
+        let resolvedRecentReadings = []
 
-        for (const sensor of sensorList) {
-            promises.push(callApi("get-recent-readings", { sensors: sensor.sensor_id }));
-        }
-        const resolvedRecentReadings = await callApi('get-recent-data');
-        const resolvedReadings = await Promise.all(promises);
-        updateStableTimes();
-        updateSensors(sensorList, setSensorGrid, calibrationProcedureId, resolvedReadings, updatedSensor, resolvedRecentReadings);
+        callApi('get-recent-data')
+            .then((res) => {
+                resolvedRecentReadings = res
+            })
+            .then(Promise.all(sensorList.map((sensor) => callApi("get-recent-readings", { sensors: sensor.sensor_id }))))
+            .then((resolvedReadings) => {
+                updateStableTimes();
+                updateSensors(sensorList, setSensorGrid, calibrationProcedureId, resolvedReadings, updatedSensor, resolvedRecentReadings);
+            })
     };
 
     const getStableTemperatureReading = async (sensorList, setPointObject, reference = equipment.current.reference1.asset_tag) => {
