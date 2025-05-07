@@ -5,6 +5,16 @@ import pdf from "../utils/pdf";
 import PDFMerger from "pdf-merger-js";
 import fs from 'fs';
 import certificate from "../models/certificate";
+import sensor from "../models/sensor";
+import misc from "../models/misc";
+import order from "../models/order";
+import batch from "../models/batch";
+import reading from "../models/reading";
+import equipment from "../models/equipment";
+import { parseDataBaseDate } from "../utils/db";
+import { addMonths } from "date-fns";
+import { EXPIRE_AFTER_25_MONTHS } from "../constants";
+import calibrationProcedures from "../utils/calibrationprocedures";
 
 const certificateRoutes = {
     getCalibrationsByMonth: (req: Request, res: Response) => {
@@ -53,35 +63,6 @@ const certificateRoutes = {
             .catch((error: any) => {
                 console.error(error);
                 res.json({ 'Result': `Failed: ${error}` })
-            })
-    },
-    createCertificate: (req: Request, res: Response) => {
-        const certificateJson = req.query.certificate_json
-        const sensorId = parseInt(req.query.sensor_id as string ?? "");
-        const template = req.query.template as string;
-        const dueDate = req.query.due_date;
-        const calibrationDate = req.query.calibration_date;
-
-        certificate.createCertificate(certificateJson, template, sensorId)
-            .then((certificate) => {
-                let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;
-                const parameters = {
-                    'SensorID': sensorId,
-                    'DateCertified': calibrationDate,
-                    'CertificationExpirationDate': dueDate,
-                    'CalibrationFacilityID': 5,
-                    'CalibrationNumber': `MNT-${certificate.certificate_id}`,
-                } as any;
-                const params = new URLSearchParams();
-                for (const parameter in parameters) {
-                    params.append(parameter, parameters[parameter]);
-                };
-                const response = monnitFetch(`${url}?${params.toString()}`)
-                res.json(certificate);
-            })
-            .catch((err) => {
-                console.error(err);
-                res.status(500).json({ error: `Error creating certificate` });
             })
     },
     updateCertificateJson: (req: Request, res: Response) => {
@@ -162,6 +143,138 @@ const certificateRoutes = {
                 console.error(err);
                 res.status(500).json({ error: "An error occurred while processing the PDF." });
             })
+    },
+    createCertificate: async (req: Request, res: Response) => {
+        const orderId = parseInt(req.query.order_id as string ?? "");
+
+        try {
+            let sensors = await sensor.getSensorByOrderId(orderId);
+            let thisOrder = await order.getOrderById(orderId);
+            let customer = await misc.getCustomerById(thisOrder.customer_id);
+            let batches = await batch.getBatchesByOrderId(orderId)
+            let equip = await equipment.getEquipment();
+            let certificates = await Promise.all(sensors.map((s) => {
+                return reading.getReadingsBySensorId(s.sensor_id)
+                    .then((readings) => {
+                        if (readings.length === 0) {
+                            throw new Error(`Could not find readings for sensor ${s.sensor_id}`)
+                        }
+                        let batch = batches.find((b) => b.batch_id == s.batch_id)
+                        const today = new Date();
+                        const date = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+                        const calibrationDate = readings[0].timestamp;
+
+                        let certificateJson = {
+                            'C1': customer.name,
+                            'C2': `${customer.address_line_1}, ${customer.address_line_2}`,
+                            'C3': `${customer.city}, ${customer.state} ${customer.zip_code}`,
+                            'D1': 'Manufacturer: Monnit Corp',
+                            'D2': `Model: ${s.sku}`,
+                            'D3': `Identifier/Serial: ${s.sensor_id}`,
+                            'D4': 'Condition: Functional',
+                            'CS1': parseDataBaseDate(calibrationDate),
+                            'CS3': JSON.stringify(batch.calibration_procedure_id),
+                            'CS4': `${readings[0].lab_rh}% RH @ ${readings[0].lab_temperature}°C`,
+                            'TechName': 'Colton Robinson',
+                            'AuthName': 'Kelly S Lewis',
+                            'Date': date,
+                        }
+
+                        // @TODO load db set points
+                        let template = 'temperatureCertificate.pdf';
+                        let cpJson: any;
+
+                        switch (batch.calibration_procedure_id) {
+                            case 1:
+                                cpJson = calibrationProcedures.cp1(readings, equip)
+                                break;
+                            case 2:
+                                cpJson = calibrationProcedures.cp2(readings, equip)
+                                break;
+                            case 3:
+                                cpJson = calibrationProcedures.cp3(readings, equip)
+                                break;
+                            case 4:
+                                cpJson = calibrationProcedures.cp4(readings, equip)
+                                break;
+                            case 5:
+                                cpJson = calibrationProcedures.cp5(readings, equip)
+                                break;
+                            case 6:
+                                cpJson = calibrationProcedures.cp6(readings, equip)
+                                break;
+                            case 7:
+                                template = 'temperature8SetPoints1Reference.pdf'
+                                cpJson = calibrationProcedures.cp7(readings, equip)
+                                break;
+                            case 8:
+                                template = 'temperature8SetPoints1Reference.pdf'
+                                cpJson = calibrationProcedures.cp8(readings, equip)
+                                break;
+                            default:
+                                throw new Error("Invalid calibration procedure")
+                        }
+                        return { template, ...certificateJson, ...cpJson };
+                    })
+                    .then(async (certificateJson) => {
+                        let sensorId = s.sensor_id;
+                        let { template, calibrationDate, dueDate } = certificateJson;
+
+                        delete certificateJson.template;
+                        delete certificateJson.calibrationDate;
+                        delete certificateJson.dueDate;
+
+                        let cert = await certificate.createCertificate(certificateJson, template, sensorId)
+                        let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;
+                        const parameters = {
+                            'SensorID': sensorId,
+                            'DateCertified': calibrationDate,
+                            'CertificationExpirationDate': dueDate,
+                            'CalibrationFacilityID': 5,
+                            'CalibrationNumber': `MNT-${cert.certificate_id}`,
+                        } as any;
+                        const params = new URLSearchParams();
+                        for (const parameter in parameters) {
+                            params.append(parameter, parameters[parameter]);
+                        };
+                        await monnitFetch(`${url}?${params.toString()}`)
+                        return cert
+                    })
+            }))
+            await Promise.all(sensors.map((s) => {
+                const sensorId = s.sensor_id;
+                const checkDigit = s.check_digit
+
+                let url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
+                const parameters = {
+                    'SensorID': sensorId,
+                    'CheckDigit': checkDigit,
+                    'reportInterval': 120,
+                    'activeStateInterval': 120,
+                } as any;
+
+                const params = new URLSearchParams();
+                for (const parameter in parameters) {
+                    params.append(parameter, parameters[parameter]);
+                };
+                return monnitFetch(`${url}?${params.toString()}`)
+                    .then(() => {
+                        url = `https://www.imonnit.com/json/RemoveSensor/`;
+                        return monnitFetch(`${url}?${params.toString()}`)
+                    })
+                    .then((response) => {
+                        res.json(response)
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        res.status(500).json({ error: "Error removing sensor." })
+                    })
+            }));
+            res.json(certificates);
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: `Error creating certificate` });
+        }
     },
 };
 
