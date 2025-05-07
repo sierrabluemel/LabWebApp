@@ -17,6 +17,6 @@ export default function apiPost(endPoint, data, config) {
                 throw err;
             }
             return refreshToken()
-                .then(apiPost(endPoint, data, config));
+                .then(() => apiPost(endPoint, data, config));
         })
 }
