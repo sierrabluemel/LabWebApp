@@ -8,7 +8,6 @@ import ConfirmationScreen from './components/ConfirmationScreen/ConfirmationScre
 import ErrorMessage from './components/ErrorMessage/ErrorMessage';
 import Header from './components/Header/Header';
 import LabView from './components/LabView/LabView';
-import LocationEntry from './components/LocationEntry/LocationEntry';
 import MainMenu from './components/MainMenu/MainMenu';
 import ManageBatch from './components/ManageBatch/ManageBatch';
 import Metrics from './components/Metrics/Metrics';
@@ -78,7 +77,6 @@ function App() {
                 <Route path='/confirmation' element={<ConfirmationScreen />} />
                 <Route path='/createSalesOrder' element={<SalesOrderForm />} />
 
-                <Route path='/locationEntry' element={<LocationEntry />} />
                 <Route path='/manageBatch' element={<ManageBatch />} />
                 <Route path='/metrics' element={<Metrics />} />
                 <Route path='/orderEntry' element={<OrderEntry />} />
