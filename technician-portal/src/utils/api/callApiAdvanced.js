@@ -1,7 +1,6 @@
 import axios from 'axios';
 import ip from '../ip/ip';
 import refreshToken from './refreshToken';
-import { useAppContext } from '../../contexts/app';
 
 export default function callApiAdvanced(endPoint, config) {
     const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/${endPoint}/` : `http://${ip}/api/${endPoint}/`;
