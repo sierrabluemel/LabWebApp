@@ -17,6 +17,6 @@ export default function callApiAdvanced(endPoint, config) {
                 throw err;
             }
             return refreshToken()
-                .then(callApiAdvanced(endPoint, config));
+                .then(() => callApiAdvanced(endPoint, config));
         })
 }
