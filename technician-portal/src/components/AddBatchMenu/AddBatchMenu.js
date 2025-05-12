@@ -34,18 +34,18 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
         const sensorObject = { sensor: `${sensorID}:${checkDigit}`, online: false }
 
         setSensor('');
-        if (addSensor.includes(sensor)) {
-            setPopupMessage(`Sensor "${sensor}" is already in this batch`);
+        if (addedSensors.includes(sensorID)) {
+            setPopupMessage(`Sensor "${sensorID}" is already in this batch`);
             return;
         }
 
-        setAddedSensors([...addedSensors, sensor])
-        addSensor(sensorObject.sensor, batchNumber)
+        setAddedSensors([...addedSensors, parseInt(sensorID)]);
+        addSensor(sensor, batchNumber)
             .then(sensorValid => {
                 if (!sensorValid) {
-                    setPopupMessage(`Sensor "${sensor}" could not be added`);
+                    setPopupMessage(`Sensor "${sensorID}" could not be added`);
                     setSensors(sensors.filter(item => item !== sensorObject))
-                    setAddedSensors(addedSensors.filter(item => item !== sensor))
+                    setAddedSensors(addedSensors.filter(item => item !== sensorID))
                 }
             })
         setSensors([...sensors, sensorObject]);
@@ -80,12 +80,13 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
         awaitingUpdate.current = true;
         callApi('get-online-sensors')
             .then(response => {
-                for (const fullSensor of addedSensors) {
-                    if (!response.includes(parseInt(fullSensor.split(':')[0])))
+                for (const sensor of addedSensors) {
+                    if (!response.includes(sensor)) {
                         continue;
+                    }
                     let newSensors = []
                     for (const sensorElement of sensors) {
-                        if (sensorElement.sensor === fullSensor)
+                        if (parseSensorString(sensorElement.sensor)[0] === sensor)
                             sensorElement.online = true;
                         newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online });
                     }

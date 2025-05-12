@@ -9,8 +9,9 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
     }
     const authToken = token.split(" ")[1];
     try {
-        const user = jwt.verify(authToken, process.env.JWT_SECRET_KEY);
-        if (!user) {
+        const user = jwt.verify(authToken, process.env.JWT_SECRET_KEY) as any;
+
+        if (!user || user.tokenType !== "auth") {
             res.status(403).json({ message: "Forbidden" });
             return
         }
@@ -18,7 +19,7 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
         next();
     } catch (error) {
         console.error(error);
-        res.status(401).json("Failed to verify token");
+        res.status(418).json("Failed to verify token");
     }
 }
 

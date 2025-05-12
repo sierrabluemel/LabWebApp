@@ -8,10 +8,10 @@ function LabView() {
     const [aggregatorStatusDotStyle, setAggregatorStatusDotStyle] = useState(styles.status_dot_red);
     const [referenceList, setReferenceList] = useState([]);
     const [labReadings, setLabReadings] = useState(null);
-    const [equipmentList, setEquipmentList] = useState([]);
+    const equipmentList = useRef([]);
     const openedEquipment = useRef('');
+    const isMounted = useRef(false);
     const { technicianId } = useAppContext();
-
 
     const setAggregatorStyle = (data) => {
         let now = new Date()
@@ -26,6 +26,10 @@ function LabView() {
     }
 
     const updateData = () => {
+        if (!technicianId) {
+            return;
+        }
+
         callApi('get-recent-data')
             .then(data => {
                 setAggregatorStyle(data);
@@ -35,37 +39,45 @@ function LabView() {
                 Object.assign(references, data.super_daq_data, data.rotronic_data)
                 let description;
                 for (const reference in references) {
-                    description = equipmentList.filter(equipment => equipment.asset_tag === reference)[0].description
+                    description = equipmentList.current.filter(equipment => equipment.asset_tag === reference)[0].description
                     referenceArray.push(<Equipment key={reference} assetId={reference} readings={references[reference]} description={description} openedEquipment={openedEquipment} updateData={updateData} />)
                 }
                 setLabReadings(`${data.lab_humidity}%RH @ ${data.lab_temperature}°C`)
                 setReferenceList(referenceArray)
             })
             .catch((err) => {
+                console.error(`Unable to set recent data: ${err}`)
             })
     }
 
+
     const getEquipment = () => {
-        callApi('get-equipment')
+        if (!technicianId) {
+            setTimeout(getEquipment, 3000)
+            return;
+        }
+        return callApi('get-equipment')
             .then(equipment => {
-                setEquipmentList(equipment);
+                equipmentList.current = equipment;
             })
-            .catch((err) => {
+            .catch(err => {
+                console.error(`Error getting equipment: ${err}`)
                 setTimeout(getEquipment, 1000);
             })
     }
 
     useEffect(() => {
-        if (equipmentList.length === 0) {
-            getEquipment();
+        if (!isMounted.current) {
+            isMounted.current = true;
+            getEquipment()
+            .then(() => {
+                updateData();
+            })
         }
         const interval = setInterval(updateData, 3000);
         return () => clearInterval(interval);
     })
 
-    if (!technicianId) {
-        return <></>;
-    }
     return (
         <div className={styles.equipment_container}>
             <h1 className={styles.lab_readings}>

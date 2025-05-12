@@ -46,7 +46,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 const sensor = sensorList[i % sensorList.length];
                 const readings = allReadings[i];
                 let style = '';
-                const thisMessage = recentReadings[0].monnit_sensor_data.filter(sensorReading => sensorReading.sensorID === `${sensor.sensor_id}`)[0]
+                const thisMessage = recentReadings.monnit_sensor_data.filter(sensorReading => sensorReading.sensorID === `${sensor.sensor_id}`)[0]
                 if (sensor.sensor_id === selectedSensor) {
                     style = styles.selected_sensor;
                 }
@@ -57,7 +57,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         let pass = true;
                         let readingObject = {}
 
-                        if (recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
+                        if (recentReadings.devices_under_test[`${sensor.sensor_id}temp`] !== undefined) {
                             const heartbeat = thisMessage.heartbeat;
 
                             let heartbeatString = '';
@@ -67,12 +67,12 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                 heartbeatString = `(${heartbeat}s)`
                             }
 
-                            currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}</div>;
+                            currentReadingCell = <div className={styles.grid_entry_green}>{`${recentReadings.devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}</div>;
 
                             if (calibrationProcedureId === 3 || calibrationProcedureId === 8) {
                                 currentReadingCell = <div className={styles.grid_entry_green}>
-                                    {`${recentReadings[0].devices_under_test[`${sensor.sensor_id}humidity`].toFixed(2)}%RH\n
-                                    ${recentReadings[0].devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}
+                                    {`${recentReadings.devices_under_test[`${sensor.sensor_id}humidity`].toFixed(2)}%RH\n
+                                    ${recentReadings.devices_under_test[`${sensor.sensor_id}temp`].toFixed(2)}°C ${heartbeatString}`}
                                 </div>
                             }
                         } else {
@@ -169,17 +169,13 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             return;
         }
 
-        const newStableTimes = [];
-
         const now = new Date();
         const references = [equipment.current.reference1.asset_tag, equipment.current.reference2.asset_tag, equipment.current.reference3.asset_tag]
-        for (let i = 0; i < setPoints.length; i++) {
-            if (!setPoints) {
-                return;
-            }
+        if (!setPoints) {
+            return;
+        }
 
-            const setPoint = setPoints[i];
-
+        setStableTimes(await Promise.all(setPoints.map(async (setPoint, i) => {
             let finalSetPoint = setPoint.temperature;
             let reference = references[i - 1];
             if (parseFloat(setPoint.temperature) < -990) {
@@ -245,32 +241,32 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     };
                     break;
             }
-
             const stableTime = await callApi(endpoint, params)
 
             const totalSeconds = parseInt((now.getTime() - new Date(stableTime[1]).getTime()) / 1000);
             const minutesAgo = parseInt(totalSeconds / 60)
             if (isNaN(minutesAgo)) {
-                newStableTimes.push('None found');
+                return 'None found';
             } else if (minutesAgo > 0) {
-                newStableTimes.push(`Stable ${minutesAgo} minutes ago`);
+                return `Stable ${minutesAgo} minutes ago`;
             } else {
-                newStableTimes.push('Stable');
+                return 'Stable';
             }
-        }
-        setStableTimes(newStableTimes);
+        })));
     }
 
     const refresh = async (updatedSensor = selectedSensor.current) => {
-        const promises = [];
+        let resolvedRecentReadings = []
 
-        for (const sensor of sensorList) {
-            promises.push(callApi("get-recent-readings", { sensors: sensor.sensor_id }));
-        }
-        const resolvedRecentReadings = await callApi('get-recent-data');
-        const resolvedReadings = await Promise.all(promises);
-        updateStableTimes();
-        updateSensors(sensorList, setSensorGrid, calibrationProcedureId, resolvedReadings, updatedSensor, resolvedRecentReadings);
+        callApi('get-recent-data')
+            .then((res) => {
+                resolvedRecentReadings = res
+            })
+            .then(Promise.all(sensorList.map((sensor) => callApi("get-recent-readings", { sensors: sensor.sensor_id }))))
+            .then((resolvedReadings) => {
+                updateStableTimes();
+                updateSensors(sensorList, setSensorGrid, calibrationProcedureId, resolvedReadings, updatedSensor, resolvedRecentReadings);
+            })
     };
 
     const getStableTemperatureReading = async (sensorList, setPointObject, reference = equipment.current.reference1.asset_tag) => {
@@ -288,16 +284,18 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             finalSetPoint = '-25.00';
         }
         const lastStableReading = await callApi('get-last-temperature-stable-reading', { 'set_point': finalSetPoint, 'reference': reference, 'stability_criteria': JSON.stringify(setPointObject.stabilityCriteria) });
-        
+
         if (!lastStableReading[1]) {
             setPopupMessage('Unable to find stable data');
             return;
         }
         let readings = await callApi('get-temperature-reading-range', { 'timestamp': lastStableReading[1] });
-
+        console.log(readings)
         let referenceTemperature = readings[0].super_daq_data[reference].stability_data.average;
 
-        let finalReadings = { 'referenceTemperature': referenceTemperature };
+        let finalReadings = [{
+            'referenceTemperature': referenceTemperature
+        }];
 
         for (const sensor of sensorList) {
             const referenceAndSensorDifference = [] // Array to contain the difference between the reference reading and sensor reading over the course of the 90 seconds
@@ -309,22 +307,27 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 referenceAndSensorDifference.push(round(referenceReading - sensorReading, 5));
                 return sensorReading;
             })
+            const sensorAverage = round(average(readingList), 1);
+            const sensorStandardDeviation = round(standardDeviation(referenceAndSensorDifference), 8);
 
-            finalReadings[`${sensor.sensor_id}temp`] = round(average(readingList), 1);
+            finalReadings.push({
+                sensor_id: sensor.sensor_id,
+                average: sensorAverage,
+                standardDeviation: sensorStandardDeviation
+            })
         }
 
-        return finalReadings;
+        return referenceTemperature, finalReadings;
     }
 
     async function createTemperatureReading(setPointObject, generatorId, reference, calibrate = false) {
         const setPoint = setPointObject.temperature;
-        const readings = await getStableTemperatureReading(sensorList, setPointObject, reference.asset_tag);
-
+        const [referenceTemp, readings] = await getStableTemperatureReading(sensorList, setPointObject, reference.asset_tag);
+        console.log(readings)
         callApi('get-recent-data')
-            .then((labReadings) => {
+            .then(labReadings => {
                 if (!labReadings.lab_humidity || !labReadings.lab_temperature) {
-                    setPopupMessage('No lab readings available for this reading');
-                    return;
+                    return setPopupMessage('No lab readings available for this reading');
                 }
                 for (const sensor of sensorList) {
                     if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current)) {
@@ -339,7 +342,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         const parameters = {
                             'type': 'temperature',
                             'set_point': setPoint,
-                            'reference_reading': readings.referenceTemperature,
+                            'reference_reading': referenceTemp,
                             'sensor_reading': readings[`${sensor.sensor_id}temp`],
                             'lab_rh': labReadings.lab_humidity,
                             'lab_temperature': labReadings.lab_temperature,

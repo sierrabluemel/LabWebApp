@@ -56,7 +56,12 @@ function executeQuery(pool: Pool, query: string, data: any[]): Promise<any[]> {
         })
 }
 
+function parseDataBaseDate(date: string) {
+    const dateArray = date.split('T')[0].split('-');
+    return `${dateArray[1]}/${dateArray[2]}/${dateArray[0]}`
+}
+
 connectPool();
 connectRollingPool();
 
-export { pool, rollingDataPool, executeNonQuery, executeQuerySingleReturn, executeQuery }
+export { pool, rollingDataPool, executeNonQuery, executeQuerySingleReturn, executeQuery, parseDataBaseDate }
