@@ -25,6 +25,7 @@ function OrderEntry() {
         callApi('get-batches-by-order-id', { order_id: orderId })
             .then(response => {
                 setBatches(response);
+                navigate('/shipping')
                 for (const batch of response) {
                     callApi('log-batch-interaction', {
                         department: 'shipping',
@@ -34,7 +35,6 @@ function OrderEntry() {
                     })
                 }
             })
-        navigate('/shipping')
     }
 
     const handleSubmit = (event) => {

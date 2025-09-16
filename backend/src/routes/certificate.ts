@@ -12,9 +12,22 @@ import batch from "../models/batch";
 import reading from "../models/reading";
 import equipment from "../models/equipment";
 import { parseDataBaseDate } from "../utils/db";
-import { addMonths } from "date-fns";
-import { EXPIRE_AFTER_25_MONTHS } from "../constants";
 import calibrationProcedures from "../utils/calibrationprocedures";
+
+function filterReadings(readings: any[], setPoints: any[]) {
+    let finalReadings = setPoints.map((setPoint) => {
+        const temperatureReading = readings.find((reading) => {
+            return (reading.set_point === setPoint[reading.type] && reading.type === 'temperature' && reading.as_found === setPoint.calibrate)
+        })
+        const humidityReading = readings.find((reading) => {
+            return (reading.set_point === setPoint[reading.type] && reading.type === 'humidity' && reading.as_found === setPoint.calibrate)
+        })
+        if (humidityReading)
+            return {temperatureReading, humidityReading}
+        return {temperatureReading}
+    })
+    return finalReadings
+}
 
 const certificateRoutes = {
     getCalibrationsByMonth: (req: Request, res: Response) => {
@@ -118,6 +131,8 @@ const certificateRoutes = {
                     return res.status(404).json({ error: `No certificates found under order id ${orderId}` });
                 }
 
+                certificates = certificates.sort((a, b) => a.certificate_id - b.certificate_id)
+
                 let merger = new PDFMerger()
                 for (const certificate of certificates) {
                     const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
@@ -152,17 +167,24 @@ const certificateRoutes = {
             let thisOrder = await order.getOrderById(orderId);
             let customer = await misc.getCustomerById(thisOrder.customer_id);
             let batches = await batch.getBatchesByOrderId(orderId)
-            let equip = await equipment.getEquipment();
+            let calibrationProcedureObjects = await misc.getCalibrationProcedures()
+            const equip = await equipment.getEquipment(true)
+
             let certificates = await Promise.all(sensors.map((s) => {
                 return reading.getReadingsBySensorId(s.sensor_id)
-                    .then((readings) => {
+                    .then(async (readings) => {
                         if (readings.length === 0) {
                             throw new Error(`Could not find readings for sensor ${s.sensor_id}`)
                         }
                         let batch = batches.find((b) => b.batch_id == s.batch_id)
+                        const calibrationProcedure = calibrationProcedureObjects.filter((p) => p.calibration_procedure_id === batch.calibration_procedure_id)[0] as any;
+
+                        readings = filterReadings(readings, calibrationProcedure.set_points)
+                        const temperatureReadings = readings.map(r => r.temperatureReading)
+
                         const today = new Date();
                         const date = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
-                        const calibrationDate = readings[0].timestamp;
+                        const calibrationDate = temperatureReadings[0].timestamp;
 
                         let certificateJson = {
                             'C1': customer.name,
@@ -174,7 +196,7 @@ const certificateRoutes = {
                             'D4': 'Condition: Functional',
                             'CS1': parseDataBaseDate(calibrationDate),
                             'CS3': JSON.stringify(batch.calibration_procedure_id),
-                            'CS4': `${readings[0].lab_rh}% RH @ ${readings[0].lab_temperature}°C`,
+                            'CS4': `${temperatureReadings[0].lab_rh}% RH @ ${temperatureReadings[0].lab_temperature}°C`,
                             'TechName': 'Colton Robinson',
                             'AuthName': 'Kelly S Lewis',
                             'Date': date,
@@ -186,26 +208,27 @@ const certificateRoutes = {
 
                         switch (batch.calibration_procedure_id) {
                             case 1:
-                                cpJson = calibrationProcedures.cp1(readings, equip)
+                                cpJson = calibrationProcedures.cp1(temperatureReadings, equip)
                                 break;
                             case 2:
-                                cpJson = calibrationProcedures.cp2(readings, equip)
+                                cpJson = calibrationProcedures.cp2(temperatureReadings, equip)
                                 break;
                             case 3:
+                                template = 'humidityCertificate.pdf'
                                 cpJson = calibrationProcedures.cp3(readings, equip)
                                 break;
                             case 4:
-                                cpJson = calibrationProcedures.cp4(readings, equip)
+                                cpJson = calibrationProcedures.cp4(temperatureReadings, equip)
                                 break;
                             case 5:
-                                cpJson = calibrationProcedures.cp5(readings, equip)
+                                cpJson = calibrationProcedures.cp5(temperatureReadings, equip)
                                 break;
                             case 6:
-                                cpJson = calibrationProcedures.cp6(readings, equip)
+                                cpJson = calibrationProcedures.cp6(temperatureReadings, equip)
                                 break;
                             case 7:
                                 template = 'temperature8SetPoints1Reference.pdf'
-                                cpJson = calibrationProcedures.cp7(readings, equip)
+                                cpJson = calibrationProcedures.cp7(temperatureReadings, equip)
                                 break;
                             case 8:
                                 template = 'temperature8SetPoints1Reference.pdf'
@@ -214,22 +237,22 @@ const certificateRoutes = {
                             default:
                                 throw new Error("Invalid calibration procedure")
                         }
-                        return { template, ...certificateJson, ...cpJson };
-                    })
-                    .then(async (certificateJson) => {
+
+
                         let sensorId = s.sensor_id;
-                        let { template, calibrationDate, dueDate } = certificateJson;
 
-                        delete certificateJson.template;
-                        delete certificateJson.calibrationDate;
-                        delete certificateJson.dueDate;
 
-                        let cert = await certificate.createCertificate(certificateJson, template, sensorId)
+                        let { dueDate } = { ...cpJson };
+
+                        delete cpJson.dueDate;
+                        let cert = await certificate.createCertificate({ ...certificateJson, ...cpJson }, template, sensorId)
+
+
                         let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;
                         const parameters = {
                             'SensorID': sensorId,
-                            'DateCertified': calibrationDate,
-                            'CertificationExpirationDate': dueDate,
+                            'DateCertified': calibrationDate.toISOString(),
+                            'CertificationExpirationDate': dueDate.toISOString(),
                             'CalibrationFacilityID': 5,
                             'CalibrationNumber': `MNT-${cert.certificate_id}`,
                         } as any;
@@ -237,10 +260,14 @@ const certificateRoutes = {
                         for (const parameter in parameters) {
                             params.append(parameter, parameters[parameter]);
                         };
-                        await monnitFetch(`${url}?${params.toString()}`)
-                        return cert
+                        return monnitFetch(`${url}?${params.toString()}`)
+                            .then(() => {
+                                return cert
+                            })
                     })
             }))
+            res.json(certificates);
+
             await Promise.all(sensors.map((s) => {
                 const sensorId = s.sensor_id;
                 const checkDigit = s.check_digit
@@ -262,18 +289,14 @@ const certificateRoutes = {
                         url = `https://www.imonnit.com/json/RemoveSensor/`;
                         return monnitFetch(`${url}?${params.toString()}`)
                     })
-                    .then((response) => {
-                        res.json(response)
-                    })
                     .catch((err) => {
                         console.error(err);
                         res.status(500).json({ error: "Error removing sensor." })
                     })
             }));
-            res.json(certificates);
+
         } catch (err) {
             console.error(err);
-            res.status(500).json({ error: `Error creating certificate` });
         }
     },
 };

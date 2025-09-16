@@ -85,7 +85,6 @@ app.get('/api/get-sensors-by-order-id', auth, sensorRoutes.getSensorsByOrderId);
 app.get('/api/get-sensors-by-batch-id', auth, sensorRoutes.getSensorsByBatchId);
 app.get('/api/remove-sensor-from-batch', auth, sensorRoutes.removeSensorFromBatch);
 app.get('/api/remove-sensor', auth, sensorRoutes.removeSensor);
-app.get('/api/move-sensors-to-network-group', auth, sensorRoutes.moveSensorsToNetworkGroup);
 
 // Batch routes
 app.get('/api/get-batch-by-id', auth, batchRoutes.getBatchById);
@@ -100,6 +99,8 @@ app.get('/api/log-batch-interaction', auth, batchRoutes.logBatchInteraction);
 app.get('/api/update-batch-technician', auth, batchRoutes.updateBatchTechnician);
 app.get('/api/generate-work-order', auth, batchRoutes.generateWorkOrder);
 app.get('/api/delete-batch', auth, batchRoutes.deleteBatch);
+app.get('/api/change-batch-heartbeats', auth, batchRoutes.changeBatchHeartBeats);
+app.get('/api/move-batch-to-network-group', auth, batchRoutes.moveBatchToNetworkGroup);
 
 // Reading routes
 app.get('/api/get-recent-readings', auth, readingRoutes.getRecentReadings);
@@ -108,11 +109,8 @@ app.get('/api/create-reading', auth, readingRoutes.createReading);
 
 // Rolling data
 app.get('/api/get-online-sensors', auth, rollingDataRoutes.getOnlineSensors);
-app.get('/api/get-bulk-data', auth, rollingDataRoutes.getBulkData);
-app.get('/api/get-last-humidity-stable-reading', auth, rollingDataRoutes.getLastHumidityStableReading);
-app.get('/api/get-last-temperature-stable-reading', auth, rollingDataRoutes.getLastTemperatureStableReading);
-app.get('/api/get-humidity-reading-range', auth, rollingDataRoutes.getHumidityReadingRange);
-app.get('/api/get-temperature-reading-range', auth, rollingDataRoutes.getTemperatureReadingRange);
+app.get('/api/get-last-stable-reading', auth, rollingDataRoutes.getLastStableReading);
+app.get('/api/get-reading-range', auth, rollingDataRoutes.getReadingRange);
 app.get('/api/get-recent-data', auth, rollingDataRoutes.getRecentData);
 
 // Equipment routes
@@ -135,4 +133,5 @@ app.get('/api/search', auth, miscRoutes.search);
 app.get('/api/search-data', auth, miscRoutes.searchData)
 app.get('/api/get-customer-by-id', auth, miscRoutes.getCustomerById);
 app.get('/api/get-calibration-procedures', auth, miscRoutes.getCalibrationProcedures);
+app.get('/api/get-variances', auth, miscRoutes.getVariances);
 app.get('/api/lookup-technician', auth, miscRoutes.lookupTechnician);

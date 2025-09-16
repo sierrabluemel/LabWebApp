@@ -47,6 +47,16 @@ const miscRoutes = {
                 return res.status(500).json({ error: `Error getting calibration procecures` });
             });
     },
+    getVariances: (req: Request, res: Response) => {
+        misc.getVariances()
+            .then((result) => {
+                res.json(result);
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error getting calibration procecures` });
+            });
+    },
     lookupTechnician: (req: Request, res: Response) => {
         let user_id = parseInt(req.query.user_id as string ?? "");
 

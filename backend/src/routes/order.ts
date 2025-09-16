@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import pdf from "../utils/pdf";
 import order from "../models/order";
 import { isNullOrEmpty } from "../utils/common";
+import certificate from "../models/certificate";
 
 const orderRoutes = {
     createOrder: (req: Request, res: Response) => {
@@ -128,9 +129,9 @@ const orderRoutes = {
                 return pdf.fillForm('returnRecordTemplate.pdf', fields);
             })
             .then(async (bytes) => {
-                return pdf.addSensorsToReturnRecord(bytes, await order.getSensorsOnOrder(orderId));
+                return pdf.addSensorsToReturnRecord(bytes, await certificate.getCertificatesByOrderId(orderId));
             })
-            .then((finishedFormBytes) => {
+            .then((finishedFormBytes: any) => {
                 if (print) {
                     pdf.printPdf(new Blob([finishedFormBytes]));
                 }

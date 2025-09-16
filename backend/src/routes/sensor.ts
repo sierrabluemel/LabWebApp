@@ -2,7 +2,7 @@ import monnitFetch from "../utils/monnit";
 import fs from 'fs'
 import path from 'path'
 import ExcelJS from 'exceljs'
-import { Request, response, Response } from "express";
+import { Request, Response } from "express";
 import { removeDuplicateCertificates, getCertificateInvoiceData, getDateString } from "../methods/common";
 import sensor from "../models/sensor";
 import certificate from "../models/certificate";
@@ -22,7 +22,7 @@ const sensorRoutes = {
         } else {
             query = sensor.getSensorById(batchId)
                 .then((result) => {
-                    res.json([result]);
+                    res.json(result);
                 })
         }
         query
@@ -48,10 +48,11 @@ const sensorRoutes = {
         certificate.invoiceReport(startDate, endDate)
             .then(async (data) => {
                 const certificates = removeDuplicateCertificates(data);
-                const certificateInvoiceData = getCertificateInvoiceData(certificates) as any;
-                const templatePath = path.join(__dirname, 'templates', 'sensorBillingReport.xlsx')
-                const outputPath = path.join(__dirname, 'fileOutputs', 'sensorBillingReport.xlsx')
                 let calibrationProcedures = await misc.getCalibrationProcedures();
+                const certificateInvoiceData = getCertificateInvoiceData(certificates, calibrationProcedures) as any;
+                const directory = path.join(__dirname, '..', '..')
+                const templatePath = path.join(directory, 'templates', 'sensorBillingReport.xlsx')
+                const outputPath = path.join(directory, 'fileOutputs', 'sensorBillingReport.xlsx')
 
                 const workbook = new ExcelJS.Workbook();
                 workbook.xlsx.readFile(templatePath)
@@ -72,8 +73,9 @@ const sensorRoutes = {
                             worksheet.getCell(`F${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].expedited;
                         })
 
-                        worksheet.getCell('A20').value = 'Report for ' + [...certificateInvoiceData.customerOrderNumbers].join(', ');
+                        const orderNumbers = certificateInvoiceData?.tos;
 
+                        worksheet.getCell('A20').value = certificateInvoiceData ? 'Report for ' + [...orderNumbers].join(', ') : '';
                         return workbook.xlsx.writeFile(outputPath);
                     })
                     .then(() => {
@@ -197,13 +199,14 @@ const sensorRoutes = {
         for (const parameter in parameters) {
             params.append(parameter, parameters[parameter]);
         };
-        try {
-            const data = monnitFetch(`${url}?${params.toString()}`);
+        monnitFetch(`${url}?${params.toString()}`)
+        .then((data) => {
             res.json(data);
-        } catch (error) {
+        })
+        .catch((error) => {
             console.error(error);
             res.json({ 'Result': error });
-        }
+        })
     },
     getSensorsByOrderId: async (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
@@ -264,81 +267,6 @@ const sensorRoutes = {
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: "Error removing sensor." })
-            })
-    },
-    moveSensorsToNetworkGroup: (req: Request, res: Response) => {
-        const networkGroup = req.query.network_group;
-        const sensors = JSON.parse(req.query.sensors as string ?? "");
-
-        let networkIDs = []
-        switch (networkGroup) {
-            case 'staging':
-                networkIDs.push(...sillyConfig.stagingNetworks);
-                break
-            case 'testing_all_frequencies':
-                networkIDs.push(...sillyConfig.anyFrequencyNetworks);
-                break
-            case 'testing_all_networks':
-                networkIDs.push(...sillyConfig.anyFrequencyNetworks);
-                networkIDs.push(...sillyConfig.commonFrequencyOnlyNetworks);
-                break
-            default:
-                res.status(500).json({ Error: 'Invalid network group' });
-                return
-        }
-
-        monnitFetch('https://www.imonnit.com/json/SensorListFull')
-            .then(response => {
-                let allSensors = response.Result
-                for (let sensor of allSensors) {
-                    // Converting minutes per heartbeat to heartbeats per second
-                    sensor.heartbeatsPerSecond = 60 / (sensor.ReportInterval * 60) / 60;
-
-                    sensors.includes(sensor.SensorID) ? sensor.moving = true : sensor.moving = false
-                }
-
-                let sensorsToMove = allSensors.filter((sensor: any) => sensor.moving === true);
-
-                let networkHeartbeats = networkIDs.map(networkID => {
-                    const sensorsOnNetwork = allSensors.filter((sensor: any) => sensor.CSNetID === networkID)
-                    let heartbeatsPerSecond = 0
-                    sensorsOnNetwork.map((sensor: any) => {
-                        heartbeatsPerSecond += sensor.heartbeatsPerSecond
-                    })
-                    return {
-                        networkID,
-                        heartbeatsPerSecond,
-                    }
-                })
-
-                let networksToAddTo = [] as any[];
-                for (const sensorToMove of sensorsToMove) {
-                    const currentNetwork = networkHeartbeats.filter(network => network.networkID === sensorToMove.CSNetID)[0];
-                    if (networksToAddTo.length < 1) {
-                        const lowestCapacity = Math.min(...networkHeartbeats.map(network => network.heartbeatsPerSecond))
-                        networksToAddTo = networkHeartbeats.filter(network => {
-                            return network.heartbeatsPerSecond === lowestCapacity;
-                        })
-                    }
-                    const nextNetwork = networksToAddTo[0];
-                    const sensor = allSensors.filter((sensor: any) => sensor.SensorID === sensorToMove.SensorID)[0];
-                    const inCurrentNetworkGroup = networkIDs.filter(networkID => networkID === sensor.CSNetID)[0];
-                    if (!inCurrentNetworkGroup || currentNetwork?.heartbeatsPerSecond > nextNetwork.heartbeatsPerSecond) {
-                        // TODO add new monnit api call to move sensor whitelist
-                        monnitFetch(`https://www.imonnit.com/json/AssignSensor?NetworkID=${nextNetwork.networkID}&SensorID=${sensor.SensorID}&CheckDigit=${sensor.CheckDigit}`);
-                        if (currentNetwork) {
-                            currentNetwork.heartbeatsPerSecond -= sensor.heartbeatsPerSecond;
-                        }
-                        nextNetwork.heartbeatsPerSecond += sensor.heartbeatsPerSecond
-                        networksToAddTo.shift();
-                    }
-                }
-
-                res.json({ Result: 'Success' })
-            })
-            .catch(err => {
-                res.status(500).json({ Error: 'Could not move sensors' })
-                console.error(`Error moving sensors: ${err}`)
             })
     },
 };

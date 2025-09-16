@@ -3,6 +3,7 @@ import callApi from "../../utils/api/callApi";
 import styles from "../../styles/styles.module.css";
 import Equipment from "../Equipment/Equipment";
 import { useAppContext } from "../../contexts/app";
+import { useNavigate } from "react-router-dom";
 
 function LabView() {
     const [aggregatorStatusDotStyle, setAggregatorStatusDotStyle] = useState(styles.status_dot_red);
@@ -11,7 +12,8 @@ function LabView() {
     const equipmentList = useRef([]);
     const openedEquipment = useRef('');
     const isMounted = useRef(false);
-    const { technicianId } = useAppContext();
+    const { technicianId, setTechnician, setTechnicianId } = useAppContext();
+    const navigate = useNavigate();
 
     const setAggregatorStyle = (data) => {
         let now = new Date()
@@ -47,6 +49,14 @@ function LabView() {
             })
             .catch((err) => {
                 console.error(`Unable to set recent data: ${err}`)
+                if (err.status === 403) {
+                    setTechnician({});
+                    setTechnicianId(0);
+                    localStorage.clear('user')
+                    localStorage.clear('jwt')
+                    localStorage.clear('refresh')
+                    navigate('/signIn')
+                }
             })
     }
 
@@ -70,9 +80,9 @@ function LabView() {
         if (!isMounted.current) {
             isMounted.current = true;
             getEquipment()
-            .then(() => {
-                updateData();
-            })
+                .then(() => {
+                    updateData();
+                })
         }
         const interval = setInterval(updateData, 3000);
         return () => clearInterval(interval);

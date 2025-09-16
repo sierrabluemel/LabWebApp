@@ -4,7 +4,8 @@ import equipment from "../models/equipment";
 
 const equipmentRoutes = {
     getEquipment: (req: Request, res: Response) => {
-        equipment.getEquipment()
+        const isFiltered = req.query.is_filtered as unknown as boolean;
+        equipment.getEquipment(isFiltered)
             .then((equipment) => {
                 res.json(equipment);
             })

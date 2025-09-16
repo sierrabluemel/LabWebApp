@@ -7,6 +7,7 @@ const headers = {
 
 let running = false;
 let queue: any[] = [];
+const API_MAX_CALLS = 1;
 
 // Async for non blocking
 async function recursiveQueue() {
@@ -23,7 +24,10 @@ async function recursiveQueue() {
     fetch(url, { headers })
         .then((response) => {
             // Get response
-            return response.json()
+            if (response.status !== 200)
+                return Promise.reject(response.json());
+            else
+                return response.json()
         })
         .then((json) => {
             // Resolve the promise
@@ -34,12 +38,12 @@ async function recursiveQueue() {
             attempts++;
             // If current attempt is over max retries, reject promise
             if (attempts > maxRetry)
-                rej();
+                rej(`Max retries exceeded for url: ${url}`);
             // Max retries not exceeded - push item to back of queue for retry
             else
                 queue.push({ url, res, rej, attempts, maxRetry });
         })
-        .finally(recursiveQueue);
+        .finally(() => setTimeout(recursiveQueue, 1000/API_MAX_CALLS));
 }
 
 function monnitFetch(url: string, maxRetry: number = 5) {

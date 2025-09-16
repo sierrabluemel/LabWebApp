@@ -17,9 +17,13 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
         }
         req.user = user;
         next();
-    } catch (error) {
-        console.error(error);
-        res.status(418).json("Failed to verify token");
+    } catch (error: any) {
+        if (error.name === "TokenExpiredError") {
+            res.status(418).json("Token has expired");
+        } else {
+            console.error(error.name);
+            res.status(401).json("Token unable to be authenticated");
+        }
     }
 }
 

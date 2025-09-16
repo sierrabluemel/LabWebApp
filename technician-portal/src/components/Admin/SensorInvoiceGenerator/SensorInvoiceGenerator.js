@@ -13,7 +13,8 @@ function SensorInvoiceGenerator() {
     const { setPopupMessage } = useAppContext;
 
     function generateReport(event) {
-        fetch(`https://${ip}/api/get-sensor-invoice-report/?start_date=${startDate}&end_date=${endDate}`, { headers: { Authorization: `Bearer ${localStorage.getItem("jwt")}` } })
+        const urlProtocol = process.env.REACT_APP_STATUS === 'production' ? 'https' : 'http';
+        fetch(`${urlProtocol}://${ip}/api/get-sensor-invoice-report/?start_date=${startDate.toString()}&end_date=${endDate.toString()}`, { headers: { Authorization: `Bearer ${localStorage.getItem("jwt")}` } })
             .then(response => {
                 if (response.ok) {
                     return response.blob();

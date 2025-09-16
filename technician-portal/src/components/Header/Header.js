@@ -1,4 +1,4 @@
-import { React, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import styles from '../../styles/styles.module.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from "../../contexts/app";

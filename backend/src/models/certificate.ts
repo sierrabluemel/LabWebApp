@@ -18,16 +18,16 @@ const certificate = {
     },
     getCertificatesByOrderId: (orderId: number) => {
         return executeQuery(pool, `
-            SELECT
-                *
+            SELECT 
+                DISTINCT ON (API_SENSOR.SENSOR_ID) *
             FROM
-                API_ORDER
-                INNER JOIN API_BATCH ON API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
-                INNER JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
+                API_SENSOR
                 INNER JOIN API_CERTIFICATE ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID
+                INNER JOIN API_BATCH ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
+                INNER JOIN API_ORDER ON API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
             WHERE
                 API_ORDER.ORDER_ID = $1
-            ORDER BY API_CERTIFICATE.CERTIFICATE_ID
+            ORDER BY API_SENSOR.SENSOR_ID, API_CERTIFICATE.CERTIFICATE_ID DESC;
         `, [orderId]);
     },
     createCertificate: (certificateJson: any, template: string, sensorId: number) => {

@@ -9,6 +9,7 @@ import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 
 import styles from "../../styles/styles.module.css";
+import setBatchLocation from "../../utils/setBatchLocation";
 
 function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches }) {
     const { setPopupMessage, technicianId } = useAppContext();
@@ -24,10 +25,6 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
 
     const handleAddSensor = (event) => {
         event.preventDefault();
-        if (!technicianId) {
-            setPopupMessage('Please sign in');
-            return
-        }
         if (!sensor)
             return;
         const [sensorID, checkDigit] = parseSensorString(sensor);
@@ -51,25 +48,21 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
         setSensors([...sensors, sensorObject]);
     }
 
-    const handleSetLocation = async (event) => {
-        if (!location) {
-            return;
-        }
+    const handleSetLocation = (event) => {
         event.preventDefault();
-        callApi('create-location-log', { 'location': location, 'batch_id': batchNumber })
-            .then((response) => {
-                setPopupMessage(`Batch moved to ${location}`);
-                setCurrentLocation(location);
-                setLocation('');
-                if (location.startsWith('T')) {
-                    callApi('log-batch-interaction', { department: 'testing', start: true, technician_id: technicianId, batch_id: batchNumber })
-                } else if (location.startsWith('R')) {
-                    callApi('log-batch-interaction', { department: 'receiving', start: false, technician_id: technicianId, batch_id: batchNumber })
+        setBatchLocation(location, technicianId, batchNumber)
+            .then(error => {
+                if (!error) {
+                    setPopupMessage(`Batch ${batchNumber} moved to ${location}`);
+                    setCurrentLocation(location);
+                    setLocation('');
+                } else {
+                    throw new Error(error)
                 }
             })
-            .catch((error) => {
+            .catch(err => {
                 setPopupMessage('The batch was not moved successfully');
-                console.error(error)
+                console.error(err)
             })
     }
 

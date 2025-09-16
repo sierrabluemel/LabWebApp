@@ -110,11 +110,14 @@ function BatchEntry() {
             .then(batch => {
                 callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
                 setProcedureId(batch.calibration_procedure_id);
-                return callApi('get-sensors', { 'batch_id': batchNumber })
+                return callApi('get-sensors', { 'batch_id': batch.batch_id })
             })
             .then(data => {
                 setSensorList(data);
                 navigate('/manageBatch');
+            })
+            .catch(() => {
+                return setPopupMessage(`Unable to get batch ${batchNumber}`)
             })
     }
 

@@ -52,6 +52,14 @@ const misc = {
                 CALIBRATION_PROCEDURE_ID
         `, []);
     },
+    getVariances: () => {
+        return executeQuery(pool, `
+            SELECT
+                *
+            FROM
+                API_VARIANCES
+        `, []);
+    },
     getTechnicianById: (technicianId: number) => {
         return executeQuerySingleReturn(pool, `
             SELECT

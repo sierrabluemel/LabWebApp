@@ -10,7 +10,7 @@ const sensor = {
         `, []);
     },
     getSensorById: (batchId: number) => {
-        return executeQuerySingleReturn(pool, `
+        return executeQuery(pool, `
             SELECT
                 *
             FROM

@@ -1,4 +1,5 @@
 import styles from "../../styles/styles.module.css";
+import SensorLink from "../SensorLink/SensorLink";
 
 
 const ScannedSensors = ({ sensorList }) => {
@@ -7,7 +8,9 @@ const ScannedSensors = ({ sensorList }) => {
             <div>
                 <div className={styles.grid_menu}>
                     {sensorList.map((sensor, index) => (
-                        <div key={index} className={`${styles.grid_entry} ${styles.double_span} ${sensor.online ? styles.green_sensor : styles.red_sensor}`}>{sensor.sensor}</div>
+                        <div key={index} className={`${styles.double_span} ${sensor.online ? styles.green_sensor : styles.offline_sensor}`}>
+                            <SensorLink sensorId={sensor.sensor.split(':')[0]} text={sensor.sensor} />
+                        </div>
                     ))}
                 </div>
             </div>
@@ -16,7 +19,7 @@ const ScannedSensors = ({ sensorList }) => {
         return (
             <div>
                 <div className={styles.grid_menu}>
-                    <div className={`${styles.grid_entry} ${styles.double_span}`}>No sensors scanned</div>
+                    <div className={`${styles.offline_sensor} ${styles.double_span}`}>No sensors scanned</div>
                 </div>
             </div>
         );

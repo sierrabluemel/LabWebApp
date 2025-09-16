@@ -186,6 +186,7 @@ const authRoutes = {
     },
     resendForgotPasswordEmail: async (req: Request, res: Response) => {
         // Don't even know why this is a separate route
+        // Dude, I don't either...
         return authRoutes.forgotPassword(req, res);
     },
     verifyResetPassword: async (req: Request, res: Response) => {

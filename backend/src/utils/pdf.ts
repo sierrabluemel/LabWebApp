@@ -53,7 +53,7 @@ const pdf = {
             textField.setText(fields[field]);
         }
         form.flatten();
-        const filledPdfBytes = await pdfDoc.save();
+        const filledPdfBytes: any = await pdfDoc.save();
         return new Blob([filledPdfBytes]);
     },
     uploadPdfToAzure: async (pdfBytes: Blob, fileName: string) => {
@@ -69,7 +69,7 @@ const pdf = {
             blobHTTPHeaders: { blobContentType: "application/pdf" },
         });
     },
-    printPdf: (pdfBytes: Blob | Buffer) => {
+    printPdf: (pdfBytes: Blob | Buffer | any) => {
         fetch('http://localhost:4000/print-pdf/', {
             method: 'POST',
             body: pdfBytes,

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import callApi from "../../utils/api/callApi";
-import ip from "../../utils/ip/ip";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
 import parseSensorString from "../../utils/parseSensorString";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
@@ -11,6 +10,7 @@ import { useAppContext } from "../../contexts/app";
 
 import styles from "../../styles/styles.module.css";
 import getReferences from "../../utils/getReferences";
+import Button from "../Button/Button";
 
 function Shipping() {
     const {
@@ -23,7 +23,7 @@ function Shipping() {
     const certificateList = useRef([]);
 
     const [references, setReferences] = useState(new Set());
-    const [certificateMessage, setCertificateMessage] = useState('');
+    const [certificateMessage, setCertificateMessage] = useState('Loading...');
     const [sensor, setSensor] = useState('');
     const [sensorList, setSensorList] = useState([]);
     const [scannedSensors, setScannedSensors] = useState([]);
@@ -33,12 +33,12 @@ function Shipping() {
     const [order, setOrder] = useState(null)
     const [referenceVerificationArray, setReferenceVerificationArray] = useState([]);
 
-
     const getCertificates = () => {
         callApi('get-certificates-by-order-id', { order_id: orderNumber })
             .then(certificates => {
                 if (!certificates.length || certificates.length === 0) {
                     setCertificateMessage('No certificates found')
+                    return
                 }
                 const fullDate = new Date(certificates[0].timestamp)
                 const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
@@ -80,8 +80,10 @@ function Shipping() {
     }
 
     useEffect(() => {
-        if (order)
-            return;
+        if (isMounted.current)
+            return
+
+        isMounted.current = true;
         const calibrationProcedures = new Set()
         getCertificates();
         callApi('get-order-by-id', { 'order_id': orderNumber })
@@ -89,28 +91,26 @@ function Shipping() {
                 setOrder(response);
                 setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
 
-                if (!isMounted.current) {
-                    isMounted.current = true;
-                    for (const batch of batches) {
-                        calibrationProcedures.add(batch.calibration_procedure_id);
-                    };
-                    getProcedureReferences(calibrationProcedures).then(references => {
+                batches.forEach(batch => {
+                    calibrationProcedures.add(batch.calibration_procedure_id);
+                })
+
+                getProcedureReferences(calibrationProcedures)
+                    .then(references => {
                         const referenceVerifiedStrings = ['The following references must be verified for information to go onto the certificate']
-                        for (let reference of references) {
+                        references.forEach(reference => {
                             reference = JSON.parse(reference);
                             if (!reference.certificate_verified) {
                                 referenceVerifiedStrings.push(`Reference ${reference.asset_tag} (${reference.description}) will be added to certificates with a calibration date of ${parseDataBaseDate(reference.last_calibration)} and an expiration date of ${parseDataBaseDate(reference.next_calibration)}`)
                             }
-                        }
-                        if (referenceVerifiedStrings.length > 1) {
+                        })
+
+                        if (referenceVerifiedStrings.length > 1)
                             setReferenceVerificationArray(referenceVerifiedStrings)
-                        }
                     })
-                }
+
             })
-            .catch((err) => {
-                console.error(err)
-            })
+
         callApi('get-sensors-by-order-id', { order_id: orderNumber })
             .then(response => {
                 setSensorList(response)
@@ -118,11 +118,12 @@ function Shipping() {
             .catch((err) => {
                 console.error(err)
             })
+
     })
 
     const generateCertificates = async () => {
         const promises = [];
-        setCertificateMessage('Loading...');
+        setCertificateMessage('Generating certificates...');
         for (const batch of batches) {
             promises.push(
                 callApi('update-batch-technician', {
@@ -143,9 +144,7 @@ function Shipping() {
         }
 
         await Promise.all(promises);
-
-        await createCertificates();
-        getCertificates();
+        createCertificates()
     };
 
     const createCertificates = async () => {
@@ -153,6 +152,7 @@ function Shipping() {
             .then((certificates) => {
                 certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
+            .then(() => getCertificates())
             .catch((error) => {
                 console.error(error);
                 setPopupMessage(`An error occurred`);
@@ -223,31 +223,28 @@ function Shipping() {
 
     const printReturnRecord = () => {
         callApi('generate-return-record', { order_id: orderNumber, print: true })
+            .then(() => {
+                setPopupMessage('Return record printed')
+            })
     }
 
     const createReturnRecord = () => {
-        fetch(`https://${ip}/api/generate-return-record/?order_id=${orderNumber}`)
+        callApi('generate-return-record', { order_id: orderNumber }, true)
             .then(response => {
-                if (response.ok) {
-                    if (response.headers.get('content-type') === 'application/json; charset=utf-8') {
-                        return response.blob();
-                    } else {
-                        console.error(`Expecting return record to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
-                        setPopupMessage(`Failed to generate return record for order ${orderNumber}`);
-                    }
+                if (response.status === 200 && response.headers.get('content-type') === 'application/json; charset=utf-8') {
+                    const blob = new Blob([response.data], { type: 'application/pdf' });
+
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `returnRecord${orderNumber}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 } else {
-                    console.error(`Could not complete generation, response.ok: ${response.ok}`);
+                    console.error(`Expecting return record to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
                     setPopupMessage(`Failed to generate return record for order ${orderNumber}`);
                 }
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `returnRecord${orderNumber}.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -256,27 +253,23 @@ function Shipping() {
 
     const downloadCertificates = async () => {
         const order = await callApi('get-order-by-id', { 'order_id': orderNumber });
-        fetch(`https://${ip}/api/generate-order-certificates?order_id=${orderNumber}`)
+        callApi('generate-order-certificates', { order_id: orderNumber }, true)
             .then(response => {
-                if (response.ok && response.headers.get('content-type') === 'application/json; charset=utf-8') {
-                    return response.blob();
+                if (response.status === 200 && response.headers.get('content-type') === 'application/json; charset=utf-8') {
+                    const blob = new Blob([response.data], { type: 'application/pdf' });
+
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${order.customer_order_number}Certificates.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 } else {
-                    throw new Error(`Failed to generate certificates for order ${orderNumber}`);
+                    console.error(`Expecting certificates to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
+                    setPopupMessage(`Failed to generate certificates for order ${orderNumber}`);
                 }
             })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `${order.customer_order_number}Certificates.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                return;
-            });
     }
 
     const handleCloseOrder = () => {
@@ -313,13 +306,15 @@ function Shipping() {
                 <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'}</h2>
 
                 <div className={styles.batches_container}>
-                    {batches.length > 0 && batches.map(batch =>
-                        <div key={batch.batch_id} className={styles.shipping_batches}>
-                            {batch.current_location
-                                ? <>{`Batch ${batch.batch_id} | Location: ${batch.current_location} | `}<span className={styles[`calibration_${batch.calibration_procedure_id}`]}>CP: {batch.calibration_procedure_id}</span></>
-                                : `Batch ${batch.batch_id} (Shipped)`}
-                        </div>
-                    )}
+                    {
+                        batches.map(batch =>
+                            <div key={batch.batch_id} className={styles.shipping_batches}>
+                                {batch.current_location
+                                    ? <>{`Batch ${batch.batch_id} | Location: ${batch.current_location} | `}<span className={styles[`calibration_${batch.calibration_procedure_id}`]}>CP: {batch.calibration_procedure_id}</span></>
+                                    : `Batch ${batch.batch_id} (Shipped)`}
+                            </div>
+                        )
+                    }
                 </div>
 
                 <div className={styles.grid_menu}>
@@ -331,8 +326,8 @@ function Shipping() {
                     }
                     <button className={styles.default_button} onClick={printReturnRecord}>Print return record</button>
                     <button className={styles.default_button} onClick={printCertificates}>Print certificates</button>
-                    <button className={styles.default_button} onClick={createReturnRecord}>Download return record</button>
-                    <button className={styles.default_button} onClick={downloadCertificates}>Download certificates</button>
+                    <Button onClick={createReturnRecord} innerText={"Download return record"} />
+                    <Button onClick={downloadCertificates} innerText={"Download certificates"} />
                     <button className={styles.default_button} onClick={printCertificateLabels}>Print all labels</button>
                     <form onSubmit={printLabel}>
                         <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />

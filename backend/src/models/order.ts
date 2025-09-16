@@ -86,23 +86,6 @@ const order = {
                 API_ORDER.ORDER_ID = $1;
         `, [orderId]);
     },
-    getSensorsOnOrder: (orderId: number) => {
-        return executeQuery(pool, `
-            SELECT
-                API_ORDER.CUSTOMER_ORDER_NUMBER,
-                API_BATCH.CALIBRATION_PROCEDURE_ID,
-                API_SENSOR.*,
-                API_CERTIFICATE.GENERATE_CERTIFICATE_JSON
-                API_CERTIFICATE.CERTIFICATE_ID
-            FROM
-                API_ORDER
-                JOIN API_BATCH ON API_ORDER.ORDER_ID = API_BATCH.ORDER_ID
-                JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
-                JOIN API_CERTIFICATE ON API_SENSOR.SENSOR_ID = API_CERTIFICATE.SENSOR_ID
-            WHERE
-                API_ORDER.ORDER_ID = $1;
-        `, [orderId]);
-    },
 };
 
 export default order;

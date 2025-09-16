@@ -27,7 +27,7 @@ let reading = {
                 READING_ID DESC
         `, [sensorId]);
     },
-    createReading: (type: string, setPoint: number, referenceReading: number, sensorReading: number, labRh: number, labTemperature: number, sensorId: number, generatorId: number, referenceId: number, uncertainty: number, tolerance: number, pass: boolean, standard_deviation: number) => {
+    createReading: (type: string, setPoint: number, referenceReading: number, sensorReading: number, labRh: number, labTemperature: number, sensorId: number, generatorId: number, referenceId: number, uncertainty: number, tolerance: number, pass: boolean, standardDeviation: number, readingRawData: any, asFound: boolean) => {
         return executeQuery(pool, `
             INSERT INTO
                 API_READING (
@@ -43,13 +43,15 @@ let reading = {
                     UNCERTAINTY,
                     TOLERANCE,
                     PASS,
-                    STANDARD_DEVIATION
+                    STANDARD_DEVIATION,
+                    READING_RAW_DATA,
+                    AS_FOUND
                 )
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             RETURNING
                 *
-        `, [type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass, standard_deviation]);
+        `, [type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass, standardDeviation, readingRawData, asFound]);
     },
 };
 

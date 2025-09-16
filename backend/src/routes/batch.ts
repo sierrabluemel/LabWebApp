@@ -6,6 +6,8 @@ import { PDFDocument } from "pdf-lib";
 import batch from "../models/batch";
 import sensor from "../models/sensor";
 import { parseIntNullable } from "../utils/common";
+import monnitFetch from "../utils/monnit";
+const sillyConfig = require('../../config.json');
 
 const batchRoutes = {
     getBatchById: (req: Request, res: Response) => {
@@ -232,7 +234,7 @@ const batchRoutes = {
                     height: 110,
                 })
 
-                const finishedPdf = await pdfDoc.save();
+                const finishedPdf: any = await pdfDoc.save();
 
                 if (print) {
                     pdf.printPdf(new Blob([finishedPdf]));
@@ -259,6 +261,156 @@ const batchRoutes = {
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: `Error deleting batch` });
+            })
+    },
+    changeBatchHeartBeats: (req: Request, res: Response) => {
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const heartbeat = parseFloat(req.query.heartbeat as string ?? "");
+
+        if (isNaN(heartbeat)) {
+            res.status(500).json({ Result: 'Heartbeat must be a number' });
+        }
+
+        sensor.getSensorsByBatchId(batchId)
+            .then((sensors) => {
+                return Promise.all(sensors.map((sensorObject) => {
+
+                    let url = `https://www.imonnit.com/json/SensorSetHeartbeat/`;
+                    const parameters = {
+                        SensorID: sensorObject.sensor_id,
+                        reportInterval: heartbeat,
+                        activeStateInterval: heartbeat,
+                    } as any;
+                    const params = new URLSearchParams();
+                    for (const parameter in parameters) {
+                        params.append(parameter, parameters[parameter]);
+                    };
+                    return monnitFetch(`${url}?${params.toString()}`)
+                        .then((response) => {
+                            if (response.Result !== 'Success') {
+                                return Promise.reject(response.Result);
+                            } else {
+                                return response;
+                            }
+                        })
+                }))
+            })
+            .then((response) => {
+                res.json({ Result: 'Success' })
+            })
+            .catch((error) => {
+                console.error(error);
+                res.status(500).json({ Result: 'Unable to change heartbeats' });
+            })
+    },
+
+    moveBatchToNetworkGroup: (req: Request, res: Response) => {
+        const networkGroup = req.query.network_group;
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+
+        const stagingNetworks: Array<number> = sillyConfig.stagingNetworks;
+        const testingAllFrequencies: Array<number> = sillyConfig.anyFrequencyNetworks;
+        const testingAllNetworks: Array<number> = [...sillyConfig.anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
+        const allNetworks: Array<number> = [...sillyConfig.stagingNetworks, ...sillyConfig.anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
+
+        sensor.getSensorsByBatchId(batchId)
+            .then((sensorList) => {
+                let sensorsInBatch = sensorList.map(sensor => sensor.sensor_id)
+
+                monnitFetch('https://www.imonnit.com/json/GatewayList')
+                    .then((response) => {
+                        let gateways = response.Result
+                        monnitFetch('https://www.imonnit.com/json/SensorListFull')
+                            .then((response) => {
+                                let promises: any = [];
+                                let allSensors = response.Result
+                                for (let sensor of allSensors) {
+                                    sensor.heartbeatsPerSecond = 60 / (sensor.ReportInterval * 60) / 60; // Converting minutes per heartbeat to heartbeats per second
+
+                                    if (sensorsInBatch.includes(sensor.SensorID)) {
+                                        sensor.moving = true;
+                                        const sensorSku = sensorList.filter(s => s.sensor_id === sensor.SensorID)[0].sku
+                                        sensor.networkType = parseInt(sensorSku.split('-')[1]);
+                                    } else {
+                                        sensor.moving = false;
+                                    }
+                                }
+
+
+                                let networkLoad = allNetworks.map(networkID => {
+                                    const sensorsOnNetwork = allSensors.filter((sensor: any) => sensor.CSNetID === networkID)
+                                    let heartbeatsPerSecond = 0
+                                    sensorsOnNetwork.map((sensor: any) => {
+                                        heartbeatsPerSecond += sensor.heartbeatsPerSecond
+                                    })
+                                    return {
+                                        networkID,
+                                        heartbeatsPerSecond,
+                                    }
+                                })
+
+                                let sensorsToMove = allSensors.filter((sensor: any) => sensor.moving === true);
+
+                                let networksToAddTo: Array<any> = [];
+                                let networkHeartbeats = networkLoad.filter(network => stagingNetworks.includes(network.networkID));
+
+
+                                for (const sensorToMove of sensorsToMove) {
+                                    if (networkGroup === 'testing' && !isNaN(sensorToMove.networkType)) {
+                                        if (sensorToMove.networkType === 9) {
+                                            networkHeartbeats = networkLoad.filter(network => testingAllNetworks.includes(network.networkID));
+                                        } else {
+                                            networkHeartbeats = networkLoad.filter(network => testingAllFrequencies.includes(network.networkID));
+                                        }
+                                    }
+
+                                    if (networksToAddTo.length === 0) {
+                                        const lowestCapacity = Math.min(...networkHeartbeats.map(network => network.heartbeatsPerSecond))
+                                        networksToAddTo = networkHeartbeats.filter(network => {
+                                            return network.heartbeatsPerSecond === lowestCapacity;
+                                        })
+                                    }
+
+                                    const nextNetwork = networksToAddTo[0];
+                                    const sensor = allSensors.filter((sensor: any) => sensor.SensorID === sensorToMove.SensorID)[0];
+                                    const currentNetwork = networkHeartbeats.filter(network => network.networkID === sensorToMove.CSNetID)[0];
+                                    const networkGateways = gateways.filter((gateway: any) => gateway.NetworkID === sensorToMove.CSNetID);
+
+                                    if (!currentNetwork || currentNetwork?.heartbeatsPerSecond > nextNetwork.heartbeatsPerSecond) {
+                                        promises.push(monnitFetch(`https://www.imonnit.com/json/AssignSensor?NetworkID=${nextNetwork.networkID}&SensorID=${sensor.SensorID}&CheckDigit=${sensor.CheckDigit}`)
+                                            .then((response) => {
+                                                if (response.Result !== 'Success') {
+                                                    Promise.reject(`Unable to move sensor ${sensor.SensorID} to new network`);
+                                                    console.error(`Bad iMonnit fetch on "AssignSensor"(Sensor ID: ${sensor.SensorID}): `, response)
+                                                }
+                                                promises.push(networkGateways.map((gateway: any) => {
+                                                    if (!gateway.GatewayType.startsWith('Wifi'))
+                                                        monnitFetch(`https://www.imonnit.com/json/RemoveSensorFromGateway?gatewayID=${gateway.GatewayID}&sensorID=${sensor.SensorID}`)
+                                                            .then(response => {
+                                                                if (response.Result !== 'Success') {
+                                                                    Promise.reject(`Unable to remove sensor ${sensor.SensorID} from gateway`);
+                                                                    console.error('Bad iMonnit fetch on "RemoveSensorFromGateway": ', response)
+                                                                }
+                                                            })
+                                                }))
+                                            }))
+                                        if (currentNetwork) {
+                                            currentNetwork.heartbeatsPerSecond -= sensor.heartbeatsPerSecond;
+                                        }
+                                        nextNetwork.heartbeatsPerSecond += sensor.heartbeatsPerSecond
+                                        networksToAddTo.shift();
+                                    }
+                                }
+                                Promise.all(promises)
+                                    .then(() => {
+                                        res.json({ Result: 'Success' })
+                                    })
+                                    .catch(error => {
+                                        console.error(`Error moving sensors: ${error}`);
+                                        res.status(500).json({ Error: 'Could not move sensors' });
+                                    })
+                            })
+                    })
             })
     },
 

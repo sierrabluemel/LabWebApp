@@ -36,7 +36,8 @@ function App() {
   const [orderNumber, setOrderNumber] = useState('');
   const [batches, setBatches] = useState([]);
   const [sensorGrid, setSensorGrid] = useState([]);
-  const [expedited, setExpedited] = useState(false)
+  const [expedited, setExpedited] = useState(false);
+  const variances = useRef([]);
   const equipment = useRef({});
   const equipmentList = useRef([]);
 
@@ -60,7 +61,8 @@ function App() {
           orderNumber, setOrderNumber,
           batches, setBatches,
           expedited, setExpedited,
-          equipment, equipmentList
+          equipment, equipmentList,
+          variances
         }}
       >
         <Router>

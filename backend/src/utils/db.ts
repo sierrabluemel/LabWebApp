@@ -56,9 +56,10 @@ function executeQuery(pool: Pool, query: string, data: any[]): Promise<any[]> {
         })
 }
 
-function parseDataBaseDate(date: string) {
-    const dateArray = date.split('T')[0].split('-');
-    return `${dateArray[1]}/${dateArray[2]}/${dateArray[0]}`
+function parseDataBaseDate(date: string | Date) {
+    if (typeof date === "string")
+        date = new Date(date);
+    return `${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`
 }
 
 connectPool();

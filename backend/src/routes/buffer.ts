@@ -26,6 +26,7 @@ function addSensorData(newSensorData: any[], currentSensorData: any[], minutes =
             dataType: newData.dataType,
             dataValue: newData.dataValue,
             messageDate: newData.messageDate,
+            batteryLevel: newData.batteryLevel,
         }
         currentSensorData.push(finalData);
     }

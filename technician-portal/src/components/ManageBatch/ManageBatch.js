@@ -8,6 +8,7 @@ import TestingMenu from "../TestingMenu/TestingMenu";
 
 import styles from "../../styles/styles.module.css";
 import parseSensorString from "../../utils/parseSensorString";
+import setBatchLocation from "../../utils/setBatchLocation";
 
 function ManageBatch() {
     const navigate = useNavigate();
@@ -88,77 +89,33 @@ function ManageBatch() {
             return;
         }
         event.preventDefault();
-        const promises = [];
-        for (const sensor of sensorList) {
-            promises.push(callApi('change-sensor-heartbeat', { sensor_id: sensor.sensor_id, heartbeat: heartbeat })
-                .catch((err) => {
-                    console.error(err);
-                    setPopupMessage(`Sensor ${sensor.sensor_id} failed: ${err}`)
-                }));
-        }
-        const responses = await Promise.all(promises);
-        for (const response of responses) {
-            if (response.Result === 'Success') {
-                setPopupMessage(`Heartbeat changed to ${heartbeat} minutes`);
-            } else {
+        callApi('change-batch-heartbeats', { batch_id: batchNumber, heartbeat: heartbeat })
+            .then((response) => {
+                if (response.Result === 'Success') {
+                    setPopupMessage(`Heartbeat changed to ${heartbeat} minutes`);
+                    setHeartBeat('');
+                }
+            })
+            .catch((err) => {
                 setPopupMessage('Heartbeats not changed successfully');
-            }
-        }
-        setHeartBeat('');
+                console.error(err)
+            });
     }
 
     const handleLocationChange = (event) => {
         setLocation(event.target.value.toUpperCase());
     }
 
-    const handleLocationSubmit = async (event) => {
+    const handleLocationSubmit = (event) => {
         event.preventDefault();
-
-        if (!location) return;
-
-        callApi('create-location-log', {
-            'location': location,
-            'batch_id': batchNumber
-        })
-            .then(() => {
-                setPopupMessage(`Batch moved to ${location}`);
-                setCurrentLocation(location);
-                setLocation('');
-                if (location.startsWith('T')) {
-                    callApi('log-batch-interaction', {
-                        department: 'testing',
-                        start: true,
-                        technician_id: technicianId,
-                        batch_id: batchNumber
-                    })
-                    return;
-                }
-
-                if (!location.startsWith('S')) {
-                    return;
-                }
-                callApi('log-batch-interaction', {
-                    department: 'testing',
-                    start: false,
-                    technician_id: technicianId,
-                    batch_id: batchNumber
-                })
-
-                callApi('set-batch-active-state', {
-                    batch_id: batchNumber,
-                    active_state: false
-                })
-
-                callApi('move-sensors-to-network-group', {
-                    sensors: sensorList.map(sensor => sensor.sensor_id),
-                    network_group: 'staging'
-                })
-
-                for (const sensor of sensorList) {
-                    callApi('change-sensor-heartbeat', {
-                        sensor_id: sensor.sensor_id,
-                        heartbeat: 120
-                    })
+        setBatchLocation(location, technicianId, batchNumber)
+            .then(error => {
+                if (!error) {
+                    setPopupMessage(`Batch ${batchNumber} moved to ${location}`);
+                    setCurrentLocation(location);
+                    setLocation('');
+                } else {
+                    throw new Error(error)
                 }
             })
             .catch((err) => {
@@ -194,7 +151,6 @@ function ManageBatch() {
         } else {
             callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })
                 .then(response => {
-                    console.log(response)
                     if (response.sensor_id !== sensorId) {
                         setPopupMessage(response.Result);
                         return;
@@ -202,7 +158,6 @@ function ManageBatch() {
                     return callApi('get-sensors', { 'batch_id': batchNumber })
                 })
                 .then(data => {
-                    console.log(data)
                     setSensorList(data);
                     setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
                 })
