@@ -114,7 +114,7 @@ app.get('/api/get-reading-range', auth, rollingDataRoutes.getReadingRange);
 app.get('/api/get-recent-data', auth, rollingDataRoutes.getRecentData);
 
 // Equipment routes
-app.get('/api/get-equipment', auth, equipmentRoutes.getEquipment);
+app.get('/api/get-equipment', equipmentRoutes.getEquipment); // Bring back auth after aggregator no longer uses the api soon™
 app.get('/api/set-generator', auth, equipmentRoutes.setGenerator);
 app.get('/api/verify-equipment-in-testing', auth, equipmentRoutes.verifyEquipmentInTesting);
 app.get('/api/verify-equipment-in-shipping', auth, equipmentRoutes.verifyEquipmentInShipping);
