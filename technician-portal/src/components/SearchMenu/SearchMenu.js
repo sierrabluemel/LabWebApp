@@ -29,16 +29,22 @@ function SearchMenu() {
     const handleSubmit = async (event) => {
         event.preventDefault();
         setResponseMessage('Loading...')
-        const results = await search(searchString, type);
-        if (!results) {
-            setPopupMessage('The type of lookup you tried to perform is not valid');
-        } else {
-            setData(results);
-            if (results.length === 0) {
-                setResponseMessage('No data found')
-            }
-        }
-        setSearchString('');
+
+        search(searchString, type)
+            .then((results) => {
+                if (!results) {
+                    setPopupMessage('The type of lookup you tried to perform is not valid');
+                    return
+                }
+                setData(results);
+                if (results.length === 0) {
+                    setResponseMessage('No data found')
+                }
+                setSearchString('');
+            })
+            .catch(() => {
+
+            })
     }
 
     return (

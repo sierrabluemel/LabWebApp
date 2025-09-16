@@ -8,7 +8,6 @@ import ConfirmationScreen from './components/ConfirmationScreen/ConfirmationScre
 import ErrorMessage from './components/ErrorMessage/ErrorMessage';
 import Header from './components/Header/Header';
 import LabView from './components/LabView/LabView';
-import LocationEntry from './components/LocationEntry/LocationEntry';
 import MainMenu from './components/MainMenu/MainMenu';
 import ManageBatch from './components/ManageBatch/ManageBatch';
 import Metrics from './components/Metrics/Metrics';
@@ -17,7 +16,6 @@ import OrderEntry from './components/OrderEntry/OrderEntry';
 import PageNotFound from './components/PageNotFound/PageNotFound';
 import Receiving from './components/Receiving/Receiving';
 import SalesOrderForm from './components/SalesOrderForm/SalesOrderForm';
-import ShipSensors from './components/ShipSensors/shipSensors';
 import Shipping from './components/Shipping/Shipping';
 import SignInMenu from './components/SignInMenu/SignInMenu';
 import SearchMenu from './components/SearchMenu/SearchMenu.js';
@@ -38,7 +36,8 @@ function App() {
   const [orderNumber, setOrderNumber] = useState('');
   const [batches, setBatches] = useState([]);
   const [sensorGrid, setSensorGrid] = useState([]);
-  const [expedited, setExpedited] = useState(false)
+  const [expedited, setExpedited] = useState(false);
+  const variances = useRef([]);
   const equipment = useRef({});
   const equipmentList = useRef([]);
 
@@ -62,7 +61,8 @@ function App() {
           orderNumber, setOrderNumber,
           batches, setBatches,
           expedited, setExpedited,
-          equipment, equipmentList
+          equipment, equipmentList,
+          variances
         }}
       >
         <Router>
@@ -78,15 +78,13 @@ function App() {
                 <Route path='/batchEntry' element={<BatchEntry />} />
                 <Route path='/confirmation' element={<ConfirmationScreen />} />
                 <Route path='/createSalesOrder' element={<SalesOrderForm />} />
-                
-                <Route path='/locationEntry' element={<LocationEntry />} />
+
                 <Route path='/manageBatch' element={<ManageBatch />} />
                 <Route path='/metrics' element={<Metrics />} />
                 <Route path='/orderEntry' element={<OrderEntry />} />
 
                 <Route path='/receiving' element={<Receiving />} />
                 <Route path='/shipping' element={<Shipping />} />
-                <Route path='/shipSensors' element={<ShipSensors />} />
                 <Route path='/search' element={<SearchMenu />} />
                 <Route path='/signIn' element={<SignInMenu />} />
 
@@ -95,7 +93,7 @@ function App() {
                 <Route path='*' element={<PageNotFound />} />
               </Routes>
             </div>
-            <LabView />
+            {technicianId ? <LabView /> : <></>}
           </div>
         </Router>
       </AppWrapper>

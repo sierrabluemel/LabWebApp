@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from 'axios';
-
 import { useAppContext } from "../../contexts/app";
 import callApi from "../../utils/api/callApi";
-import ip from "../../utils/ip/ip";
+import callApiAdvanced from "../../utils/api/callApiAdvanced";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 import TestingMenu from "../TestingMenu/TestingMenu";
 
 import styles from "../../styles/styles.module.css";
 import parseSensorString from "../../utils/parseSensorString";
+import setBatchLocation from "../../utils/setBatchLocation";
 
 function ManageBatch() {
     const navigate = useNavigate();
@@ -25,22 +24,22 @@ function ManageBatch() {
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
     const setPoint = useRef(null);
-    const [isMounted, setIsMounted] = useState(false);
+    const isMounted = useRef(false);
     const [referencesToVerify, setReferencesToVerify] = useState([]);
     const referenceStrings = useRef(['The following references have been recently changed'])
     const [calibrationProcedureDescription, setCalibrationProcedureDescription] = useState('');
 
     useEffect(() => {
-        callApi('get-batch-by-id', { batch_id: batchNumber })
-            .then(response => {
-                setCurrentLocation(response.current_location)
-            })
-        if (!isMounted) {
+        if (!isMounted.current) {
+            callApi('get-batch-by-id', { batch_id: batchNumber })
+                .then(response => {
+                    setCurrentLocation(response.current_location)
+                })
             callApi('get-calibration-procedures').then(response => {
                 const currentProcedure = response.filter(procedure => procedure.calibration_procedure_id === procedureId)[0];
                 setPoint.current = currentProcedure.set_points;
                 setCalibrationProcedureDescription(currentProcedure.calibration_procedure);
-                setIsMounted(true);
+                isMounted.current = true;
             })
         }
     })
@@ -56,8 +55,7 @@ function ManageBatch() {
     }
 
     const downloadWorkOrder = () => {
-        const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/generate-work-order?batch_id=${batchNumber}` : `http://${ip}/api/generate-work-order?batch_id=${batchNumber}`
-        axios.get(url, { responseType: 'blob' })
+        callApiAdvanced(`api/generate-work-order?batch_id=${batchNumber}`, { responseType: 'blob' })
             .then(response => {
                 if (response.status === 200) {
                     const contentType = response.headers['content-type']
@@ -69,9 +67,6 @@ function ManageBatch() {
                     console.error(`Could not complete generation, response.status: ${response.status}`);
                     setPopupMessage(`Failed to generate work order for batch ${batchNumber}: Bad server response`);
                 }
-                return response;
-            })
-            .then(response => {
                 const url = URL.createObjectURL(response.data);
                 const link = document.createElement('a');
                 link.href = url;
@@ -94,76 +89,39 @@ function ManageBatch() {
             return;
         }
         event.preventDefault();
-        const promises = [];
-        for (const sensor of sensorList) {
-            try {
-                promises.push(callApi('change-sensor-heartbeat', { sensor_id: sensor.sensor_id, heartbeat: heartbeat }));
-            } catch (error) {
-                console.error(error);
-                setPopupMessage(`Sensor ${sensor.sensor_id} failed: ${error}`)
-            }
-        }
-        const responses = await Promise.all(promises);
-        for (const response of responses) {
-            if (response.Result === 'Success') {
-                setPopupMessage(`Heartbeat changed to ${heartbeat} minutes`);
-            } else {
+        callApi('change-batch-heartbeats', { batch_id: batchNumber, heartbeat: heartbeat })
+            .then((response) => {
+                if (response.Result === 'Success') {
+                    setPopupMessage(`Heartbeat changed to ${heartbeat} minutes`);
+                    setHeartBeat('');
+                }
+            })
+            .catch((err) => {
                 setPopupMessage('Heartbeats not changed successfully');
-            }
-        }
-        setHeartBeat('');
+                console.error(err)
+            });
     }
 
     const handleLocationChange = (event) => {
         setLocation(event.target.value.toUpperCase());
     }
 
-    const handleLocationSubmit = async (event) => {
+    const handleLocationSubmit = (event) => {
         event.preventDefault();
-
-        if (!location) return;
-
-        const response = await callApi('create-location-log', {
-            'location': location,
-            'batch_id': batchNumber
-        })
-
-        if (!response.error) {
-            setPopupMessage(`Batch moved to ${location}`);
-            setCurrentLocation(location);
-            setLocation('');
-
-            if (location.startsWith('S')) {
-                callApi('log-batch-interaction', {
-                    department: 'testing',
-                    start: false,
-                    technician_id: technicianId,
-                    batch_id: batchNumber
-                })
-
-                callApi('set-batch-active-state', {
-                    batch_id: batchNumber,
-                    active_state: false
-                })
-
-                for (const sensor of sensorList) {
-                    callApi('change-sensor-heartbeat', {
-                        sensor_id: sensor.sensor_id,
-                        heartbeat: 120
-                    })
+        setBatchLocation(location, technicianId, batchNumber)
+            .then(error => {
+                if (!error) {
+                    setPopupMessage(`Batch ${batchNumber} moved to ${location}`);
+                    setCurrentLocation(location);
+                    setLocation('');
+                } else {
+                    throw new Error(error)
                 }
-            } else if (location.startsWith('T')) {
-                callApi('log-batch-interaction', {
-                    department: 'testing',
-                    start: true,
-                    technician_id: technicianId,
-                    batch_id: batchNumber
-                })
-            }
-        } else {
-            setPopupMessage('The batch was not moved successfully');
-            console.error(response.error)
-        }
+            })
+            .catch((err) => {
+                setPopupMessage('The batch was not moved successfully');
+                console.error(err)
+            })
     }
 
     const handleSensorChange = (event) => {
@@ -182,8 +140,7 @@ function ManageBatch() {
     }
 
     const handleSensorConfirm = () => {
-        const sensorId = parseInt(parseSensorString(sensor)[0]);
-        const checkDigit = parseInt(parseSensorString(sensor)[1]);
+        const [sensorId, checkDigit] = parseSensorString(sensor);
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
             callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit });
             callApi('remove-sensor-from-batch', { sensor_id: sensorId })
@@ -192,17 +149,17 @@ function ManageBatch() {
                     setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
                 })
         } else {
-            callApi('create-sensor', { sensor_id: sensorId, check_digit: sensor.split(':')[1], batch_id: batchNumber })
+            callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })
                 .then(response => {
-                    if (response[0].sensor_id !== sensorId) {
+                    if (response.sensor_id !== sensorId) {
                         setPopupMessage(response.Result);
                         return;
                     }
-                    callApi('get-sensors', { 'batch_id': batchNumber })
-                        .then(data => {
-                            setSensorList(data);
-                            setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
-                        })
+                    return callApi('get-sensors', { 'batch_id': batchNumber })
+                })
+                .then(data => {
+                    setSensorList(data);
+                    setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
                 })
         }
         setSensor('')

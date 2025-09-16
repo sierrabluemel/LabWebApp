@@ -1,15 +1,12 @@
-import axios from 'axios';
-import ip from '../ip/ip';
+import callApiAdvanced from './callApiAdvanced';
 
-async function callApi(endPoint, parameters) {
-  const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/${endPoint}/` : `http://${ip}/api/${endPoint}/`;
-
-  try {
-    const response = await axios.get(url, { params: parameters });
-    return response.data;
-  } catch (error) {
-    return error;
-  }
+export default async function callApi(endPoint, parameters, download=false) {
+	return callApiAdvanced(endPoint, {
+		params: parameters,
+		responseType: download ? 'blob': 'json'
+	}).then((res) => {
+		if (download)
+			return res
+		return res.data
+	})
 }
-
-export default callApi;

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import callApi from "../../utils/api/callApi";
-import ip from "../../utils/ip/ip";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
 import parseSensorString from "../../utils/parseSensorString";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
@@ -10,10 +9,8 @@ import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 import { useAppContext } from "../../contexts/app";
 
 import styles from "../../styles/styles.module.css";
-import getEquipment from "../../utils/getEquipment";
 import getReferences from "../../utils/getReferences";
-
-const { addMonths } = require('date-fns');
+import Button from "../Button/Button";
 
 function Shipping() {
     const {
@@ -22,11 +19,11 @@ function Shipping() {
     } = useAppContext()
 
     const navigate = useNavigate()
-    
+
     const certificateList = useRef([]);
-    
+
     const [references, setReferences] = useState(new Set());
-    const [certificateMessage, setCertificateMessage] = useState('');
+    const [certificateMessage, setCertificateMessage] = useState('Loading...');
     const [sensor, setSensor] = useState('');
     const [sensorList, setSensorList] = useState([]);
     const [scannedSensors, setScannedSensors] = useState([]);
@@ -36,19 +33,17 @@ function Shipping() {
     const [order, setOrder] = useState(null)
     const [referenceVerificationArray, setReferenceVerificationArray] = useState([]);
 
-    const promises = [];
-
     const getCertificates = () => {
         callApi('get-certificates-by-order-id', { order_id: orderNumber })
             .then(certificates => {
-                if (certificates.length > 0) {
-                    const fullDate = new Date(certificates[0].timestamp)
-                    const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
-                    setCertificateMessage(`Certificates generated on ${dateString}`);
-                    certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
-                } else {
+                if (!certificates.length || certificates.length === 0) {
                     setCertificateMessage('No certificates found')
+                    return
                 }
+                const fullDate = new Date(certificates[0].timestamp)
+                const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
+                setCertificateMessage(`Certificates generated on ${dateString}`);
+                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
     }
 
@@ -66,751 +61,102 @@ function Shipping() {
     }
 
     function confirmReferences() {
-        try {
-            for (let reference of references) {
-                reference = JSON.parse(reference);
-                if (reference.certificate_verified) {
-                    continue;
-                }
-                const parameters = {
-                    asset_tag: reference.asset_tag,
-                    technician_id: technicianId
-                }
-                callApi('verify-equipment-in-shipping', parameters)
+        for (let reference of references) {
+            reference = JSON.parse(reference);
+            if (reference.certificate_verified) {
+                continue;
             }
-            setPopupMessage('References verified');
-        } catch (error) {
-            console.error(error);
-            setPopupMessage('There was an error validating references. Please reload this page')
+            const parameters = {
+                asset_tag: reference.asset_tag,
+                technician_id: technicianId
+            }
+            callApi('verify-equipment-in-shipping', parameters)
+                .catch((err) => {
+                    console.error(err);
+                    setPopupMessage('There was an error validating references. Please reload this page')
+                })
         }
+        setPopupMessage('References verified');
     }
 
     useEffect(() => {
-        if (!order) {
-            const calibrationProcedures = new Set()
-            getCertificates();
-            callApi('get-order-by-id', { 'order_id': orderNumber })
-                .then(response => {
-                    setOrder(response);
-                    setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
-                    
-                    if (!isMounted.current) {
-                        isMounted.current = true;
-                        for (const batch of batches) {
-                            calibrationProcedures.add(batch.calibration_procedure_id);
-                        };
-                        getProcedureReferences(calibrationProcedures).then(references => {
-                            const referenceVerifiedStrings = ['The following references must be verified for information to go onto the certificate']
-                            for (let reference of references) {
-                                reference = JSON.parse(reference);
-                                if (!reference.certificate_verified) {
-                                    referenceVerifiedStrings.push(`Reference ${reference.asset_tag} (${reference.description}) will be added to certificates with a calibration date of ${parseDataBaseDate(reference.last_calibration)} and an expiration date of ${parseDataBaseDate(reference.next_calibration)}`)
-                                }
-                            }
-                            if (referenceVerifiedStrings.length > 1) {
-                                setReferenceVerificationArray(referenceVerifiedStrings)
+        if (isMounted.current)
+            return
+
+        isMounted.current = true;
+        const calibrationProcedures = new Set()
+        getCertificates();
+        callApi('get-order-by-id', { 'order_id': orderNumber })
+            .then(response => {
+                setOrder(response);
+                setBatches(batches.sort((batchA, batchB) => batchA.batch_id - batchB.batch_id));
+
+                batches.forEach(batch => {
+                    calibrationProcedures.add(batch.calibration_procedure_id);
+                })
+
+                getProcedureReferences(calibrationProcedures)
+                    .then(references => {
+                        const referenceVerifiedStrings = ['The following references must be verified for information to go onto the certificate']
+                        references.forEach(reference => {
+                            reference = JSON.parse(reference);
+                            if (!reference.certificate_verified) {
+                                referenceVerifiedStrings.push(`Reference ${reference.asset_tag} (${reference.description}) will be added to certificates with a calibration date of ${parseDataBaseDate(reference.last_calibration)} and an expiration date of ${parseDataBaseDate(reference.next_calibration)}`)
                             }
                         })
-                    }
-                    }
-                )
-            callApi('get-sensors-by-order-id', { order_id: orderNumber })
-                .then(response => {
-                    setSensorList(response)
-                })
-        }
+
+                        if (referenceVerifiedStrings.length > 1)
+                            setReferenceVerificationArray(referenceVerifiedStrings)
+                    })
+
+            })
+
+        callApi('get-sensors-by-order-id', { order_id: orderNumber })
+            .then(response => {
+                setSensorList(response)
+            })
+            .catch((err) => {
+                console.error(err)
+            })
+
     })
 
     const generateCertificates = async () => {
-        setCertificateMessage('Loading...');
-        try {
-            for (const batch of batches) {
-                promises.push(callApi('update-batch-technician', {
+        const promises = [];
+        setCertificateMessage('Generating certificates...');
+        for (const batch of batches) {
+            promises.push(
+                callApi('update-batch-technician', {
                     department: 'shipping',
                     technician_id: technicianId,
                     batch_id: batch.batch_id
-                }));
-                promises.push(callApi('set-batch-active-state', {
-                    batch_id: batch.batch_id,
-                    active_state: false
-                }));
-            }
-
-            await Promise.all(promises);
-
-            await createCertificates();
-            getCertificates();
-
-        } catch (error) {
-            console.error(error);
+                })
+                    .then(() => {
+                        return callApi('set-batch-active-state', {
+                            batch_id: batch.batch_id,
+                            active_state: false
+                        })
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                    })
+            );
         }
+
+        await Promise.all(promises);
+        createCertificates()
     };
 
     const createCertificates = async () => {
-        const promises = [];
-        let alerted = false;
-        let certificates = [];
-        try {
-            const sensors = await callApi('get-sensors-by-order-id', { 'order_id': orderNumber });
-            const customer = await callApi('get-customer-by-id', { 'customer_id': order.customer_id });
-
-            for (const sensor of sensors) {
-                promises.push(callApi('get-batch-by-id', { 'batch_id': sensor.batch_id })
-                    // eslint-disable-next-line no-loop-func
-                    .then(async (batch) => {
-                        const readings = await callApi('get-readings-by-sensor-id', { 'sensor_id': sensor.sensor_id });
-                        if (readings.length === 0) {
-                            setPopupMessage(`Could not find readings for sensor ${sensor.sensor_id}`);
-                            return;
-                        } else {
-                            const today = new Date();
-                            const date = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
-                            const calibrationDate = readings[0].timestamp;
-                            let dueDate;
-                            let parsedDueDate;
-                            let certificateJson = {
-                                'C1': customer.name,
-                                'C2': `${customer.address_line_1}, ${customer.address_line_2}`,
-                                'C3': `${customer.city}, ${customer.state} ${customer.zip_code}`,
-                                'D1': 'Manufacturer: Monnit Corp',
-                                'D2': `Model: ${sensor.sku}`,
-                                'D3': `Identifier/Serial: ${sensor.sensor_id}`,
-                                'D4': 'Condition: Functional',
-                                'CS1': parseDataBaseDate(calibrationDate),
-                                'CS3': JSON.stringify(batch.calibration_procedure_id),
-                                'CS4': `${readings[0].lab_rh}% RH @ ${readings[0].lab_temperature}°C`,
-                                'TechName': 'Colton Robinson',
-                                'AuthName': 'Kelly S Lewis',
-                                'Date': date,
-                            }
-                            const finalReadings = [];
-                            const equipment = await getEquipment();
-
-                            let setPoints = ['-999.00', '28.00', '-25.00', '90.00'];
-                            let template = 'temperatureCertificate.pdf';
-
-                            if (batch.calibration_procedure_id === 1 || batch.calibration_procedure_id === 4) {
-                                let certificateStatus = 'PASS';
-
-                                for (const setPoint of setPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint) {
-                                            finalReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (finalReadings.length !== setPoints.length && alerted === false) {
-                                    alerted = true;
-                                    setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires ${setPoints.length} readings, and only has ${finalReadings.length}`)
-                                    navigate('/shipping');
-                                    return;
-                                } else if (alerted === true) {
-                                    navigate('/shipping');
-                                    return;
-                                }
-                                dueDate = addMonths(today, 25);
-                                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-                                const standardJson = {
-                                    'CS2': parsedDueDate,
-                                    'CS5': certificateStatus,
-                                    'CD11': parseFloat(finalReadings[1].set_point).toFixed(0) + '°C',
-                                    'CD12': parseFloat(finalReadings[1].reference_reading).toFixed(1) + '°C',
-                                    'CD13': parseFloat(finalReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD14': (parseFloat(finalReadings[1].sensor_reading) - parseFloat(finalReadings[0].sensor_reading)).toFixed(1) + '°C',
-                                    'CD15': parseFloat(finalReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD16': parseFloat(finalReadings[1].tolerance).toFixed(1) + '°C',
-                                    'CD17': parseFloat(finalReadings[1].uncertainty).toFixed(3) + '°C',
-                                    'CD18': (finalReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD21': parseFloat(finalReadings[2].set_point).toFixed(0) + '°C',
-                                    'CD22': parseFloat(finalReadings[2].reference_reading).toFixed(1) + '°C',
-                                    'CD23': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD24': 'N/A',
-                                    'CD25': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD26': parseFloat(finalReadings[2].tolerance).toFixed(1) + '°C',
-                                    'CD27': parseFloat(finalReadings[2].uncertainty).toFixed(3) + '°C',
-                                    'CD28': (finalReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD31': parseFloat(finalReadings[3].set_point).toFixed(0) + '°C',
-                                    'CD32': parseFloat(finalReadings[3].reference_reading).toFixed(1) + '°C',
-                                    'CD33': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD34': 'N/A',
-                                    'CD35': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD36': parseFloat(finalReadings[3].tolerance).toFixed(1) + '°C',
-                                    'CD37': parseFloat(finalReadings[3].uncertainty).toFixed(3) + '°C',
-                                    'CD38': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'RS11': equipment.reference1.asset_tag,
-                                    'RS12': equipment.reference1.description,
-                                    'RS13': parseDataBaseDate(equipment.reference1.last_calibration),
-                                    'RS14': parseDataBaseDate(equipment.reference1.next_calibration),
-                                    'RS21': equipment.reference2.asset_tag,
-                                    'RS22': equipment.reference2.description,
-                                    'RS23': parseDataBaseDate(equipment.reference2.last_calibration),
-                                    'RS24': parseDataBaseDate(equipment.reference2.next_calibration),
-                                    'RS31': equipment.reference3.asset_tag,
-                                    'RS32': equipment.reference3.description,
-                                    'RS33': parseDataBaseDate(equipment.reference3.last_calibration),
-                                    'RS34': parseDataBaseDate(equipment.reference3.next_calibration),
-                                    'RS41': equipment.superDaq.asset_tag,
-                                    'RS42': equipment.superDaq.description,
-                                    'RS43': parseDataBaseDate(equipment.superDaq.last_calibration),
-                                    'RS44': parseDataBaseDate(equipment.superDaq.next_calibration),
-                                    'TUR': '4:1',
-                                }
-                                certificateJson = { ...certificateJson, ...standardJson };
-                            } else if (batch.calibration_procedure_id === 6) {
-                                setPoints = ['-998.00', '-25.00', '-999.00', '28.00', '90.00'];
-                                let certificateStatus = 'PASS';
-
-                                for (const setPoint of setPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint) {
-                                            finalReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00' && setPoint !== '-998.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (finalReadings.length !== setPoints.length && alerted === false) {
-                                    alerted = true;
-                                    setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires ${setPoints.length} readings, and only has ${finalReadings.length}`)
-                                    navigate('/shipping');
-                                    return;
-                                } else if (alerted === true) {
-                                    navigate('/shipping');
-                                    return;
-                                }
-                                dueDate = addMonths(today, 25);
-                                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-                                const standardJson = {
-                                    'CS2': parsedDueDate,
-                                    'CS5': certificateStatus,
-                                    'CD11': parseFloat(finalReadings[1].set_point).toFixed(0) + '°C',
-                                    'CD12': parseFloat(finalReadings[1].reference_reading).toFixed(1) + '°C',
-                                    'CD13': parseFloat(finalReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD14': (parseFloat(finalReadings[1].sensor_reading) - parseFloat(finalReadings[0].sensor_reading)).toFixed(1) + '°C',
-                                    'CD15': parseFloat(finalReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD16': parseFloat(finalReadings[1].tolerance).toFixed(1) + '°C',
-                                    'CD17': parseFloat(finalReadings[1].uncertainty).toFixed(3) + '°C',
-                                    'CD18': (finalReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD21': parseFloat(finalReadings[3].set_point).toFixed(0) + '°C',
-                                    'CD22': parseFloat(finalReadings[3].reference_reading).toFixed(1) + '°C',
-                                    'CD23': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD24': (parseFloat(finalReadings[3].sensor_reading) - parseFloat(finalReadings[2].sensor_reading)).toFixed(1) + '°C',
-                                    'CD25': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD26': parseFloat(finalReadings[3].tolerance).toFixed(1) + '°C',
-                                    'CD27': parseFloat(finalReadings[3].uncertainty).toFixed(3) + '°C',
-                                    'CD28': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'CD31': parseFloat(finalReadings[4].set_point).toFixed(0) + '°C',
-                                    'CD32': parseFloat(finalReadings[4].reference_reading).toFixed(1) + '°C',
-                                    'CD33': parseFloat(finalReadings[4].sensor_reading).toFixed(1) + '°C',
-                                    'CD34': 'N/A',
-                                    'CD35': parseFloat(finalReadings[4].sensor_reading).toFixed(1) + '°C',
-                                    'CD36': parseFloat(finalReadings[4].tolerance).toFixed(1) + '°C',
-                                    'CD37': parseFloat(finalReadings[4].uncertainty).toFixed(3) + '°C',
-                                    'CD38': (finalReadings[4].pass ? 'PASS' : 'FAIL'),
-                                    'RS11': equipment.reference1.asset_tag,
-                                    'RS12': equipment.reference1.description,
-                                    'RS13': parseDataBaseDate(equipment.reference1.last_calibration),
-                                    'RS14': parseDataBaseDate(equipment.reference1.next_calibration),
-                                    'RS21': equipment.reference2.asset_tag,
-                                    'RS22': equipment.reference2.description,
-                                    'RS23': parseDataBaseDate(equipment.reference2.last_calibration),
-                                    'RS24': parseDataBaseDate(equipment.reference2.next_calibration),
-                                    'RS31': equipment.reference3.asset_tag,
-                                    'RS32': equipment.reference3.description,
-                                    'RS33': parseDataBaseDate(equipment.reference3.last_calibration),
-                                    'RS34': parseDataBaseDate(equipment.reference3.next_calibration),
-                                    'RS41': equipment.superDaq.asset_tag,
-                                    'RS42': equipment.superDaq.description,
-                                    'RS43': parseDataBaseDate(equipment.superDaq.last_calibration),
-                                    'RS44': parseDataBaseDate(equipment.superDaq.next_calibration),
-                                    'TUR': '4:1',
-                                }
-                                certificateJson = { ...certificateJson, ...standardJson };
-                            } else if (batch.calibration_procedure_id === 2) {
-                                setPoints = ['-999.00', '0.00', '-80.00', '-197.00'];
-                                let certificateStatus = 'PASS';
-
-
-                                for (const setPoint of setPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint) {
-                                            finalReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (finalReadings.length !== setPoints.length && alerted === false) {
-                                    alerted = true
-                                    setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires ${setPoints.length} readings, and only has ${finalReadings.length}`);
-                                    navigate('/shipping');
-                                    return null;
-                                } else if (alerted === true) {
-                                    navigate('/shipping');
-                                    return null;
-                                }
-                                dueDate = addMonths(today, 13);
-                                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-                                const lowJson = {
-                                    'CS2': parsedDueDate,
-                                    'CS5': certificateStatus,
-                                    'CD11': parseFloat(finalReadings[1].set_point).toFixed(0) + '°C',
-                                    'CD12': parseFloat(finalReadings[1].reference_reading).toFixed(1) + '°C',
-                                    'CD13': parseFloat(finalReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD14': (parseFloat(finalReadings[1].sensor_reading) - parseFloat(finalReadings[0].sensor_reading)).toFixed(1) + '°C',
-                                    'CD15': parseFloat(finalReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD16': parseFloat(finalReadings[1].tolerance).toFixed(1) + '°C',
-                                    'CD17': parseFloat(finalReadings[1].uncertainty).toFixed(3) + '°C',
-                                    'CD18': (finalReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD21': parseFloat(finalReadings[2].set_point).toFixed(0) + '°C',
-                                    'CD22': parseFloat(finalReadings[2].reference_reading).toFixed(1) + '°C',
-                                    'CD23': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD24': 'N/A',
-                                    'CD25': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD26': parseFloat(finalReadings[2].tolerance).toFixed(1) + '°C',
-                                    'CD27': parseFloat(finalReadings[2].uncertainty).toFixed(3) + '°C',
-                                    'CD28': (finalReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD31': parseFloat(finalReadings[3].set_point).toFixed(0) + '°C',
-                                    'CD32': parseFloat(finalReadings[3].reference_reading).toFixed(1) + '°C',
-                                    'CD33': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD34': 'N/A',
-                                    'CD35': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD36': parseFloat(finalReadings[3].tolerance).toFixed(1) + '°C',
-                                    'CD37': parseFloat(finalReadings[3].uncertainty).toFixed(3) + '°C',
-                                    'CD38': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'RS11': equipment.reference1.asset_tag,
-                                    'RS12': equipment.reference1.description,
-                                    'RS13': parseDataBaseDate(equipment.reference1.last_calibration),
-                                    'RS14': parseDataBaseDate(equipment.reference1.next_calibration),
-                                    'RS21': equipment.reference2.asset_tag,
-                                    'RS22': equipment.reference2.description,
-                                    'RS23': parseDataBaseDate(equipment.reference2.last_calibration),
-                                    'RS24': parseDataBaseDate(equipment.reference2.next_calibration),
-                                    'RS31': equipment.reference3.asset_tag,
-                                    'RS32': equipment.reference3.description,
-                                    'RS33': parseDataBaseDate(equipment.reference3.last_calibration),
-                                    'RS34': parseDataBaseDate(equipment.reference3.next_calibration),
-                                    'RS41': equipment.superDaq.asset_tag,
-                                    'RS42': equipment.superDaq.description,
-                                    'RS43': parseDataBaseDate(equipment.superDaq.last_calibration),
-                                    'RS44': parseDataBaseDate(equipment.superDaq.next_calibration),
-                                    'TUR': '4:1',
-                                }
-                                certificateJson = { ...certificateJson, ...lowJson };
-                            } else if (batch.calibration_procedure_id === 3) {
-                                template = 'humidityCertificate.pdf'
-                                let finalTemperatureReadings = [];
-                                let finalHumidityReadings = [];
-                                let temperatureSetPoints = ['20.00', '30.00', '40.00'];
-                                let humiditySetPoints = ['80.00', '50.00', '20.00'];
-                                let certificateStatus = 'PASS';
-                                let reference = equipment.rotronic;
-
-                                for (const setPoint of temperatureSetPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint && reading.type === 'temperature') {
-                                            finalTemperatureReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                for (const setPoint of humiditySetPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint && reading.type === 'humidity') {
-                                            finalHumidityReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                if ((finalHumidityReadings.length !== 3) || (finalTemperatureReadings.length !== 3 && alerted === false)) {
-                                    alerted = true;
-                                    setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires ${setPoints.length} readings, and only has ${finalHumidityReadings.length} humidity readings and ${finalTemperatureReadings.length} temperature readings`)
-                                    navigate('/shipping');
-                                    return null;
-                                } else if (alerted === true) {
-                                    navigate('/shipping');
-                                    return null;
-                                }
-                                dueDate = addMonths(today, 7);
-                                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-                                const humidityJson = {
-                                    'CS2': parsedDueDate,
-                                    'CS5': certificateStatus,
-                                    'CD11': parseFloat(finalHumidityReadings[0].set_point).toFixed(0) + '% RH',
-                                    'CD12': parseFloat(finalHumidityReadings[0].reference_reading).toFixed(1) + '%',
-                                    'CD13': parseFloat(finalHumidityReadings[0].sensor_reading).toFixed(1) + '%',
-                                    'CD14': 'N/A',
-                                    'CD15': parseFloat(finalHumidityReadings[0].sensor_reading).toFixed(1) + '%',
-                                    'CD16': parseFloat(finalHumidityReadings[0].tolerance).toFixed(1) + '%',
-                                    'CD17': parseFloat(finalHumidityReadings[0].uncertainty).toFixed(1) + '%',
-                                    'CD18': (finalHumidityReadings[0].pass ? 'PASS' : 'FAIL'),
-                                    'CD21': parseFloat(finalHumidityReadings[1].set_point).toFixed(0) + '% RH',
-                                    'CD22': parseFloat(finalHumidityReadings[1].reference_reading).toFixed(1) + '%',
-                                    'CD23': parseFloat(finalHumidityReadings[1].sensor_reading).toFixed(1) + '%',
-                                    'CD24': 'N/A',
-                                    'CD25': parseFloat(finalHumidityReadings[1].sensor_reading).toFixed(1) + '%',
-                                    'CD26': parseFloat(finalHumidityReadings[1].tolerance).toFixed(1) + '%',
-                                    'CD27': parseFloat(finalHumidityReadings[1].uncertainty).toFixed(1) + '%',
-                                    'CD28': (finalHumidityReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD31': parseFloat(finalHumidityReadings[2].set_point).toFixed(0) + '% RH',
-                                    'CD32': parseFloat(finalHumidityReadings[2].reference_reading).toFixed(1) + '%',
-                                    'CD33': parseFloat(finalHumidityReadings[2].sensor_reading).toFixed(1) + '%',
-                                    'CD34': 'N/A',
-                                    'CD35': parseFloat(finalHumidityReadings[2].sensor_reading).toFixed(1) + '%',
-                                    'CD36': parseFloat(finalHumidityReadings[2].tolerance).toFixed(1) + '%',
-                                    'CD37': parseFloat(finalHumidityReadings[2].uncertainty).toFixed(1) + '%',
-                                    'CD38': (finalHumidityReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD41': parseFloat(finalTemperatureReadings[0].set_point).toFixed(0) + '°C',
-                                    'CD42': parseFloat(finalTemperatureReadings[0].reference_reading).toFixed(1) + '°C',
-                                    'CD43': parseFloat(finalTemperatureReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD44': 'N/A',
-                                    'CD45': parseFloat(finalTemperatureReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD46': parseFloat(finalTemperatureReadings[0].tolerance).toFixed(1) + '°C',
-                                    'CD47': parseFloat(finalTemperatureReadings[0].uncertainty).toFixed(2) + '°C',
-                                    'CD48': (finalTemperatureReadings[0].pass ? 'PASS' : 'FAIL'),
-                                    'CD51': parseFloat(finalTemperatureReadings[1].set_point).toFixed(0) + '°C',
-                                    'CD52': parseFloat(finalTemperatureReadings[1].reference_reading).toFixed(1) + '°C',
-                                    'CD53': parseFloat(finalTemperatureReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD54': 'N/A',
-                                    'CD55': parseFloat(finalTemperatureReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD56': parseFloat(finalTemperatureReadings[1].tolerance).toFixed(1) + '°C',
-                                    'CD57': parseFloat(finalTemperatureReadings[1].uncertainty).toFixed(2) + '°C',
-                                    'CD58': (finalTemperatureReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD61': parseFloat(finalTemperatureReadings[2].set_point).toFixed(0) + '°C',
-                                    'CD62': parseFloat(finalTemperatureReadings[2].reference_reading).toFixed(1) + '°C',
-                                    'CD63': parseFloat(finalTemperatureReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD64': 'N/A',
-                                    'CD65': parseFloat(finalTemperatureReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD66': parseFloat(finalTemperatureReadings[2].tolerance).toFixed(1) + '°C',
-                                    'CD67': parseFloat(finalTemperatureReadings[2].uncertainty).toFixed(2) + '°C',
-                                    'CD68': (finalTemperatureReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'RS11': reference.asset_tag,
-                                    'RS12': reference.description,
-                                    'RS13': parseDataBaseDate(reference.last_calibration),
-                                    'RS14': parseDataBaseDate(reference.next_calibration),
-                                    'TUR': '1:1',
-                                }
-                                certificateJson = { ...certificateJson, ...humidityJson };
-                            } else if (batch.calibration_procedure_id === 5) {
-                                setPoints = ['-999.00', '20.00', '-20.00', '60.00'];
-                                let certificateStatus = 'PASS';
-
-
-                                for (const setPoint of setPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint) {
-                                            finalReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (finalReadings.length !== setPoints.length && alerted === false) {
-                                    alerted = true
-                                    setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires ${setPoints.length} readings, and only has ${finalReadings.length}`);
-                                    navigate('/shipping');
-                                    return null;
-                                } else if (alerted === true) {
-                                    navigate('/shipping');
-                                    return null;
-                                }
-                                dueDate = addMonths(today, 25);
-                                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-                                const standardJson = {
-                                    'CS2': parsedDueDate,
-                                    'CS5': certificateStatus,
-                                    'CD11': parseFloat(finalReadings[1].set_point).toFixed(0) + '°C',
-                                    'CD12': parseFloat(finalReadings[1].reference_reading).toFixed(1) + '°C',
-                                    'CD13': parseFloat(finalReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD14': (parseFloat(finalReadings[1].sensor_reading) - parseFloat(finalReadings[0].sensor_reading)).toFixed(1) + '°C',
-                                    'CD15': parseFloat(finalReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD16': parseFloat(finalReadings[1].tolerance).toFixed(1) + '°C',
-                                    'CD17': parseFloat(finalReadings[1].uncertainty).toFixed(3) + '°C',
-                                    'CD18': (finalReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD21': parseFloat(finalReadings[2].set_point).toFixed(0) + '°C',
-                                    'CD22': parseFloat(finalReadings[2].reference_reading).toFixed(1) + '°C',
-                                    'CD23': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD24': 'N/A',
-                                    'CD25': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD26': parseFloat(finalReadings[2].tolerance).toFixed(1) + '°C',
-                                    'CD27': parseFloat(finalReadings[2].uncertainty).toFixed(3) + '°C',
-                                    'CD28': (finalReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD31': parseFloat(finalReadings[3].set_point).toFixed(0) + '°C',
-                                    'CD32': parseFloat(finalReadings[3].reference_reading).toFixed(1) + '°C',
-                                    'CD33': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD34': 'N/A',
-                                    'CD35': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD36': parseFloat(finalReadings[3].tolerance).toFixed(1) + '°C',
-                                    'CD37': parseFloat(finalReadings[3].uncertainty).toFixed(3) + '°C',
-                                    'CD38': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'RS11': equipment.rotronic.asset_tag,
-                                    'RS12': equipment.rotronic.description,
-                                    'RS13': parseDataBaseDate(equipment.rotronic.last_calibration),
-                                    'RS14': parseDataBaseDate(equipment.rotronic.next_calibration),
-                                    'RS21': equipment.chamber.asset_tag,
-                                    'RS22': equipment.chamber.description,
-                                    'RS23': parseDataBaseDate(equipment.chamber.last_calibration),
-                                    'RS24': parseDataBaseDate(equipment.chamber.next_calibration),
-                                    'TUR': '2:1',
-                                }
-                                certificateJson = { ...certificateJson, ...standardJson };
-                            } else if (batch.calibration_procedure_id === 7) {
-                                template = 'temperature8SetPoints1Reference.pdf'
-                                setPoints = ['-999.00', '30.00', '40.00', '20.00', '10.00', '0.00', '-10.00', '-20.00', '-30.00'];
-                                let certificateStatus = 'PASS';
-
-                                for (const setPoint of setPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint) {
-                                            finalReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (finalReadings.length !== setPoints.length && alerted === false) {
-                                    alerted = true;
-                                    setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires ${setPoints.length} readings, and only has ${finalReadings.length}`)
-                                    navigate('/shipping');
-                                    return;
-                                } else if (alerted === true) {
-                                    navigate('/shipping');
-                                    return;
-                                }
-                                dueDate = addMonths(today, 25);
-                                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-                                const standardJson = {
-                                    'CS2': parsedDueDate,
-                                    'CS5': certificateStatus,
-                                    'CD11': parseFloat(finalReadings[1].set_point).toFixed(0) + '°C',
-                                    'CD12': parseFloat(finalReadings[1].reference_reading).toFixed(1) + '°C',
-                                    'CD13': parseFloat(finalReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD14': (parseFloat(finalReadings[1].sensor_reading) - parseFloat(finalReadings[0].sensor_reading)).toFixed(1) + '°C',
-                                    'CD15': parseFloat(finalReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD16': parseFloat(finalReadings[1].tolerance).toFixed(1) + '°C',
-                                    'CD17': parseFloat(finalReadings[1].uncertainty).toFixed(3) + '°C',
-                                    'CD18': (finalReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD21': parseFloat(finalReadings[2].set_point).toFixed(0) + '°C',
-                                    'CD22': parseFloat(finalReadings[2].reference_reading).toFixed(1) + '°C',
-                                    'CD23': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD24': 'N/A',
-                                    'CD25': parseFloat(finalReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD26': parseFloat(finalReadings[2].tolerance).toFixed(1) + '°C',
-                                    'CD27': parseFloat(finalReadings[2].uncertainty).toFixed(3) + '°C',
-                                    'CD28': (finalReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD31': parseFloat(finalReadings[3].set_point).toFixed(0) + '°C',
-                                    'CD32': parseFloat(finalReadings[3].reference_reading).toFixed(1) + '°C',
-                                    'CD33': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD34': 'N/A',
-                                    'CD35': parseFloat(finalReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD36': parseFloat(finalReadings[3].tolerance).toFixed(1) + '°C',
-                                    'CD37': parseFloat(finalReadings[3].uncertainty).toFixed(3) + '°C',
-                                    'CD38': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'CD41': parseFloat(finalReadings[4].set_point).toFixed(0) + '°C',
-                                    'CD42': parseFloat(finalReadings[4].reference_reading).toFixed(1) + '°C',
-                                    'CD43': parseFloat(finalReadings[4].sensor_reading).toFixed(1) + '°C',
-                                    'CD44': 'N/A',
-                                    'CD45': parseFloat(finalReadings[4].sensor_reading).toFixed(1) + '°C',
-                                    'CD46': parseFloat(finalReadings[4].tolerance).toFixed(1) + '°C',
-                                    'CD47': parseFloat(finalReadings[4].uncertainty).toFixed(3) + '°C',
-                                    'CD48': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'CD51': parseFloat(finalReadings[5].set_point).toFixed(0) + '°C',
-                                    'CD52': parseFloat(finalReadings[5].reference_reading).toFixed(1) + '°C',
-                                    'CD53': parseFloat(finalReadings[5].sensor_reading).toFixed(1) + '°C',
-                                    'CD54': 'N/A',
-                                    'CD55': parseFloat(finalReadings[5].sensor_reading).toFixed(1) + '°C',
-                                    'CD56': parseFloat(finalReadings[5].tolerance).toFixed(1) + '°C',
-                                    'CD57': parseFloat(finalReadings[5].uncertainty).toFixed(3) + '°C',
-                                    'CD58': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'CD61': parseFloat(finalReadings[6].set_point).toFixed(0) + '°C',
-                                    'CD62': parseFloat(finalReadings[6].reference_reading).toFixed(1) + '°C',
-                                    'CD63': parseFloat(finalReadings[6].sensor_reading).toFixed(1) + '°C',
-                                    'CD64': 'N/A',
-                                    'CD65': parseFloat(finalReadings[6].sensor_reading).toFixed(1) + '°C',
-                                    'CD66': parseFloat(finalReadings[6].tolerance).toFixed(1) + '°C',
-                                    'CD67': parseFloat(finalReadings[6].uncertainty).toFixed(3) + '°C',
-                                    'CD68': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'CD71': parseFloat(finalReadings[7].set_point).toFixed(0) + '°C',
-                                    'CD72': parseFloat(finalReadings[7].reference_reading).toFixed(1) + '°C',
-                                    'CD73': parseFloat(finalReadings[7].sensor_reading).toFixed(1) + '°C',
-                                    'CD74': 'N/A',
-                                    'CD75': parseFloat(finalReadings[7].sensor_reading).toFixed(1) + '°C',
-                                    'CD76': parseFloat(finalReadings[7].tolerance).toFixed(1) + '°C',
-                                    'CD77': parseFloat(finalReadings[7].uncertainty).toFixed(3) + '°C',
-                                    'CD78': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'CD81': parseFloat(finalReadings[8].set_point).toFixed(0) + '°C',
-                                    'CD82': parseFloat(finalReadings[8].reference_reading).toFixed(1) + '°C',
-                                    'CD83': parseFloat(finalReadings[8].sensor_reading).toFixed(1) + '°C',
-                                    'CD84': 'N/A',
-                                    'CD85': parseFloat(finalReadings[8].sensor_reading).toFixed(1) + '°C',
-                                    'CD86': parseFloat(finalReadings[8].tolerance).toFixed(1) + '°C',
-                                    'CD87': parseFloat(finalReadings[8].uncertainty).toFixed(3) + '°C',
-                                    'CD88': (finalReadings[3].pass ? 'PASS' : 'FAIL'),
-                                    'RS11': equipment.reference2.asset_tag,
-                                    'RS12': equipment.reference2.description,
-                                    'RS13': parseDataBaseDate(equipment.reference2.last_calibration),
-                                    'RS14': parseDataBaseDate(equipment.reference2.next_calibration),
-                                    'RS21': equipment.superDaq.asset_tag,
-                                    'RS22': equipment.superDaq.description,
-                                    'RS23': parseDataBaseDate(equipment.superDaq.last_calibration),
-                                    'RS24': parseDataBaseDate(equipment.superDaq.next_calibration),
-                                    'TUR': '4:1',
-                                }
-                                certificateJson = { ...certificateJson, ...standardJson };
-                            } else if (batch.calibration_procedure_id === 8) {
-                                template = 'temperature8SetPoints1Reference.pdf'
-                                let finalTemperatureReadings = [];
-                                let finalHumidityReadings = [];
-                                let temperatureSetPoints = ['10.00', '20.00', '30.00', '40.00'];
-                                let humiditySetPoints = ['80.00', '60.00', '40.00', '20.00'];
-                                let certificateStatus = 'PASS';
-                                let reference = equipment.rotronic;
-
-                                for (const setPoint of temperatureSetPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint && reading.type === 'temperature') {
-                                            finalTemperatureReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                for (const setPoint of humiditySetPoints) {
-                                    for (const reading of readings) {
-                                        if (reading.set_point === setPoint && reading.type === 'humidity') {
-                                            finalHumidityReadings.push(reading);
-                                            if (!reading.pass && setPoint !== '-999.00') {
-                                                certificateStatus = 'FAIL';
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                if ((finalHumidityReadings.length !== 4) || (finalTemperatureReadings.length !== 4 && alerted === false)) {
-                                    alerted = true;
-                                    setPopupMessage(`Batch ${batch.batch_id} is missing readings. It requires ${setPoints.length} readings, and only has ${finalHumidityReadings.length} humidity readings and ${finalTemperatureReadings.length} temperature readings`)
-                                    navigate('/shipping');
-                                    return null;
-                                } else if (alerted === true) {
-                                    navigate('/shipping');
-                                    return null;
-                                }
-                                dueDate = addMonths(today, 7);
-                                parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-                                const humidityJson = {
-                                    'CS2': parsedDueDate,
-                                    'CS5': certificateStatus,
-                                    'CD11': parseFloat(finalHumidityReadings[0].set_point).toFixed(0) + '% RH',
-                                    'CD12': parseFloat(finalHumidityReadings[0].reference_reading).toFixed(1) + '%',
-                                    'CD13': parseFloat(finalHumidityReadings[0].sensor_reading).toFixed(1) + '%',
-                                    'CD14': 'N/A',
-                                    'CD15': parseFloat(finalHumidityReadings[0].sensor_reading).toFixed(1) + '%',
-                                    'CD16': parseFloat(finalHumidityReadings[0].tolerance).toFixed(1) + '%',
-                                    'CD17': parseFloat(finalHumidityReadings[0].uncertainty).toFixed(1) + '%',
-                                    'CD18': (finalHumidityReadings[0].pass ? 'PASS' : 'FAIL'),
-                                    'CD21': parseFloat(finalHumidityReadings[1].set_point).toFixed(0) + '% RH',
-                                    'CD22': parseFloat(finalHumidityReadings[1].reference_reading).toFixed(1) + '%',
-                                    'CD23': parseFloat(finalHumidityReadings[1].sensor_reading).toFixed(1) + '%',
-                                    'CD24': 'N/A',
-                                    'CD25': parseFloat(finalHumidityReadings[1].sensor_reading).toFixed(1) + '%',
-                                    'CD26': parseFloat(finalHumidityReadings[1].tolerance).toFixed(1) + '%',
-                                    'CD27': parseFloat(finalHumidityReadings[1].uncertainty).toFixed(1) + '%',
-                                    'CD28': (finalHumidityReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD31': parseFloat(finalHumidityReadings[2].set_point).toFixed(0) + '% RH',
-                                    'CD32': parseFloat(finalHumidityReadings[2].reference_reading).toFixed(1) + '%',
-                                    'CD33': parseFloat(finalHumidityReadings[2].sensor_reading).toFixed(1) + '%',
-                                    'CD34': 'N/A',
-                                    'CD35': parseFloat(finalHumidityReadings[2].sensor_reading).toFixed(1) + '%',
-                                    'CD36': parseFloat(finalHumidityReadings[2].tolerance).toFixed(1) + '%',
-                                    'CD37': parseFloat(finalHumidityReadings[2].uncertainty).toFixed(1) + '%',
-                                    'CD38': (finalHumidityReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD41': parseFloat(finalHumidityReadings[3].set_point).toFixed(0) + '% RH',
-                                    'CD42': parseFloat(finalHumidityReadings[3].reference_reading).toFixed(1) + '%',
-                                    'CD43': parseFloat(finalHumidityReadings[3].sensor_reading).toFixed(1) + '%',
-                                    'CD44': 'N/A',
-                                    'CD45': parseFloat(finalHumidityReadings[3].sensor_reading).toFixed(1) + '%',
-                                    'CD46': parseFloat(finalHumidityReadings[3].tolerance).toFixed(1) + '%',
-                                    'CD47': parseFloat(finalHumidityReadings[3].uncertainty).toFixed(1) + '%',
-                                    'CD48': (finalHumidityReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD51': parseFloat(finalTemperatureReadings[0].set_point).toFixed(0) + '°C',
-                                    'CD52': parseFloat(finalTemperatureReadings[0].reference_reading).toFixed(1) + '°C',
-                                    'CD53': parseFloat(finalTemperatureReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD54': 'N/A',
-                                    'CD55': parseFloat(finalTemperatureReadings[0].sensor_reading).toFixed(1) + '°C',
-                                    'CD56': parseFloat(finalTemperatureReadings[0].tolerance).toFixed(1) + '°C',
-                                    'CD57': parseFloat(finalTemperatureReadings[0].uncertainty).toFixed(2) + '°C',
-                                    'CD58': (finalTemperatureReadings[0].pass ? 'PASS' : 'FAIL'),
-                                    'CD61': parseFloat(finalTemperatureReadings[1].set_point).toFixed(0) + '°C',
-                                    'CD62': parseFloat(finalTemperatureReadings[1].reference_reading).toFixed(1) + '°C',
-                                    'CD63': parseFloat(finalTemperatureReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD64': 'N/A',
-                                    'CD65': parseFloat(finalTemperatureReadings[1].sensor_reading).toFixed(1) + '°C',
-                                    'CD66': parseFloat(finalTemperatureReadings[1].tolerance).toFixed(1) + '°C',
-                                    'CD67': parseFloat(finalTemperatureReadings[1].uncertainty).toFixed(2) + '°C',
-                                    'CD68': (finalTemperatureReadings[1].pass ? 'PASS' : 'FAIL'),
-                                    'CD71': parseFloat(finalTemperatureReadings[2].set_point).toFixed(0) + '°C',
-                                    'CD72': parseFloat(finalTemperatureReadings[2].reference_reading).toFixed(1) + '°C',
-                                    'CD73': parseFloat(finalTemperatureReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD74': 'N/A',
-                                    'CD75': parseFloat(finalTemperatureReadings[2].sensor_reading).toFixed(1) + '°C',
-                                    'CD76': parseFloat(finalTemperatureReadings[2].tolerance).toFixed(1) + '°C',
-                                    'CD77': parseFloat(finalTemperatureReadings[2].uncertainty).toFixed(2) + '°C',
-                                    'CD78': (finalTemperatureReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'CD81': parseFloat(finalTemperatureReadings[3].set_point).toFixed(0) + '°C',
-                                    'CD82': parseFloat(finalTemperatureReadings[3].reference_reading).toFixed(1) + '°C',
-                                    'CD83': parseFloat(finalTemperatureReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD84': 'N/A',
-                                    'CD85': parseFloat(finalTemperatureReadings[3].sensor_reading).toFixed(1) + '°C',
-                                    'CD86': parseFloat(finalTemperatureReadings[3].tolerance).toFixed(1) + '°C',
-                                    'CD87': parseFloat(finalTemperatureReadings[3].uncertainty).toFixed(2) + '°C',
-                                    'CD88': (finalTemperatureReadings[2].pass ? 'PASS' : 'FAIL'),
-                                    'RS11': reference.asset_tag,
-                                    'RS12': reference.description,
-                                    'RS13': parseDataBaseDate(reference.last_calibration),
-                                    'RS14': parseDataBaseDate(reference.next_calibration),
-                                    'TUR': '1:1',
-                                }
-                                certificateJson = { ...certificateJson, ...humidityJson };
-                            } else {
-                                setPopupMessage('No matching calibration procedure found')
-                            }
-                            if (parsedDueDate) {
-                                const certificate = await callApi('create-certificate', { 'certificate_json': JSON.stringify(certificateJson), 'sensor_id': sensor.sensor_id, 'template': template, 'due_date': parsedDueDate, 'calibration_date': calibrationDate })
-                                certificates.push(certificate);
-                                promises.push(callApi('remove-sensor', { 'sensor_id': sensor.sensor_id, 'check_digit': sensor.check_digit }));
-                            }
-                        }
-                    }))
-            }
-        } catch (error) {
-            console.error(error);
-            setPopupMessage(`An error occurred`);
-            return;
-        }
-        await Promise.all(promises);
-        certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
+        callApi('create-certificate', { 'order_id': orderNumber })
+            .then((certificates) => {
+                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
+            })
+            .then(() => getCertificates())
+            .catch((error) => {
+                console.error(error);
+                setPopupMessage(`An error occurred`);
+            })
     };
 
 
@@ -842,17 +188,16 @@ function Shipping() {
             setPopupMessage(`No certificates found for sensor ${sensor}`)
             return;
         }
-        try {
-            callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
-                .then(() => {
-                    setScannedSensors([...scannedSensors, sensorId])
-                })
-        } catch (error) {
-            console.error(error)
-            setPopupMessage('Unable to print label');
-            return;
-        }
-        setSensor('');
+        callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
+            .then(setScannedSensors([...scannedSensors, sensorId]))
+            .catch((err) => {
+                console.error(err)
+                setPopupMessage('Unable to print label');
+                return;
+            })
+            .finally(() => {
+                setSensor('');
+            })
     }
 
 
@@ -861,48 +206,45 @@ function Shipping() {
             setPopupMessage(`There are no certificates to print`)
         }
 
-        try {
-            callApi('generate-order-certificates', { order_id: orderNumber, print: true })
-            for (const certificate of certificateList.current) {
-                callApi('generate-certificate', {
-                    certificate_id: certificate.certificate_id,
-                    upload: true,
-                })
-            }
-        } catch (error) {
-            console.error(error)
-            setPopupMessage('Unable to print certificates');
-            return;
-        }
+        callApi('generate-order-certificates', { order_id: orderNumber, print: true })
+            .then(() => {
+                return Promise.all(certificateList.current.map((certificate) => {
+                    return callApi('generate-certificate', {
+                        certificate_id: certificate.certificate_id,
+                        upload: true,
+                    })
+                }))
+            }).catch((error) => {
+                console.error(error)
+                setPopupMessage('Unable to print certificates');
+                return;
+            })
     }
 
     const printReturnRecord = () => {
         callApi('generate-return-record', { order_id: orderNumber, print: true })
+            .then(() => {
+                setPopupMessage('Return record printed')
+            })
     }
 
     const createReturnRecord = () => {
-        fetch(`https://${ip}/api/generate-return-record/?order_id=${orderNumber}`)
+        callApi('generate-return-record', { order_id: orderNumber }, true)
             .then(response => {
-                if (response.ok) {
-                    if (response.headers.get('content-type') === 'application/json; charset=utf-8') {
-                        return response.blob();
-                    } else {
-                        console.error(`Expecting return record to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
-                        setPopupMessage(`Failed to generate return record for order ${orderNumber}`);
-                    }
+                if (response.status === 200 && response.headers.get('content-type') === 'application/json; charset=utf-8') {
+                    const blob = new Blob([response.data], { type: 'application/pdf' });
+
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `returnRecord${orderNumber}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 } else {
-                    console.error(`Could not complete generation, response.ok: ${response.ok}`);
+                    console.error(`Expecting return record to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
                     setPopupMessage(`Failed to generate return record for order ${orderNumber}`);
                 }
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `returnRecord${orderNumber}.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -911,27 +253,23 @@ function Shipping() {
 
     const downloadCertificates = async () => {
         const order = await callApi('get-order-by-id', { 'order_id': orderNumber });
-        fetch(`https://${ip}/api/generate-order-certificates?order_id=${orderNumber}`)
+        callApi('generate-order-certificates', { order_id: orderNumber }, true)
             .then(response => {
-                if (response.ok && response.headers.get('content-type') === 'application/json; charset=utf-8') {
-                    return response.blob();
+                if (response.status === 200 && response.headers.get('content-type') === 'application/json; charset=utf-8') {
+                    const blob = new Blob([response.data], { type: 'application/pdf' });
+
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${order.customer_order_number}Certificates.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 } else {
-                    throw new Error(`Failed to generate certificates for order ${orderNumber}`);
+                    console.error(`Expecting certificates to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
+                    setPopupMessage(`Failed to generate certificates for order ${orderNumber}`);
                 }
             })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `${order.customer_order_number}Certificates.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                return;
-            });
     }
 
     const handleCloseOrder = () => {
@@ -940,38 +278,43 @@ function Shipping() {
     }
 
     const endShipping = () => {
-        callApi('set-order-active-state', { order_id: orderNumber, active_state: false });
-
-        for (const batch of batches) {
-            callApi('remove-batch-location', { batch_id: batch.batch_id });
-            callApi('log-batch-interaction', {
-                department: 'shipping',
-                start: false,
-                technician_id: technicianId,
-                batch_id: batch.batch_id
-            });
-        }
-
-        setConfirmationMessage(`Order: ${orderNumber} closed, please add ${order.customer_order_number} to the slack channel`);
-        navigate('/confirmation');
+        callApi('set-order-active-state', { order_id: orderNumber, active_state: false })
+            .then(Promise.all(batches.map((batch) => {
+                return callApi('remove-batch-location', { batch_id: batch.batch_id })
+                    .then(callApi('log-batch-interaction', {
+                        department: 'shipping',
+                        start: false,
+                        technician_id: technicianId,
+                        batch_id: batch.batch_id
+                    }))
+            })))
+            .then(() => {
+                setConfirmationMessage(`Order: ${orderNumber} closed, please add ${order.customer_order_number} to the slack channel`);
+                navigate('/confirmation');
+            })
+            .catch((err) => {
+                console.error(err)
+            })
     }
 
     return (
         <>
             <div className={styles.menu}>
-            {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
-            {referenceVerificationArray.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />}
+                {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
+                {referenceVerificationArray.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />}
 
                 <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'}</h2>
 
                 <div className={styles.batches_container}>
-                    {batches.length > 0 && batches.map(batch =>
-                        <div key={batch.batch_id} className={styles.shipping_batches}>
-                            {batch.current_location
-                                ? <>{`Batch ${batch.batch_id} | Location: ${batch.current_location} | `}<span className={styles[`calibration_${batch.calibration_procedure_id}`]}>CP: {batch.calibration_procedure_id}</span></>
-                                : `Batch ${batch.batch_id} (Shipped)`}
-                        </div>
-                    )}
+                    {
+                        batches.map(batch =>
+                            <div key={batch.batch_id} className={styles.shipping_batches}>
+                                {batch.current_location
+                                    ? <>{`Batch ${batch.batch_id} | Location: ${batch.current_location} | `}<span className={styles[`calibration_${batch.calibration_procedure_id}`]}>CP: {batch.calibration_procedure_id}</span></>
+                                    : `Batch ${batch.batch_id} (Shipped)`}
+                            </div>
+                        )
+                    }
                 </div>
 
                 <div className={styles.grid_menu}>
@@ -983,8 +326,8 @@ function Shipping() {
                     }
                     <button className={styles.default_button} onClick={printReturnRecord}>Print return record</button>
                     <button className={styles.default_button} onClick={printCertificates}>Print certificates</button>
-                    <button className={styles.default_button} onClick={createReturnRecord}>Download return record</button>
-                    <button className={styles.default_button} onClick={downloadCertificates}>Download certificates</button>
+                    <Button onClick={createReturnRecord} innerText={"Download return record"} />
+                    <Button onClick={downloadCertificates} innerText={"Download certificates"} />
                     <button className={styles.default_button} onClick={printCertificateLabels}>Print all labels</button>
                     <form onSubmit={printLabel}>
                         <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />

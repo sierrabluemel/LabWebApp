@@ -9,13 +9,13 @@ const DropDown = ({ options, selectedOption, setSelectedOption, batches, setBatc
     const createBatch = async (calibration_procedure) => {
         if (!technicianId) {
             setPopupMessage('Please sign in');
-        } else {
-            callApi('create-batch', { order_id: order, calibration_procedure_id: calibration_procedure, receiving_technician_id: technicianId })
-                .then(response => {
-                    callApi('log-batch-interaction', { department: 'receiving', start: true, technician_id: technicianId, batch_id: response[0].batch_id })
-                    setBatches([...batches, response[0]]);
-                })
+            return;
         }
+        callApi('create-batch', { order_id: order, calibration_procedure_id: calibration_procedure, receiving_technician_id: technicianId })
+            .then(response => {
+                setBatches([...batches, response]);
+                return callApi('log-batch-interaction', { department: 'receiving', start: true, technician_id: technicianId, batch_id: response.batch_id })
+            })
     }
     const handleOptionChange = async (event) => {
         createBatch(event.target.value);
