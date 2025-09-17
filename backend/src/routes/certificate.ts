@@ -100,7 +100,7 @@ const certificateRoutes = {
             .then(async (certificate) => {
                 const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
 
-                const bytes = await pdf.fillCertificate(certificate.template, certificateJson);
+                const bytes = await (await pdf.fillCertificate(certificate.template, certificateJson)).arrayBuffer();
                 if (upload && process.env.STATUS === 'production') {
                     pdf.uploadPdfToAzure(bytes, `MNT-${certificate.certificate_id}.pdf`)
                         .catch((err: any) => {
@@ -113,7 +113,7 @@ const certificateRoutes = {
                 }
                 res.setHeader("Content-Disposition", `attachment; filename=MNT-${certificateId}.pdf`);
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(Buffer.from(await bytes.bytes()));
+                res.end(Buffer.from(bytes));
             })
             .catch((err) => {
                 console.error(err);
