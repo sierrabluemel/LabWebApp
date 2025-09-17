@@ -56,7 +56,7 @@ const pdf = {
         const filledPdfBytes: any = await pdfDoc.save();
         return new Blob([filledPdfBytes]);
     },
-    uploadPdfToAzure: async (pdfBytes: Blob, fileName: string) => {
+    uploadPdfToAzure: async (pdfBytes: ArrayBuffer, fileName: string) => {
 
         const connectionString = process.env.AZURE_CONNECTION_STRING ?? "";
         const containerName = "public-certificates";
