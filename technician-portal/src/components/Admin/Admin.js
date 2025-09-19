@@ -213,6 +213,61 @@ function Admin() {
                 <button className={styles.equipment_save_button} onClick={handleSubmit}>Save</button>
             </div>
             <SensorInvoiceGenerator />
+            <div className={styles.menu}>
+                <h1 className={styles.title}>
+                    Lab Equipment
+                </h1>
+                <table className={styles.equipment_table}>
+                    <thead className={styles.equipment_table_head}>
+                        <tr>
+                            <td className={styles.equipment_table_data}>
+                                Asset Tag
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Description
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Serial Number
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Certificate Number
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Calibration Date
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Calibration Due Date
+                            </td>
+                        </tr>
+                    </thead>
+                    <tbody className={styles.equipment_table_body}>
+                        {equipmentList.current.map(equipment => {
+                            return (
+                                <tr key={equipment.asset_tag}>
+                                    <td className={styles.equipment_table_data}>
+                                        {equipment.asset_tag}
+                                    </td>
+                                    <td className={styles.equipment_table_data}>
+                                        {equipment.description}
+                                    </td>
+                                    <td className={styles.equipment_table_data}>
+                                        {Number.isNaN(parseInt(equipment.serial_number)) ? '-' : equipment.serial_number}
+                                    </td>
+                                    <td className={styles.equipment_table_data}>
+                                        {Number.isNaN(parseInt(equipment.calibration_certificate_number)) ? '-' : equipment.calibration_certificate_number}
+                                    </td>
+                                    <td className={styles.equipment_table_data}>
+                                        {!equipment.last_calibration ? '-' : parseDataBaseDate(equipment.last_calibration)}
+                                    </td>
+                                    <td className={styles.equipment_table_data}>
+                                        {!equipment.next_calibration ? '-' : parseDataBaseDate(equipment.next_calibration)}
+                                    </td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+            </div>
         </>
     )
 }
