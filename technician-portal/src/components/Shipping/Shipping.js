@@ -207,14 +207,7 @@ function Shipping() {
         }
 
         callApi('generate-order-certificates', { order_id: orderNumber, print: true })
-            .then(() => {
-                return Promise.all(certificateList.current.map((certificate) => {
-                    return callApi('generate-certificate', {
-                        certificate_id: certificate.certificate_id,
-                        upload: true,
-                    })
-                }))
-            }).catch((error) => {
+            .catch((error) => {
                 console.error(error)
                 setPopupMessage('Unable to print certificates');
                 return;

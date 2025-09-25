@@ -125,7 +125,6 @@ app.get('/api/get-certificates-by-order-id', auth, certificateRoutes.getCertific
 app.get('/api/print-certificate-labels', auth, certificateRoutes.printCertificateLabels);
 app.get('/api/create-certificate', auth, certificateRoutes.createCertificate);
 app.get('/api/update-certificate-json', auth, certificateRoutes.updateCertificateJson);
-app.get('/api/generate-certificate', auth, certificateRoutes.generateCertificate);
 app.get('/api/generate-order-certificates', auth, certificateRoutes.generateOrderCertificates);
 
 // Misc routes
