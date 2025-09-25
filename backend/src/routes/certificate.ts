@@ -23,8 +23,8 @@ function filterReadings(readings: any[], setPoints: any[]) {
             return (reading.set_point === setPoint[reading.type] && reading.type === 'humidity' && reading.as_found === setPoint.calibrate)
         })
         if (humidityReading)
-            return {temperatureReading, humidityReading}
-        return {temperatureReading}
+            return { temperatureReading, humidityReading }
+        return { temperatureReading }
     })
     return finalReadings
 }
@@ -101,16 +101,6 @@ const certificateRoutes = {
                 const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
 
                 const bytes = await (await pdf.fillCertificate(certificate.template, certificateJson)).arrayBuffer();
-                if (upload && process.env.STATUS === 'production') {
-                    pdf.uploadPdfToAzure(bytes, `MNT-${certificate.certificate_id}.pdf`)
-                        .catch((err: any) => {
-                            console.error("Error uploading PDF:", err);
-                            res.status(500).json({ error: "Error uploading PDF" })
-                        });
-                }
-                if (print) {
-                    pdf.printPdf(bytes);
-                }
                 res.setHeader("Content-Disposition", `attachment; filename=MNT-${certificateId}.pdf`);
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(Buffer.from(bytes));
@@ -137,6 +127,15 @@ const certificateRoutes = {
                 for (const certificate of certificates) {
                     const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
                     const bytes = await pdf.fillCertificate(certificate.template, certificateJson);
+
+                    if (process.env.STATUS === 'production') {
+                        pdf.uploadPdfToAzure(await bytes.arrayBuffer(), `MNT-${certificate.certificate_id}.pdf`)
+                            .catch((err: any) => {
+                                console.error("Error uploading PDF:", err);
+                                throw Error("Error uploading PDF: " + err)
+                            });
+                    }
+
                     fs.writeFileSync('fileOutputs/certificate.pdf', await bytes.bytes());
                     await merger.add('fileOutputs/certificate.pdf');
                 }

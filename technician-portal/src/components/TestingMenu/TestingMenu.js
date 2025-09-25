@@ -86,11 +86,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         else
                             currentReadingClass = styles.grid_entry_red;
 
-                        currentReadingString = `${recentReadings.devices_under_test[sensor.sensor_id].temperature.toFixed(2)}°C ${heartbeatString}`;
+                        currentReadingString = `${recentReadings.devices_under_test[sensor.sensor_id]?.temperature.toFixed(2)}°C ${heartbeatString}`;
 
                         if (calibrationProcedureId === 3 || calibrationProcedureId === 8) {
-                            currentReadingString = `${recentReadings.devices_under_test[sensor.sensor_id].humidity.toFixed(2)}%RH\n
-                                    ${recentReadings.devices_under_test[sensor.sensor_id].temperature.toFixed(2)}°C ${heartbeatString}`;
+                            currentReadingString = `${recentReadings.devices_under_test[sensor.sensor_id].humidity?.toFixed(2)}%RH\n
+                                    ${recentReadings.devices_under_test[sensor.sensor_id].temperature?.toFixed(2)}°C ${heartbeatString}`;
                         }
                     } else {
                         currentReadingString = 'No data'
@@ -195,6 +195,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             return;
         }
 
+        getStableTimes()
+
         const now = new Date();
         setStableTimes(await Promise.all(setPoints.map(async (setPoint, index) => {
             const readingType = setPoint.humidity ? 'humidity' : 'temperature';
@@ -235,6 +237,15 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         })
             })
     };
+
+    const getStableTimes = async () => {
+        return callApi('get-last-stable-readings', {
+            set_points: JSON.stringify(setPoints)
+        })
+        .then(response => {
+            // console.log(response)
+        })
+    }
 
     const getStableTime = async (setPointIndex, readingType = 'temperature') => {
         const setPointObject = setPoints[setPointIndex]

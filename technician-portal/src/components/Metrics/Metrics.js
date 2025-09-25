@@ -25,6 +25,7 @@ function Metrics() {
 	const [bestMonthTotal, setBestMonthTotal] = useState(0);
 	const [sensorsInReceiving, setSensorsInReceiving] = useState(0);
 	const [sensorsInShipping, setSensorsInShipping] = useState(0);
+	const isMounted = useRef(false);
 
 	const monthNames = [
 		"January", "February", "March", "April", "May", "June", "July",
@@ -32,6 +33,10 @@ function Metrics() {
 	];
 
 	useEffect(() => {
+		if (isMounted.current)
+			return
+
+		isMounted.current = true;
 		const today = new Date()
 
 		const fetchData = async () => {
