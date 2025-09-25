@@ -238,14 +238,14 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             })
     };
 
-    const getStableTimes = async () => {
-        return callApi('get-last-stable-readings', {
-            set_points: JSON.stringify(setPoints)
-        })
-        .then(response => {
-            // console.log(response)
-        })
-    }
+    // const getStableTimes = async () => {
+    //     return callApi('get-last-stable-readings', {
+    //         set_points: JSON.stringify(setPoints)
+    //     })
+    //     .then(response => {
+    //         // console.log(response)
+    //     })
+    // }
 
     const getStableTime = async (setPointIndex, readingType = 'temperature') => {
         const setPointObject = setPoints[setPointIndex]
