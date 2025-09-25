@@ -195,7 +195,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             return;
         }
 
-        getStableTimes()
+        // getStableTimes()
 
         const now = new Date();
         setStableTimes(await Promise.all(setPoints.map(async (setPoint, index) => {
