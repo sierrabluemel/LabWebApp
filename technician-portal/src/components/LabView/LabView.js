@@ -49,7 +49,7 @@ function LabView() {
             })
             .catch((err) => {
                 console.error(`Unable to set recent data: ${err}`)
-                if (err.status === 403) {
+                if (err.status === 401) {
                     setTechnician({});
                     setTechnicianId(0);
                     localStorage.clear('user')
