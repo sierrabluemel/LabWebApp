@@ -110,6 +110,7 @@ app.get('/api/create-reading', auth, readingRoutes.createReading);
 // Rolling data
 app.get('/api/get-online-sensors', auth, rollingDataRoutes.getOnlineSensors);
 app.get('/api/get-last-stable-reading', auth, rollingDataRoutes.getLastStableReading);
+app.get('/api/get-last-stable-readings', auth, rollingDataRoutes.getLastStableReadings);
 app.get('/api/get-reading-range', auth, rollingDataRoutes.getReadingRange);
 app.get('/api/get-recent-data', auth, rollingDataRoutes.getRecentData);
 

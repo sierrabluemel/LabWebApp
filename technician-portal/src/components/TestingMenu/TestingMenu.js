@@ -15,7 +15,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         variances
     } = useAppContext()
 
-    const [stableTimes, setStableTimes] = useState(setPoints.map(() => 'Loading...'));
+    const [stableTimeStrings, setStableTimeStrings] = useState(setPoints.map(() => 'Loading...'));
+    const [stableTimes, setStableTimes] = useState([]);
 
     const [loadingMessage, setLoadingMessage] = useState('Loading...');
     const refreshed = useRef(false);
@@ -103,7 +104,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                 elementClass = styles.grid_row_10;
                             }
                             const findReadings = readings.find((reading) => (reading.set_point === setPoints[setPointIndex].temperature && reading.type === 'temperature' && reading.as_found === setPoints[setPointIndex].calibrate && reading.sensor_id === sensor.sensor_id));
-                            
+
                             readingObject = { ...readingObject, ...findReadings };
 
                             if (findReadings) {
@@ -166,7 +167,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     <div className={`${elementClass} ${style}`} key={sensor.sensor_id}>
                         <button className={styles.default_button} onClick={() => selectSensor(sensor.sensor_id)}>
                             {displayBattery ? <div className={styles.low_battery}></div> : <></>} {sensor.sensor_id}
-                            </button>
+                        </button>
                         <div className={currentReadingClass}>
                             <SensorLink sensorId={sensor.sensor_id} text={currentReadingString} />
                         </div>
@@ -195,26 +196,23 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             return;
         }
 
-        // getStableTimes()
-
         const now = new Date();
-        setStableTimes(await Promise.all(setPoints.map(async (setPoint, index) => {
-            const readingType = setPoint.humidity ? 'humidity' : 'temperature';
 
-            return getStableTime(index, readingType)
-                .then(stableTime => {
+        setStableTimeStrings(await getStableTimes()
+            .then((stableTimes) => {
+                return stableTimes.map((stableTime) => {
+
                     if (!stableTime)
                         return 'None found';
                     const totalSeconds = parseInt((now.getTime() - new Date(stableTime).getTime()) / 1000);
                     const minutesAgo = parseInt(totalSeconds / 60)
 
-                    if (minutesAgo > 0) {
+                    if (minutesAgo > 0)
                         return `Stable ${minutesAgo} minutes ago`;
-                    } else {
+                    else
                         return 'Stable';
-                    }
                 })
-        })));
+            }))
     }
 
     const refresh = async (updatedSensor = selectedSensor.current) => {
@@ -238,31 +236,16 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             })
     };
 
-    // const getStableTimes = async () => {
-    //     return callApi('get-last-stable-readings', {
-    //         set_points: JSON.stringify(setPoints)
-    //     })
-    //     .then(response => {
-    //         // console.log(response)
-    //     })
-    // }
-
-    const getStableTime = async (setPointIndex, readingType = 'temperature') => {
-        const setPointObject = setPoints[setPointIndex]
-        const setPointReading = setPointObject[readingType]
-
-        return callApi('get-last-stable-reading', {
-            type: readingType,
-            set_point: setPointReading,
-            reference: equipment.current[setPointObject.reference].asset_tag,
-            stability_criteria: JSON.stringify(setPoints[setPointIndex].stabilityCriteria)
+    const getStableTimes = async () => {
+        return callApi('get-last-stable-readings', {
+            set_points: JSON.stringify(setPoints)
         })
             .then(response => {
                 if (!response.Result)
                     return false;
 
-                const stableTime = new Date(response.Result);
-                return stableTime
+                setStableTimes(response.Result)
+                return response.Result
             })
     }
 
@@ -292,6 +275,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     for (const sensor of sensorList) {
                         const referenceAndSensorDifference = [] // Array to contain the difference between the reference reading and sensor reading over the course of the 90 seconds
                         const readingList = filteredReadings.map(reading => { // Get sensor readings from range to perform calculations
+
+                            if (!reading.devices_under_test[sensor.sensor_id]) {
+                                throw Error('Sensor readings missing')
+                            }
+
                             const referenceReading = reading.reference_data[referenceAssetTag][readingType];
                             const sensorReading = reading.devices_under_test[sensor.sensor_id][readingType];
 
@@ -313,6 +301,13 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 })
                 return finalReadings;
             })
+            .catch((err) => {
+                if (err.message === 'Sensor readings missing') {
+                    return {}
+                }
+                setPopupMessage('Unable to create readings')
+                console.error(err)
+            })
     }
 
     async function createReading(setPointIndex, stableTime, readingTypes = ['temperature']) {
@@ -323,6 +318,9 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         getReadings(stableTime, referenceObject.asset_tag, sensorResolution)
             .then((readings) => {
                 const referenceData = readings.reference
+
+                if (!referenceData)
+                    return setPopupMessage('Missing sensor readings for this set point')
 
                 if (!readings.lab_humidity || !readings.lab_temperature)
                     return setPopupMessage('No lab readings available for this reading');
@@ -356,7 +354,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                     return true;
                                 return false;
                             })[0]
-                            const calculatedUncertainty = getUncertainty([variance.bridge, variance.drift, variance.reference, variance.stability, variance.uniformity, variance.dut_resolution, sensorStandardDeviation**2])
+                            const calculatedUncertainty = getUncertainty([variance.bridge, variance.drift, variance.reference, variance.stability, variance.uniformity, variance.dut_resolution, sensorStandardDeviation ** 2])
 
                             const finalUncertainty = Math.max(calculatedUncertainty, setPointObject.stabilityCriteria[`minimum_uncertainty_${readingType}`]);
 
@@ -401,14 +399,13 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             })
     }
 
-    async function handleReadingButtonPress(setPointIndex, stabilityQualifier = 'temperature', readingTypes = ['temperature']) {
-        getStableTime(setPointIndex, stabilityQualifier)
-            .then(stableTime => {
-                if (!stableTime)
-                    return setPopupMessage(`No stable times found for this set point`);
+    async function handleReadingButtonPress(setPointIndex, readingTypes = ['temperature']) {
+        const stableTime = stableTimes[setPointIndex];
 
-                createReading(setPointIndex, stableTime, readingTypes)
-            })
+        if (!stableTime)
+            return setPopupMessage(`No stable times found for this set point`);
+
+        createReading(setPointIndex, stableTime, readingTypes)
     }
 
     let menu;
@@ -431,12 +428,12 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             case 3:
                 gridRowStyle = `${styles.humidity_grid} ${styles.grid_row}`;
                 setPointButtons = setPoints.map((setPoint, index) => {
-                    return <Button key={index} onClick={() => handleReadingButtonPress(index, 'humidity', ['humidity', 'temperature'])} innerText={<>{setPoint.humidity}%RH<br />{setPoint.temperature}°C</>} />
+                    return <Button key={index} onClick={() => handleReadingButtonPress(index, ['humidity', 'temperature'])} innerText={<>{setPoint.humidity}%RH<br />{setPoint.temperature}°C</>} />
                 });
                 break;
             case 8:
                 setPointButtons = setPoints.map((setPoint, index) => {
-                    return <Button key={index} onClick={() => handleReadingButtonPress(index, 'humidity', ['humidity', 'temperature'])} innerText={<>{setPoint.humidity}%RH<br />{setPoint.temperature}°C</>} />
+                    return <Button key={index} onClick={() => handleReadingButtonPress(index, ['humidity', 'temperature'])} innerText={<>{setPoint.humidity}%RH<br />{setPoint.temperature}°C</>} />
                 });
                 break;
             case 6:
@@ -455,7 +452,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     {setPointButtons}
                     <div className={styles.grid_entry}>Stable times</div>
                     <div className={styles.grid_entry}></div>
-                    {stableTimes.map((stableTime, index) => {
+                    {stableTimeStrings.map((stableTime, index) => {
                         return <StableTimeDisplay stableTime={stableTime} key={index} />;
                     })}
                 </div>

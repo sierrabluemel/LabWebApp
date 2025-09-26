@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import rollingData from "../models/rollingData";
+import equipment from "../models/equipment";
 
 const rollingDataRoutes = {
     getOnlineSensors: (req: Request, res: Response) => {
@@ -42,6 +43,29 @@ const rollingDataRoutes = {
                 console.error(err);
                 res.status(500).json({ Error: `Unable to fetch data` });
             })
+    },
+    getLastStableReadings: async (req: Request, res: Response) => {
+        let minutes = parseInt(req.query.minutes as string ?? 180);
+        let setPoints = JSON.parse(req.query.set_points as string ?? "[]")
+        let type: string = "temperature";
+        const equipmentList: any = await equipment.getEquipment(true)
+
+        if (Object.keys(setPoints[0]).includes('humidity'))
+            type = "humidity"
+
+        const start = new Date(Date.now() - minutes * 60000);
+        const stableTimes = Promise.all(setPoints.map((setPoint: any) => {
+            return rollingData.getStableTime(start, equipmentList[`${setPoint.reference}`].asset_tag, type, setPoint[`${type}`], setPoint.stabilityCriteria)
+            .then((result) => result?.timestamp)
+        }))
+            .then((result) => {
+                return res.json({ Result: result });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ Error: `Unable to fetch data` });
+            })
+
     },
     getReadingRange: (req: Request, res: Response) => {
         let seconds = parseInt(req.query.seconds as string ?? "");
