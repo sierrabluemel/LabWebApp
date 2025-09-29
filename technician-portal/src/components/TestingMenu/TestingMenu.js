@@ -62,7 +62,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     let pass = true;
                     let readingObject = {}
 
-                    if (recentReadings.devices_under_test[sensor.sensor_id]?.temperature) {
+                    if (recentReadings.devices_under_test[sensor.sensor_id]?.temperature !== undefined) {
                         const heartbeat = thisMessage.heartbeat;
 
                         let heartbeatString = '';
