@@ -65,7 +65,7 @@ function Metrics() {
 						}
 					}
 					let spanClass;
-					if (today > dueDate) {
+					if (addWorkDays(today, 0) > dueDate) {
 						spanClass = styles.red;
 					} else if (addWorkDays(new Date(), 3) < dueDate) {
 						spanClass = styles.green;
