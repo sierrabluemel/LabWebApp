@@ -446,14 +446,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 break;
         };
 
-        const tempFunc = () => {
-            console.log(getUncertainty([0.00001, 0.000004, 0.000015, 0.0001, 0.00067, 0, 0.0003**2]))
-            console.log(getUncertainty([0.00001, 0.000004, 0.000015, 0.0001, 0.00067, 0, 0.00031**2]))
-        }
-
         menu = (
             <div className={styles.testing_grid}>
-            <Button onClick={tempFunc} innerText='Remove me'/>
                 <div className={gridRowStyle}>
                     <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
                     <div className={styles.grid_entry}></div>
