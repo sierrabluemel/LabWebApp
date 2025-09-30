@@ -354,6 +354,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                     return true;
                                 return false;
                             })[0]
+                            console.log(variance.bridge, variance.drift, variance.reference, variance.stability, variance.uniformity, variance.dut_resolution, sensorStandardDeviation ** 2)
+                            console.log(setPointObject.stabilityCriteria[`minimum_uncertainty_${readingType}`])
                             const calculatedUncertainty = getUncertainty([variance.bridge, variance.drift, variance.reference, variance.stability, variance.uniformity, variance.dut_resolution, sensorStandardDeviation ** 2])
 
                             const finalUncertainty = Math.max(calculatedUncertainty, setPointObject.stabilityCriteria[`minimum_uncertainty_${readingType}`]);
@@ -444,8 +446,14 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 break;
         };
 
+        const tempFunc = () => {
+            console.log(getUncertainty([0.00001, 0.000004, 0.000015, 0.0001, 0.00067, 0, 0.0003**2]))
+            console.log(getUncertainty([0.00001, 0.000004, 0.000015, 0.0001, 0.00067, 0, 0.00031**2]))
+        }
+
         menu = (
             <div className={styles.testing_grid}>
+            <Button onClick={tempFunc} innerText='Remove me'/>
                 <div className={gridRowStyle}>
                     <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
                     <div className={styles.grid_entry}></div>

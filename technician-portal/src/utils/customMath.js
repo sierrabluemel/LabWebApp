@@ -42,7 +42,8 @@ const getDecimalsOfPrecision = (num, precision=2) => {
 }
 
 export const getUncertainty = (variances, expanded = true) => {
-  variances[variances.length-1] = truncateDecimals(variances[variances.length-1], getDecimalsOfPrecision(variances[variances.length-1]))
+  const roundedLastVariance = round(variances[variances.length-1], 8)
+  variances[variances.length-1] = truncateDecimals(roundedLastVariance, getDecimalsOfPrecision(roundedLastVariance))
   const varianceSum = sum(variances);
   const decimalsToTruncate = getDecimalsOfPrecision(varianceSum);
   const truncatedSum = truncateDecimals(varianceSum, decimalsToTruncate);
