@@ -354,8 +354,6 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                     return true;
                                 return false;
                             })[0]
-                            console.log(variance.bridge, variance.drift, variance.reference, variance.stability, variance.uniformity, variance.dut_resolution, sensorStandardDeviation ** 2)
-                            console.log(setPointObject.stabilityCriteria[`minimum_uncertainty_${readingType}`])
                             const calculatedUncertainty = getUncertainty([variance.bridge, variance.drift, variance.reference, variance.stability, variance.uniformity, variance.dut_resolution, sensorStandardDeviation ** 2])
 
                             const finalUncertainty = Math.max(calculatedUncertainty, setPointObject.stabilityCriteria[`minimum_uncertainty_${readingType}`]);
