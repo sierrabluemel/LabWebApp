@@ -21,8 +21,8 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
         if (error.name === "TokenExpiredError") {
             res.status(418).json("Token has expired");
         } else {
-            console.error(error.name);
-            res.status(401).json("Token unable to be authenticated");
+            console.error(`Error: ${error}`)
+            res.status(500).json("An unexpected error has occured. Please try again later")
         }
     }
 }

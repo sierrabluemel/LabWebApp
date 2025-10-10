@@ -13,10 +13,11 @@ export default function callApiAdvanced(endPoint, config) {
 
     return axios.get(url, config)
         .catch((err) => {
-            if (err.response.status !== 418) {
+            if (err.response.status === 418) {
+                return refreshToken()
+                    .then(() => callApiAdvanced(endPoint, config));
+            } else {
                 throw err;
             }
-            return refreshToken()
-                .then(() => callApiAdvanced(endPoint, config));
         })
 }
