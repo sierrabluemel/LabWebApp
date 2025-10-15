@@ -126,7 +126,7 @@ const certificateRoutes = {
                 let merger = new PDFMerger()
                 for (const certificate of certificates) {
                     const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
-                    const bytes = await pdf.fillCertificate(certificate.template, certificateJson);
+                    const bytes = await pdf.fillCertificate(certificate.template, certificateJson, certificate.pass);
 
                     if (process.env.STATUS === 'production') {
                         pdf.uploadPdfToAzure(await bytes.arrayBuffer(), `MNT-${certificate.certificate_id}.pdf`)
@@ -242,9 +242,10 @@ const certificateRoutes = {
 
 
                         let { dueDate } = { ...cpJson };
+                        const pass = cpJson.CS5 === 'PASS'
 
                         delete cpJson.dueDate;
-                        let cert = await certificate.createCertificate({ ...certificateJson, ...cpJson }, template, sensorId)
+                        let cert = await certificate.createCertificate({ ...certificateJson, ...cpJson }, template, sensorId, pass)
 
 
                         let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;
