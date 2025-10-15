@@ -188,6 +188,14 @@ function Shipping() {
             setPopupMessage(`No certificates found for sensor ${sensor}`)
             return;
         }
+
+        if (!certificate.pass) {
+            setPopupMessage(`Sensor ${certificate.sensor_id} failed calibration. Please place a red sticker on the sensor`);
+            setScannedSensors([...scannedSensors, sensorId]);
+            setSensor('');
+            return
+        }
+
         callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
             .then(setScannedSensors([...scannedSensors, sensorId]))
             .catch((err) => {

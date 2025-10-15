@@ -17,7 +17,7 @@ const pdf = {
         const filledPdfBytes = await pdfDoc.save();
         return filledPdfBytes;
     },
-    fillCertificate: async (template: string, fields: any) => {
+    fillCertificate: async (template: string, fields: any, pass: boolean = true) => {
         const pdfBytes = fs.readFileSync(`templates/${template}`);
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const form = pdfDoc.getForm();
@@ -51,6 +51,23 @@ const pdf = {
         for (const field in fields) {
             const textField = form.getTextField(field);
             textField.setText(fields[field]);
+        }
+
+        if (!pass) {
+            page.drawRectangle({
+                x: 0,
+                y: 246,
+                width: 20,
+                height: 300,
+                color: rgb(0.8, 0, 0)
+            })
+            page.drawRectangle({
+                x: 591,
+                y: 246,
+                width: 21,
+                height: 300,
+                color: rgb(0.8, 0, 0)
+            })
         }
         form.flatten();
         const filledPdfBytes: any = await pdfDoc.save();
