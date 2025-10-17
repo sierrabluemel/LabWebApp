@@ -371,7 +371,7 @@ const calibrationProcedures = {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_7_MONTHS);
         let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
 
-        let certificateStatus = isPass(readings) ? "PASS" : "FAIL";
+        let certificateStatus = isPass(readings.map(r => r.humidityReading)) && isPass(readings.map(r => r.temperatureReading)) ? "PASS" : "FAIL";
 
         let reference = equipment.rotronic;
 
