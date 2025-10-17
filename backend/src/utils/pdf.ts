@@ -57,14 +57,14 @@ const pdf = {
             page.drawRectangle({
                 x: 0,
                 y: 246,
-                width: 20,
+                width: 21,
                 height: 300,
                 color: rgb(0.8, 0, 0)
             })
             page.drawRectangle({
-                x: 591,
+                x: 590,
                 y: 246,
-                width: 21,
+                width: 22,
                 height: 300,
                 color: rgb(0.8, 0, 0)
             })
