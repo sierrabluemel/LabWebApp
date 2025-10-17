@@ -4,8 +4,9 @@ import callApi from '../../utils/api/callApi';
 import { useAppContext } from '../../contexts/app';
 import ConfirmationPopup from '../ConfirmationPopup/ConfirmationPopup';
 import parseDataBaseDate from '../../utils/parseDataBaseDate';
-import EquipmentRow from './EquipmentRow/EquipmentRow';
+import EquipmentConfigRow from './EquipmentConfigRow/EquipmentConfigRow';
 import SensorInvoiceGenerator from './SensorInvoiceGenerator/SensorInvoiceGenerator';
+import EquipmentRow from './EquipmentRow/EquipmentRow';
 
 function Admin() {
     const [reference1, setReference1] = useState({});
@@ -17,6 +18,7 @@ function Admin() {
     const referenceList = [reference1, reference2, reference3, reference4];
 
     const { setPopupMessage, equipmentList, technicianId } = useAppContext();
+    const [equipmentRows, setEquipmentRows] = useState(equipmentList.current);
 
     let currentSuperDaq = equipmentList.current.filter(asset => asset.reference_tag === asset.asset_tag)[0];
     if (!currentSuperDaq) {
@@ -83,6 +85,14 @@ function Admin() {
         }
     }
 
+    async function updateEquipment() {
+        callApi('get-equipment')
+            .then(equipment => {
+                equipmentList.current = equipment;
+                setEquipmentRows(equipment)
+            })
+    }
+
     async function handleConfirm(event) {
         const promises = [];
         if (isReferenceValid(superDaq)) {
@@ -140,10 +150,7 @@ function Admin() {
                     })
             )
 
-            const promise = callApi('get-equipment')
-                .then(equipment => {
-                    equipmentList.current = equipment;
-                })
+            const promise = updateEquipment()
 
             promises.push(promise);
         }
@@ -155,6 +162,7 @@ function Admin() {
 
     return (
         <>
+            <SensorInvoiceGenerator />
             <div className={styles.menu}>
                 {
                     confirmationArray.length > 0 ?
@@ -170,14 +178,14 @@ function Admin() {
                         <div className={styles.default_text}>Calibration Date</div>
                         <div className={styles.default_text}>Due Date</div>
                     </div>
-                    <EquipmentRow
+                    <EquipmentConfigRow
                         generatorText="SuperDAQ"
                         generatorHint="Temp"
                         description='Fluke 1586A "SUPER-DAQ"'
                         selectedOption={superDaq}
                         setSelectedOption={setSuperDaq}
                     />
-                    <EquipmentRow
+                    <EquipmentConfigRow
                         generatorText="Bath 1"
                         generatorHint="28°C"
                         generatorTag="S000101"
@@ -185,7 +193,7 @@ function Admin() {
                         selectedOption={reference1}
                         setSelectedOption={setReference1}
                     />
-                    <EquipmentRow
+                    <EquipmentConfigRow
                         generatorText="Bath 2"
                         generatorHint="-25°C"
                         generatorTag="S000102"
@@ -193,7 +201,7 @@ function Admin() {
                         selectedOption={reference2}
                         setSelectedOption={setReference2}
                     />
-                    <EquipmentRow
+                    <EquipmentConfigRow
                         generatorText="Bath 3"
                         generatorHint="90°C"
                         generatorTag="S000103"
@@ -201,7 +209,7 @@ function Admin() {
                         selectedOption={reference3}
                         setSelectedOption={setReference3}
                     />
-                    <EquipmentRow
+                    <EquipmentConfigRow
                         generatorText="Chamber"
                         generatorHint="RH"
                         generatorTag="S000105"
@@ -212,7 +220,6 @@ function Admin() {
                 </div>
                 <button className={styles.equipment_save_button} onClick={handleSubmit}>Save</button>
             </div>
-            <SensorInvoiceGenerator />
             <div className={styles.menu}>
                 <h1 className={styles.title}>
                     Lab Equipment
@@ -241,30 +248,7 @@ function Admin() {
                         </tr>
                     </thead>
                     <tbody className={styles.equipment_table_body}>
-                        {equipmentList.current.map(equipment => {
-                            return (
-                                <tr key={equipment.asset_tag}>
-                                    <td className={styles.equipment_table_data}>
-                                        {equipment.asset_tag}
-                                    </td>
-                                    <td className={styles.equipment_table_data}>
-                                        {equipment.description}
-                                    </td>
-                                    <td className={styles.equipment_table_data}>
-                                        {Number.isNaN(parseInt(equipment.serial_number)) ? '-' : equipment.serial_number}
-                                    </td>
-                                    <td className={styles.equipment_table_data}>
-                                        {Number.isNaN(parseInt(equipment.calibration_certificate_number)) ? '-' : equipment.calibration_certificate_number}
-                                    </td>
-                                    <td className={styles.equipment_table_data}>
-                                        {!equipment.last_calibration ? '-' : parseDataBaseDate(equipment.last_calibration)}
-                                    </td>
-                                    <td className={styles.equipment_table_data}>
-                                        {!equipment.next_calibration ? '-' : parseDataBaseDate(equipment.next_calibration)}
-                                    </td>
-                                </tr>
-                            )
-                        })}
+                        {equipmentRows.map(equipment => <EquipmentRow key={equipment.asset_tag} equipment={equipment} />)}
                     </tbody>
                 </table>
             </div>
