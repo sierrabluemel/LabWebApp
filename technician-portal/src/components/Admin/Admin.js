@@ -1,12 +1,14 @@
 import styles from '../../styles/styles.module.css';
-import { useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import callApi from '../../utils/api/callApi';
 import { useAppContext } from '../../contexts/app';
 import ConfirmationPopup from '../ConfirmationPopup/ConfirmationPopup';
 import parseDataBaseDate from '../../utils/parseDataBaseDate';
-import EquipmentConfigRow from './EquipmentConfigRow/EquipmentConfigRow';
-import SensorInvoiceGenerator from './SensorInvoiceGenerator/SensorInvoiceGenerator';
-import EquipmentRow from './EquipmentRow/EquipmentRow';
+import EquipmentConfigRow from './EquipmentConfigRow';
+import SensorInvoiceGenerator from './SensorInvoiceGenerator';
+import EquipmentRow from './EquipmentRow';
+import SetPointRow from './SetPointRow';
+import CreateSetPoint from './CreateSetPoint';
 
 function Admin() {
     const [reference1, setReference1] = useState({});
@@ -14,8 +16,11 @@ function Admin() {
     const [reference3, setReference3] = useState({});
     const [reference4, setReference4] = useState({});
     const [superDaq, setSuperDaq] = useState({});
+    const [setPoints, setSetPoints] = useState([]);
+    const [addingVariance, setAddingVariance] = useState(false);
     const [confirmationArray, setConfirmationArray] = useState(false);
     const referenceList = [reference1, reference2, reference3, reference4];
+    const refreshed = useRef(false);
 
     const { setPopupMessage, equipmentList, technicianId } = useAppContext();
     const [equipmentRows, setEquipmentRows] = useState(equipmentList.current);
@@ -84,6 +89,27 @@ function Admin() {
             setPopupMessage('No references have valid data')
         }
     }
+    
+
+    const refreshVariances = useCallback(() => {
+            callApi('get-variances')
+                .then(response => {
+                    setSetPoints(response)
+                })
+                .catch((err) => {
+                    console.error(err)
+                    setPopupMessage('Unable to get set points')
+                })
+    }, [setPopupMessage])
+
+    useEffect(() => {
+        if (refreshed.current)
+            return
+        else
+            refreshed.current = true
+
+        refreshVariances()
+    }, [setPoints, refreshVariances])
 
     async function updateEquipment() {
         callApi('get-equipment')
@@ -219,6 +245,44 @@ function Admin() {
                     />
                 </div>
                 <button className={styles.equipment_save_button} onClick={handleSubmit}>Save</button>
+            </div>
+            <div className={styles.menu}>
+                <span className={styles.plus_button_container}><button className={styles.plus_button} title='Add set point' onClick={() => setAddingVariance(!addingVariance)}></button></span>
+                <h1 className={styles.title}>
+                    Set Points
+                </h1>
+                <CreateSetPoint key={setPoints.length} addingVariance={addingVariance} refreshVariances={refreshVariances} />
+                <table className={styles.equipment_table}>
+                    <thead className={styles.equipment_table_head}>
+                        <tr>
+                            <td className={styles.equipment_table_data}></td>
+                            <td className={styles.equipment_table_data}>
+                                Set Point
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Reference Asset Tag
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Generator Asset Tag
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Reference Uncertainty
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Bridge Variance
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Generator Stability
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Add to CP
+                            </td>
+                        </tr>
+                    </thead>
+                    <tbody className={styles.equipment_table_body}>
+                        {setPoints.filter(setPoint => setPoint.active === true).map((setPoint, index) => <SetPointRow key={index} setPoint={setPoint} />)}
+                    </tbody>
+                </table>
             </div>
             <div className={styles.menu}>
                 <h1 className={styles.title}>

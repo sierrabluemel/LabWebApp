@@ -60,6 +60,70 @@ const misc = {
                 API_VARIANCES
         `, []);
     },
+    getVariancesByCalibrationProcedure: (calibrationProcedure: number) => {
+        return executeQuery(pool, `
+            SELECT
+                API_VARIANCES.*
+            FROM
+                API_VARIANCES
+            JOIN 
+                API_CALIBRATION_PROCEDURE_VARIANCES
+            ON
+                API_VARIANCES.ID = API_CALIBRATION_PROCEDURE_VARIANCES.VARIANCE_ID
+            WHERE
+                API_CALIBRATION_PROCEDURE_VARIANCES.CALIBRATION_PROCEDURE_ID = $1
+            AND
+                API_VARIANCES.active = true;
+        `, [calibrationProcedure]);
+    },
+    createSetPoint: (setPoint: number, readingType: string, reference: number, drift: number, bridge: number, uniformity: number, stability: number, dutResolution: number, referenceAssetTag: string, generatorAssetTag: string, referenceType: string, generatorType: string) => {
+        return executeQuery(pool, `
+            INSERT INTO
+                API_VARIANCES (
+                    SET_POINT,
+                    READING_TYPE,
+                    REFERENCE,
+                    DRIFT,
+                    BRIDGE,
+                    UNIFORMITY,
+                    STABILITY,
+                    DUT_RESOLUTION,
+                    REFERENCE_ASSET_TAG,
+                    GENERATOR_ASSET_TAG,
+                    REFERENCE_TYPE,
+                    GENERATOR_TYPE
+                )
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            RETURNING
+                *
+        `, [setPoint, readingType, reference, drift, bridge, uniformity, stability, dutResolution, referenceAssetTag, generatorAssetTag, referenceType, generatorType]);
+    },
+    createSetPointLink: (setPointId: number, calibrationProcedureId: number) => {
+        return executeQuery(pool, `
+            INSERT INTO
+                API_CALIBRATION_PROCEDURE_VARIANCES (
+                    VARIANCE_ID,
+                    CALIBRATION_PROCEDURE_ID
+                )
+            VALUES
+                ($1, $2)
+            RETURNING
+                *
+        `, [setPointId, calibrationProcedureId]);
+    },
+    changeSetPointActiveState: (setPointId: number, activeState: boolean) => {
+        return executeQuery(pool, `
+            UPDATE
+                API_VARIANCES
+            SET
+                ACTIVE = $2
+            WHERE
+                ID = $1
+            RETURNING
+                *
+        `, [setPointId, activeState]);
+    },
     getTechnicianById: (technicianId: number) => {
         return executeQuerySingleReturn(pool, `
             SELECT

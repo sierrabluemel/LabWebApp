@@ -28,9 +28,13 @@ const authRoutes = {
                     const accessToken = jwt.generateToken(u, JWT_ACCESS_TIMESPAN)
                     res.status(200).json(accessToken);
                 })
-        } catch (error) {
-            console.error(error);
-            res.status(401).json("Failed to verify token");
+        } catch (error: any) {
+            if (error.name === "TokenExpiredError") {
+                res.status(418).json({ message: "Token has expired" });
+            } else {
+                console.error(error);
+                res.status(401).json({ message: `Failed to verify token (error name: ${error.name}`});
+            }
         }
     },
     signIn: async (req: Request, res: Response) => {

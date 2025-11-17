@@ -134,4 +134,8 @@ app.get('/api/search-data', auth, miscRoutes.searchData)
 app.get('/api/get-customer-by-id', auth, miscRoutes.getCustomerById);
 app.get('/api/get-calibration-procedures', auth, miscRoutes.getCalibrationProcedures);
 app.get('/api/get-variances', auth, miscRoutes.getVariances);
+app.get('/api/get-variances-by-calibration-procedure', auth, miscRoutes.getVariancesByCalibrationProcedure);
+app.get('/api/create-set-point', auth, miscRoutes.createSetPoint);
+app.get('/api/change-set-point-active-state', auth, miscRoutes.changeSetPointActiveState);
+app.get('/api/create-set-point-link', auth, miscRoutes.createSetPointLink);
 app.get('/api/lookup-technician', auth, miscRoutes.lookupTechnician);
