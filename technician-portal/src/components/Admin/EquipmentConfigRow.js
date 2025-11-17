@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import styles from '../../../styles/styles.module.css'
-import { useAppContext } from '../../../contexts/app';
+import styles from '../../styles/styles.module.css'
+import { useAppContext } from '../../contexts/app';
 
 function EquipmentConfigRow({ generatorText, generatorHint, generatorTag, description, selectedOption, setSelectedOption }) {
     const [referenceTag, setReferenceTag] = useState('');

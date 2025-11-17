@@ -1,10 +1,10 @@
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import styles from "../../../styles/styles.module.css"
+import styles from "../../styles/styles.module.css"
 import { useState } from "react";
-import Button from "../../Button/Button";
-import { useAppContext } from "../../../contexts/app";
-import ip from "../../../utils/ip/ip";
+import Button from "../Button/Button";
+import { useAppContext } from "../../contexts/app";
+import ip from "../../utils/ip/ip";
 
 function SensorInvoiceGenerator() {
     const [startDate, setStartDate] = useState(new Date())

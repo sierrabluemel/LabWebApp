@@ -1,5 +1,5 @@
-import styles from '../../../styles/styles.module.css';
-import parseDataBaseDate from '../../../utils/parseDataBaseDate';
+import styles from '../../styles/styles.module.css';
+import parseDataBaseDate from '../../utils/parseDataBaseDate';
 
 function EquipmentRow({ equipment }) {
     return (

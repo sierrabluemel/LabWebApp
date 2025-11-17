@@ -278,6 +278,7 @@
     box-sizing: border-box;
     margin: 64px 10% 0 10%;
     padding: 10px;
+    overflow-x: auto;
 }
 
 .default_text_box {
@@ -970,6 +971,26 @@
     text-align: left;
 }
 
+.set_point_selector {
+    margin: 10px 0;
+}
+
+.admin_check_box_container {
+    position: relative;
+    cursor: pointer;
+    margin: 10px;
+    text-align: center;
+}
+
+.admin_check_box {
+    height: 15px;
+    width: 20px;
+    cursor: pointer;
+    background-color: #f2f2f2;
+    margin: 0;
+    position: relative;
+}
+
 .grid_check_box {
     height: 25px;
     width: 25px;
@@ -1140,7 +1161,7 @@
   .equipment_table_data {
     padding: 12px 15px;
     border: 1px solid #ddd;
-    text-align: left;
+    text-align: center;
   }
 
   .equipment_table_body tr:nth-child(even) {
@@ -1160,4 +1181,63 @@
 .invoice_grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+}
+
+.add_set_point_container {
+    transition-duration: 2s;
+    overflow: hidden;
+    max-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-gap: 10px;
+    margin: 20px;
+}
+
+.collapsed {
+    transition-duration: 1s;
+    max-height: 0;
+}
+
+.plus_button_container {
+    float: left;
+}
+
+.plus_button {
+  border: 2px solid lightgrey;
+  background-color: #fff;
+  font-size: 16px;
+  height: 2.5em;
+  width: 2.5em;
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plus_button:hover {
+    border: #fff;
+    background-color: lightgrey;
+}
+
+.plus_button::before,
+.plus_button::after {
+  content: "";
+  display: block;
+  background-color: grey;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.plus_button::before {
+  height: 1em;
+  width: 0.2em;
+}
+
+.plus_button::after {
+  height: 0.2em;
+  width: 1em;
 }

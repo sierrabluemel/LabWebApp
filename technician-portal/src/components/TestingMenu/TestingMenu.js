@@ -346,14 +346,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
                         else {
                             const variance = variances.current.filter(variance => {
-                                if (
-                                    variance.set_point === parseFloat(setPointObject[readingType]) &&
-                                    variance.reading_type === readingType &&
-                                    variance.reference_type === setPointObject.reference_type &&
-                                    variance.generator_type === setPointObject.generator_type)
+                                if (variance.set_point === parseFloat(setPointObject[readingType]) && variance.reading_type === readingType)
                                     return true;
                                 return false;
                             })[0]
+
                             const calculatedUncertainty = getUncertainty([variance.bridge, variance.drift, variance.reference, variance.stability, variance.uniformity, variance.dut_resolution, sensorStandardDeviation ** 2])
 
                             const finalUncertainty = Math.max(calculatedUncertainty, setPointObject.stabilityCriteria[`minimum_uncertainty_${readingType}`]);
@@ -466,12 +463,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             refreshed.current = true;
             refresh();
 
-            if (variances.current.length === 0) {
-                callApi('get-variances')
-                    .then((response) => {
-                        variances.current = response;
-                    })
-            }
+            callApi('get-variances-by-calibration-procedure', { calibration_procedure: calibrationProcedureId })
+                .then((response) => {
+                    variances.current = response;
+                })
 
             getReferences(calibrationProcedureId).then(references => {
                 const unverifiedReferences = []

@@ -30,7 +30,7 @@ function Receiving() {
         <div className={styles.menu}>
             <form onSubmit={handleSubmit}>
                 <div className={styles.order_entry}>
-                    <label className={`${styles.check_box_container}`}>
+                    <label className={styles.check_box_container}>
                         <input className={styles.grid_check_box} type="checkbox" onChange={() => setExpedited(!expedited)} checked={expedited} />
                         <span className={styles.expedite_text}>Expedited</span>
                     </label>
