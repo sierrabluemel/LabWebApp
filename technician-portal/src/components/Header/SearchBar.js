@@ -14,7 +14,6 @@ export default function SearchBar() {
     const MAX_VISIBLE_RESULTS = 50;
     const dropdownRef = useRef(null);
 
-    const priority = ["customer_order_number", "order_id", "batch_id", "sensor_id"];
 
     // Fetch data
     useEffect(() => {
@@ -52,48 +51,48 @@ export default function SearchBar() {
 
     // Debounced search
     useEffect(() => {
-
-    const incrementalSearch = (value) => {
-        if (!value || !searchableEntries.length) {
-            setFilteredResults([]);
-            return;
-        }
-
-        const keywords = value
-            .split(" ")
-            .map((k) => k.trim())
-            .filter((k) => k.length > 0);
-
-        const resultsMap = new Map();
-
-        searchableEntries.forEach((entry) => {
-            if (keywords.some((k) => entry.searchableText.includes(k))) {
-                const mapKey = `${entry.key}:${entry.value}`;
-                if (!resultsMap.has(mapKey)) {
-                    resultsMap.set(mapKey, {
-                        key: entry.key,
-                        value: entry.value,
-                        // Lazy highlight: just store original value for now
-                        highlightedValue: entry.value,
-                    });
-                }
+        const priority = ["customer_order_number", "order_id", "batch_id", "sensor_id"];
+        const incrementalSearch = (value) => {
+            if (!value || !searchableEntries.length) {
+                setFilteredResults([]);
+                return;
             }
-        });
 
-        // Group by key
-        const grouped = {};
-        Array.from(resultsMap.values()).forEach((r) => {
-            if (!grouped[r.key]) grouped[r.key] = [];
-            grouped[r.key].push(r);
-        });
+            const keywords = value
+                .split(" ")
+                .map((k) => k.trim())
+                .filter((k) => k.length > 0);
 
-        // Sort keys by priority
-        const sortedResults = priority
-            .filter((k) => grouped[k])
-            .map((k) => ({ key: k, values: grouped[k] }));
+            const resultsMap = new Map();
 
-        setFilteredResults(sortedResults.slice(0, MAX_VISIBLE_RESULTS));
-    };
+            searchableEntries.forEach((entry) => {
+                if (keywords.some((k) => entry.searchableText.includes(k))) {
+                    const mapKey = `${entry.key}:${entry.value}`;
+                    if (!resultsMap.has(mapKey)) {
+                        resultsMap.set(mapKey, {
+                            key: entry.key,
+                            value: entry.value,
+                            // Lazy highlight: just store original value for now
+                            highlightedValue: entry.value,
+                        });
+                    }
+                }
+            });
+
+            // Group by key
+            const grouped = {};
+            Array.from(resultsMap.values()).forEach((r) => {
+                if (!grouped[r.key]) grouped[r.key] = [];
+                grouped[r.key].push(r);
+            });
+
+            // Sort keys by priority
+            const sortedResults = priority
+                .filter((k) => grouped[k])
+                .map((k) => ({ key: k, values: grouped[k] }));
+
+            setFilteredResults(sortedResults.slice(0, MAX_VISIBLE_RESULTS));
+        };
         if (!searchString) {
             setFilteredResults([]);
             return;
@@ -217,8 +216,8 @@ export default function SearchBar() {
                                     flatIndex === activeIndex
                                         ? styles.highlighted_result
                                         : flatIndex === hoverIndex
-                                        ? styles.hoverHighlight
-                                        : "";
+                                            ? styles.hoverHighlight
+                                            : "";
 
                                 return (
                                     <div
@@ -226,12 +225,14 @@ export default function SearchBar() {
                                         className={`${styles.search_results_item} ${highlightClass}`}
                                         data-search-item
                                         role="option"
+                                        aria-selected={flatIndex === activeIndex}
                                         onMouseEnter={() => setHoverIndex(flatIndex)}
                                         onMouseLeave={() => setHoverIndex(-1)}
                                         onClick={() => handleResultClick(result)}
                                     >
                                         {getHighlightedValue(result.value)}
                                     </div>
+
                                 );
                             })}
                         </div>
