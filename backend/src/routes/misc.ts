@@ -3,8 +3,10 @@ import misc from "../models/misc";
 
 const miscRoutes = {
     search: (req: Request, res: Response) => {
+        const dataLookupType = req.query.data_lookup_type;
         const filterData = req.query.filter_data as string;
         const table = req.query.table as string;
+        console.log(filterData, table)
 
         misc.sqlInjectMePls(table, filterData)
             .then((data) => {

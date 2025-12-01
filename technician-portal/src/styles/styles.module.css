@@ -10,30 +10,77 @@
     font-weight: 600;
 }
 
-.main_header {
-    position: fixed;
-    width: 100%;
-    background-color: #08afe6;
-    padding: 20px 0;
-    margin: 0;
-    color: #fff;
-    text-align: center;
-    height: 50px;
-    z-index: 1;
-}
-
 .main_body {
-    margin-top: 90px;
+    margin-top: 70px; /* push content below header */
     display: grid;
     grid-template-columns: 225px 1fr 225px;
 }
 
-.navigation_menu {
+/* ---------------- Header ---------------- */
+.header_container {
     position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #08afe6;
+    padding: 5px 20px;
+    z-index: 999;
+    box-sizing: border-box;
+    height: 70px;
+}
+
+/* Left: Home button */
+.header_left {
+    display: flex;
+    align-items: center;
+}
+
+/* Center: Title + Search */
+.header_center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    max-width: 600px;
+    margin: 0 20px;
+}
+
+/* Right: Technician + Sign Out */
+.header_right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Main title */
+.main_header {
+    margin: 0;
+    color: white;
+    font-size: 1.5rem;
+    text-align: center;
+}
+
+/* ---------------- Sidebars ---------------- */
+.navigation_menu,
+.equipment_container {
+    position: fixed;
+    top: 70px; /* below header */
+    height: calc(100% - 70px);
+    overflow-y: auto;
     z-index: 1;
+}
+
+.navigation_menu {
     left: 0;
     width: 225px;
-    height: 100%;
+}
+
+.navigation_menu {
+    z-index: 1;
     margin: 0;
     padding: 10px 0;
     list-style: none;
@@ -139,62 +186,6 @@
 
 .batch_button:active {
     box-shadow: 2px 2px 5px #333;
-}
-
-.calibration_1 {
-    background-color: red;
-    padding: 2px 6px;
-    color: #333;
-    border-radius: 4px;
-}
-
-.calibration_2 {
-    background-color: blue;
-    padding: 2px 6px;
-    color: #f1f1f1;
-    border-radius: 4px;
-}
-
-.calibration_3 {
-    background-color: yellow;
-    padding: 2px 6px;
-    color: #333;
-    border-radius: 4px;
-}
-
-.calibration_4 {
-    background-color: red;
-    padding: 2px 6px;
-    color: #333;
-    border-radius: 4px;
-}
-
-.calibration_5 {
-    background-color: yellow;
-    padding: 2px 6px;
-    color: #333;
-    border-radius: 4px;
-}
-
-.calibration_6 {
-    background-color: red;
-    padding: 2px 6px;
-    color: #333;
-    border-radius: 4px;
-}
-
-.calibration_7 {
-    background-color: red;
-    padding: 2px 6px;
-    color: #333;
-    border-radius: 4px;
-}
-
-.calibration_8 {
-    background-color: yellow;
-    padding: 2px 6px;
-    color: #333;
-    border-radius: 4px;
 }
 
 .home_button {
@@ -305,10 +296,12 @@
 }
 
 .search_bar {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    grid-gap: 10px;
-    margin: 0 10%;
+    padding: none;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    right: 25%;
+    font-size: larger;
 }
 
 .menu_form {
@@ -1240,4 +1233,107 @@
 .plus_button::after {
   height: 0.2em;
   width: 1em;
+}
+
+/* ---------------- Search Bar ---------------- */
+.search_bar_header_container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+    margin-top: 5px;
+    z-index: 1000;
+}
+
+.search_results_dropdown {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 400px;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #f3f3f3;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    border-radius: 5px;
+    z-index: 1000;
+    margin-top: 5px;
+    padding: 5px 0;
+}
+
+/* Search Input Box */
+.search_bar_input {
+    width: 350px;
+    max-width: 80%;
+    font-size: large;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+/* Individual search results */
+.search_results_item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: large;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+/* Keyboard-highlighted result */
+.highlighted_result {
+    background-color: #08afe6;
+    color: #fff;
+}
+
+/* Mouse hover result when not keyboard-highlighted */
+.hoverHighlight {
+    background-color: #a0d4f0;
+    color: #000;
+}
+
+/* Optional: mark keyword highlight */
+mark {
+    background-color: yellow;
+    color: black;
+}
+
+/* --- Optional: consistent scroll behavior --- */
+.search_results_dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+
+.search_results_dropdown::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+}
+
+.search_results_dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: #999;
+}
+
+.resultGroup {
+  margin-bottom: 8px;
+}
+
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  background: white;
+  padding: 4px 8px;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+  z-index: 10;
+}
+
+/* Main title */
+.main_header {
+    margin: 0;
+    color: white;
+    font-size: 1.5rem;
+    text-align: center;
 }

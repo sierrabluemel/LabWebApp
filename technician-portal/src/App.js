@@ -18,7 +18,6 @@ import Receiving from './components/Receiving/Receiving';
 import SalesOrderForm from './components/SalesOrderForm/SalesOrderForm';
 import Shipping from './components/Shipping/Shipping';
 import SignInMenu from './components/SignInMenu/SignInMenu';
-import SearchMenu from './components/SearchMenu/SearchMenu.js';
 
 import styles from './styles/styles.module.css';
 import Admin from './components/Admin/Admin.js';
@@ -85,7 +84,6 @@ function App() {
 
                 <Route path='/receiving' element={<Receiving />} />
                 <Route path='/shipping' element={<Shipping />} />
-                <Route path='/search' element={<SearchMenu />} />
                 <Route path='/signIn' element={<SignInMenu />} />
 
                 <Route path='/Admin' element={<Admin />} />

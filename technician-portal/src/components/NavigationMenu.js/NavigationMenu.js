@@ -36,10 +36,6 @@ function NavigationMenu() {
                     <input type="radio" id="shipping" name="navigation_menu" className={styles.navigation_menu_radio}></input>
                     <label htmlFor="shipping" className={styles.navigation_item} onClick={() => { navigate('/orderEntry') }}><img src={shippingIcon} alt="Shipping icon" className={styles.icon_image} /> Shipping</label>
                 </li>
-                <li>
-                    <input type="radio" id="search" name="navigation_menu" className={styles.navigation_menu_radio}></input>
-                    <label htmlFor="search" className={styles.navigation_item} onClick={() => { navigate('/search') }}><img src={searchIcon} alt="Search icon" className={styles.icon_image} /> Search</label>
-                </li>
                 {!technician.admin ? <></> :
                     <li>
                         <input type="radio" id="admin" name="navigation_menu" className={styles.navigation_menu_radio}></input>

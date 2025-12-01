@@ -3,6 +3,8 @@ import search from "../../utils/search";
 import { useAppContext } from "../../contexts/app";
 
 import styles from "../../styles/styles.module.css";
+import parseDataBaseDate from "../../utils/parseDataBaseDate";
+import callApi from "../../utils/api/callApi";
 
 function SearchMenu() {
     const { setPopupMessage } = useAppContext();
@@ -11,19 +13,16 @@ function SearchMenu() {
     const [data, setData] = useState([]);
     const [responseMessage, setResponseMessage] = useState('');
 
-    function parseDate(dateString) {
-        const date = new Date(dateString);
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        const year = date.getFullYear();
-
-        const newDate = `${month}/${day}/${year}`;
-
-        return newDate;
-    }
-
     const handleTypeChange = (event) => {
         setType(event.target.value)
+    }
+
+    const handleSearchStringChange = (event) => {
+        setSearchString(event.target.value)
+        callApi('search-data', { })
+        .then(response => {
+            console.log(response)
+        })
     }
 
     const handleSubmit = async (event) => {
@@ -51,7 +50,7 @@ function SearchMenu() {
         <div className={styles.menu}>
             <form onSubmit={handleSubmit} data-testid={'searchForm'}>
                 <div className={styles.search_bar}>
-                    <input type='text' value={searchString} onChange={event => setSearchString(event.target.value)} className={styles.default_text_box} placeholder={'Search'} />
+                    <input type='text' value={searchString} onChange={handleSearchStringChange} className={styles.default_text_box} placeholder={'Search'} />
 
                     <select className={styles.dropdown} value={type} onChange={handleTypeChange}>
                         <option value="sensor">Sensor</option>
@@ -93,8 +92,8 @@ function SearchMenu() {
                                     <td title={row.calibration_procedure} className={styles.hoverable}>{row.calibration_procedure_id ? row.calibration_procedure_id : 'N/A'}</td>
                                     <td>{row.certificate_id ? <a className={styles.search_link} href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${row.certificate_id}.pdf`} target="_blank" rel="noreferrer">MNT-{row.certificate_id}</a> : 'N/A'}</td>
                                     <td>{row.generate_certificate_json && row.generate_certificate_json.CS5 ? row.generate_certificate_json.CS5 : 'N/A'}</td>
-                                    <td>{row.receiving_start ? `${parseDate(row.receiving_start)}` : 'N/A'}</td>
-                                    <td>{row.shipping_end ? `${parseDate(row.shipping_end)}` : 'N/A'}</td>
+                                    <td>{row.receiving_start ? `${parseDataBaseDate(row.receiving_start)}` : 'N/A'}</td>
+                                    <td>{row.shipping_end ? `${parseDataBaseDate(row.shipping_end)}` : 'N/A'}</td>
                                 </tr>
                             )
                         })}
