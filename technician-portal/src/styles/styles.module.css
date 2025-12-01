@@ -188,6 +188,62 @@
     box-shadow: 2px 2px 5px #333;
 }
 
+.calibration_1 {
+    background-color: red;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.calibration_2 {
+    background-color: blue;
+    padding: 2px 6px;
+    color: #f1f1f1;
+    border-radius: 4px;
+}
+
+.calibration_3 {
+    background-color: yellow;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.calibration_4 {
+    background-color: red;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.calibration_5 {
+    background-color: yellow;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.calibration_6 {
+    background-color: red;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.calibration_7 {
+    background-color: red;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.calibration_8 {
+    background-color: yellow;
+    padding: 2px 6px;
+    color: #333;
+    border-radius: 4px;
+}
+
 .home_button {
     width: 130px;
     height: 60px;
