@@ -18,9 +18,11 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
         req.user = user;
         next();
     } catch (error: any) {
-        if (error.name === "TokenExpiredError") {
+        if (error.name === "TokenExpiredError")
             res.status(418).json("Token has expired");
-        } else {
+        else if (error.name === "JsonWebTokenError")
+            res.status(401).json({ message: "Unauthorized" });
+        else {
             console.error(`Error: ${error}`)
             res.status(500).json("An unexpected error has occured. Please try again later")
         }

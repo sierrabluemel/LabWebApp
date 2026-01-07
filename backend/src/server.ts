@@ -129,8 +129,8 @@ app.get('/api/update-certificate-json', auth, certificateRoutes.updateCertificat
 app.get('/api/generate-order-certificates', auth, certificateRoutes.generateOrderCertificates);
 
 // Misc routes
-app.get('/api/search', auth, miscRoutes.search);
-app.get('/api/search-data', auth, miscRoutes.searchData)
+app.get('/api/search-data', auth, miscRoutes.searchData);
+app.get('/api/get-search-results', auth, miscRoutes.getSearchResults);
 app.get('/api/get-customer-by-id', auth, miscRoutes.getCustomerById);
 app.get('/api/get-calibration-procedures', auth, miscRoutes.getCalibrationProcedures);
 app.get('/api/get-variances', auth, miscRoutes.getVariances);

@@ -2,18 +2,42 @@ import { Request, Response } from "express";
 import misc from "../models/misc";
 
 const miscRoutes = {
-    search: (req: Request, res: Response) => {
-        const filterData = req.query.filter_data as string;
-        const table = req.query.table as string;
+    getSearchResults: (req: Request, res: Response) => {
+        const searchType = req.query.search_type as string;
+        const searchValue = req.query.search_value as string;
 
-        misc.sqlInjectMePls(table, filterData)
+        let column: string;
+
+        switch (searchType) {
+            case 'customer_order_number':
+                column = 'o.customer_order_number';
+                break;
+            case 'order_id':
+                column = 'o.order_id';
+                break;
+            case 'batch_id':
+                column = 'b.batch_id';
+                break;
+            case 'sensor_id':
+                column = 's.sensor_id';
+                break;
+            default:
+                column = '';
+                break;
+        }
+
+        if (!column) {
+           res.status(400).json({ error: 'Invalid search type' });
+        }
+
+        misc.getSearchResults(column, searchValue)
             .then((data) => {
-                res.status(200).json(data);
+                return res.status(200).json(data);
             })
             .catch((err) => {
                 console.error(err);
-                return res.status(500).json({ error: `Error in search` });
-            })
+                return res.status(500).json({ error: 'Error in search' });
+            });
     },
     searchData: (req: Request, res: Response) => {
         misc.searchData()
