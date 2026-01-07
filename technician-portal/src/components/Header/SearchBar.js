@@ -1,4 +1,7 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppContext } from "../../contexts/app";
+import formatKey from "../../utils/formatKey";
 import callApi from "../../utils/api/callApi";
 import styles from "../../styles/styles.module.css";
 
@@ -13,7 +16,9 @@ export default function SearchBar() {
     const DEBOUNCE_DELAY = 250;
     const MAX_VISIBLE_RESULTS = 50;
     const dropdownRef = useRef(null);
+    const navigate = useNavigate();
 
+    const { setSearchSelection } = useAppContext()
 
     // Fetch data
     useEffect(() => {
@@ -72,7 +77,6 @@ export default function SearchBar() {
                         resultsMap.set(mapKey, {
                             key: entry.key,
                             value: entry.value,
-                            // Lazy highlight: just store original value for now
                             highlightedValue: entry.value,
                         });
                     }
@@ -131,23 +135,12 @@ export default function SearchBar() {
         return highlighted;
     };
 
-    const formatKey = (key) => {
-        const abbreviations = ["id", "sku"];
-        return key
-            .split("_")
-            .map((word) =>
-                abbreviations.includes(word.toLowerCase())
-                    ? word.toUpperCase()
-                    : word.charAt(0).toUpperCase() + word.slice(1)
-            )
-            .join(" ");
-    };
-
     const handleResultClick = (result) => {
-        console.log("Clicked result:", result);
+        setSearchSelection(result);
         setSearchString("");
         setFilteredResults([]);
         setActiveIndex(-1);
+        navigate('/search')
     };
 
     const handleKeyDown = (e) => {

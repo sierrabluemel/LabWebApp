@@ -43,15 +43,15 @@ function SignInMenu() {
 			return
 		}
 
-    apiPost('auth/sign-in', form, {})
-      .then((response) => {
-        localStorage.setItem("jwt", response.data["accessToken"]);
-        localStorage.setItem("refresh", response.data["refreshToken"]);
-        login(response.data.id);
-      })
-      .catch((error) => {
-        const errorMessageRaw = error.response
-        const errorMessage = errorMessageRaw?.data.error
+		apiPost('auth/sign-in', form, {})
+			.then((response) => {
+				localStorage.setItem("jwt", response.data["accessToken"]);
+				localStorage.setItem("refresh", response.data["refreshToken"]);
+				login(response.data.id);
+			})
+			.catch((error) => {
+				const errorMessageRaw = error.response
+				const errorMessage = errorMessageRaw?.data.error
 
 				setPopupMessage(errorMessage);
 			});
@@ -81,6 +81,9 @@ function SignInMenu() {
 	return (
 		<div className={styles.sign_in_menu}>
 			<div className={styles.menu}>
+				<div className={styles.title}>Welcome! Please sign in to continue</div>
+				<br />
+				<br />
 				<form onSubmit={handleSubmit}>
 					<input type='text' value={email} onChange={e => setEmail(e.target.value)} className={styles.default_text_box} placeholder={'Email'} />
 					<input type='password' value={password} onChange={e => setPassword(e.target.value)} className={styles.default_text_box} placeholder={'Password'} />

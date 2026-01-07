@@ -4,7 +4,6 @@ import homeIcon from "../../media/home_icon.png";
 import receivingIcon from "../../media/receiving_icon.png";
 import testingIcon from "../../media/testing_icon.png";
 import shippingIcon from "../../media/shipping_icon.png";
-import searchIcon from "../../media/search_icon.png";
 import adminIcon from "../../media/admin_icon.png";
 import { useAppContext } from "../../contexts/app";
 
