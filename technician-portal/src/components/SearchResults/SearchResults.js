@@ -229,7 +229,6 @@ export default function SearchResults() {
                             {isOrderOpen && (
                                 <div className={styles.batchContainer}>
                                     {Object.entries(order.batches).map(([, batchData]) => {
-                                        console.log(batchData)
                                         const isBatchOpen = !!openBatches[order.order_id]?.[batchData.batch_id];
                                         return (
                                             <div key={`batch-${batchData.batch_id}`}
