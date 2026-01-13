@@ -38,7 +38,11 @@ function LabView() {
                 const references = {};
                 Object.assign(references, data.super_daq_data, data.rotronic_data)
                 let description;
+                const activeReferenceTags = equipmentList.current.map(equipment => equipment.asset_tag)
                 for (const reference in references) {
+                    if (activeReferenceTags.findIndex(assetTag => assetTag === reference) === -1)
+                        continue
+
                     description = equipmentList.current.filter(equipment => equipment.asset_tag === reference)[0].description
                     referenceArray.push(<Equipment key={reference} assetId={reference} readings={references[reference]} description={description} openedEquipment={openedEquipment} updateData={updateData} />)
                 }
