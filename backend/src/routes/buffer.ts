@@ -38,15 +38,15 @@ function addSensorData(newSensorData: any[], currentSensorData: any[], minutes =
             readingList.push([
                 newData.messageDate,
                 newData.sensorID,
-                parseFloat(splitString[1]),
                 'temperature',
+                parseFloat(splitString[1]),
                 newData.batteryLevel
             ])
             readingList.push([
                 newData.messageDate,
                 newData.sensorID,
-                parseFloat(splitString[0]),
                 'humidity',
+                parseFloat(splitString[0]),
                 newData.batteryLevel
             ])
 
@@ -54,8 +54,8 @@ function addSensorData(newSensorData: any[], currentSensorData: any[], minutes =
             readingList.push([
                 newData.messageDate,
                 newData.sensorID,
-                parseFloat(splitString[0]),
                 'temperature',
+                parseFloat(splitString[0]),
                 newData.batteryLevel
             ])
         }
