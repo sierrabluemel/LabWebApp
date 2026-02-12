@@ -1,4 +1,4 @@
-import { executeQuery, executeQuerySingleReturn, rollingDataPool } from "../utils/db";
+import { executeNonQuery, executeQuery, executeQuerySingleReturn, rollingDataPool } from "../utils/db";
 import format from 'pg-format';
 
 const rollingData = {
@@ -69,8 +69,8 @@ const rollingData = {
         `, [startTime, endTime]);
     },
     addSensorReadings: (sensorReadings: any[]) => {
-		console.log(sensorReadings)
-        return executeQuery(rollingDataPool, format(`
+        console.log(sensorReadings)
+        return executeNonQuery(rollingDataPool, format(`
             INSERT INTO
                 SENSOR_READINGS (
                     TIMESTAMP,
@@ -81,7 +81,7 @@ const rollingData = {
                 )
             VALUES
                 %L
-        `), [sensorReadings]);
+        `, [sensorReadings]), []);
     },
 }
 
