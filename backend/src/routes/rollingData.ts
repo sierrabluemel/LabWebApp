@@ -54,7 +54,7 @@ const rollingDataRoutes = {
             type = "humidity"
 
         const start = new Date(Date.now() - minutes * 60000);
-        const stableTimes = Promise.all(setPoints.map((setPoint: any) => {
+        Promise.all(setPoints.map(async (setPoint: any) => {
             return rollingData.getStableTime(start, equipmentList[`${setPoint.reference}`].asset_tag, type, setPoint[`${type}`], setPoint.stabilityCriteria)
             .then((result) => result?.timestamp)
         }))

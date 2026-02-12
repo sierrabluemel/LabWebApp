@@ -1,4 +1,5 @@
-import { executeNonQuery, executeQuery, executeQuerySingleReturn, pool, rollingDataPool } from "../utils/db";
+import { executeQuery, executeQuerySingleReturn, rollingDataPool } from "../utils/db";
+import format from 'pg-format';
 
 const rollingData = {
     getOnlineSensors: () => {
@@ -66,6 +67,20 @@ const rollingData = {
             ORDER BY
                 TIMESTAMP DESC
         `, [startTime, endTime]);
+    },
+    addSensorReadings: (sensorReadings: Array<Object>) => {
+        return executeQuery(rollingDataPool, format(`
+            INSERT INTO
+                SENSOR_READINGS (
+                    TIMESTAMP,
+                    SENSOR_ID,
+                    TYPE,
+                    VALUE,
+                    BATTERY_LEVEL
+                )
+            VALUES
+                %L
+        `), [sensorReadings]);
     },
 }
 
