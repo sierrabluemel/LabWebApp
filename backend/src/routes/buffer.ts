@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import rollingData from "../models/rollingData";
 
 // Sensor data buffer
 let currentSensorData = [] as any[];
@@ -6,6 +7,7 @@ let currentSensorData = [] as any[];
 function addSensorData(newSensorData: any[], currentSensorData: any[], minutes = 10) {
     const now = new Date();
     const dataExpirationTime = 1000 * 60 * minutes // Milliseconds * seconds * minutes = 10 minute expiration
+    const readingList = [];
     sensorData:
     for (const newData of newSensorData) {
         const newDataDate = new Date(newData.messageDate + ' UTC');
@@ -29,7 +31,18 @@ function addSensorData(newSensorData: any[], currentSensorData: any[], minutes =
             batteryLevel: newData.batteryLevel,
         }
         currentSensorData.push(finalData);
+
+        
+        const sensorReading = [
+            newData.messageDate,
+            newData.sensorID,
+            newData.dataType,
+            newData.dataValue,
+            newData.batteryLevel
+        ]
+        readingList.push(sensorReading)
     }
+    rollingData.addSensorReadings(readingList)
     return currentSensorData;
 }
 
