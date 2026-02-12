@@ -81,7 +81,7 @@ const rollingData = {
                 )
             VALUES
                 %L
-        `, ), [sensorReadings]);
+        `, [sensorReadings]), []);
     },
 }
 
