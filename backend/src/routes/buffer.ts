@@ -32,15 +32,33 @@ function addSensorData(newSensorData: any[], currentSensorData: any[], minutes =
         }
         currentSensorData.push(finalData);
 
-        
-        const sensorReading = [
-            newData.messageDate,
-            newData.sensorID,
-            newData.dataType,
-            newData.dataValue,
-            newData.batteryLevel
-        ]
-        readingList.push(sensorReading)
+        const splitString = newData.dataValue
+
+        if (newData.dataType.indexOf('Percentage|TemperatureData|TemperatureData|MoistureWeight|TemperatureData|TemperatureData') !== -1) {
+            readingList.push([
+                newData.messageDate,
+                newData.sensorID,
+                splitString[1],
+                'temperature',
+                newData.batteryLevel
+            ])
+            readingList.push([
+                newData.messageDate,
+                newData.sensorID,
+                splitString[0],
+                'humidity',
+                newData.batteryLevel
+            ])
+
+        } else {
+            readingList.push([
+                newData.messageDate,
+                newData.sensorID,
+                splitString[0],
+                'temperature',
+                newData.batteryLevel
+            ])
+        }
     }
     rollingData.addSensorReadings(readingList)
     return currentSensorData;
