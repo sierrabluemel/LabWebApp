@@ -68,7 +68,7 @@ const rollingData = {
                 TIMESTAMP DESC
         `, [startTime, endTime]);
     },
-    addSensorReadings: (sensorReadings: Array<Object>) => {
+    addSensorReadings: (sensorReadings: any[]) => {
         return executeQuery(rollingDataPool, format(`
             INSERT INTO
                 SENSOR_READINGS (
