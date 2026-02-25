@@ -33,7 +33,7 @@ function addSensorData(newSensorData: any[], currentSensorData: any[], minutes =
         currentSensorData.push(finalData);
 
         if (newData.dataType.indexOf('Percentage|TemperatureData|TemperatureData|MoistureWeight|TemperatureData|TemperatureData') !== -1) {
-            const splitString = newData.dataValue
+            const splitString = newData.dataValue.split('|')
             readingList.push([
                 newData.messageDate,
                 newData.sensorID,
