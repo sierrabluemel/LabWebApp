@@ -1,7 +1,8 @@
-import { Pool } from "pg";
+import pg, { Pool } from "pg";
 import config from "./config"
 
 // Configure db connections
+pg.types.setTypeParser(20, (val) => parseInt(val, 10))
 let pool = new Pool(config.STATUS == "production" ? config.PROD_DB_CONNECTION : config.DEV_DB_CONNECTION);
 let rollingDataPool = new Pool(config.ROLLING_DATA_CONNECTION);
 

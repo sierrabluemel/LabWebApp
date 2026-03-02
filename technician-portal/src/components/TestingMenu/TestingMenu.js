@@ -10,9 +10,9 @@ import SensorLink from "../SensorLink/SensorLink.js";
 
 function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setReferencesToVerify }) {
     const {
-        procedureId: calibrationProcedureId, sensorGrid,
+        procedureId, sensorGrid,
         sensorList, setSensorGrid, setPopupMessage, equipment,
-        variances
+        variances, labReadings
     } = useAppContext()
 
     const [stableTimeStrings, setStableTimeStrings] = useState(setPoints.map(() => 'Loading...'));
@@ -33,162 +33,160 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         }
     }
 
-    const updateSensors = async (setSensorGrid, calibrationProcedureId, readings, selectedSensor, recentReadings) => {
-        let tempReferenceReadings = {};
-        const now = new Date();
+    const updateSensors = async (recentReadings, selectedSensor, savedReadings) => {
+        callApi('get-sensor-heartbeats')
+            .then(heartbeats => {
+                let tempReferenceReadings = {};
 
-        if (!setPoints) {
-            return;
-        }
-
-        try {
-            const newSensorGrid = [];
-            let currentReadingString = '';
-            let elementClass = styles.grid_row;
-            for (let i = 0; i < sensorList.length; i++) {
-                let displayBattery = false;
-                let currentReadingClass = styles.offline_sensor;
-                let sensorReadings = [];
-                const sensorStyles = [];
-                const sensor = sensorList[i % sensorList.length];
-                let style = '';
-                const thisMessage = recentReadings.monnit_sensor_data.filter(sensorReading => sensorReading.sensorID === `${sensor.sensor_id}`)[0]
-                if (sensor.sensor_id === selectedSensor) {
-                    style = styles.selected_sensor;
+                if (!setPoints) {
+                    return;
                 }
-                for (let setPointIndex = 0; setPointIndex < setPoints.length; setPointIndex++) {
-                    let sensorReadingString = '';
-                    let referenceString = '';
-                    let pass = true;
-                    let readingObject = {}
 
-                    if (recentReadings.devices_under_test[sensor.sensor_id]?.temperature !== undefined) {
-                        const heartbeat = thisMessage.heartbeat;
+                const newSensorGrid = [];
+                let currentReadingString = '';
+                let elementClass = styles.grid_row;
 
-                        let heartbeatString = '';
+                sensorList.forEach((sensor, index) => {
+                    const currentReadings = recentReadings.filter(r => r.sensor_id === sensor.sensor_id)
+                    const humidity = currentReadings.length !== 0 ? currentReadings.filter(r => r.type === 'humidity')[0] : null;
+                    const temperature = currentReadings.length !== 0 ? currentReadings.filter(r => r.type === 'temperature')[0] : null;
+                    let heartbeatString = '';
+                    let batteryLevel = 100;
+                    let currentReadingClass = styles.offline_sensor;
 
-                        const heartbeatDate = thisMessage.messageDate;
-                        const timezoneOffset = now.getTimezoneOffset() * 60000;
-                        const heartBeatTimestamp = new Date(new Date(heartbeatDate) - timezoneOffset);
-                        const lastHeartBeatSecondsAgo = (now - heartBeatTimestamp) / 1000;
+                    if (currentReadings.length === 0) {
+                        currentReadingString = 'No data';
+                    } else {
+                        const timeSinceHeartbeat = parseInt((new Date() - new Date(currentReadings[0].timestamp)) / 1000)
+                        batteryLevel = currentReadings[0].battery_level
+                        const heartbeat = heartbeats.filter(h => h.sensor_id === sensor.sensor_id)[0].heartbeat
 
-                        if (heartbeat >= 60) {
+                        if (heartbeat >= 60)
                             heartbeatString = `(${parseInt(heartbeat / 60)}m)`
-                        } else if (heartbeat < 60 && heartbeat) {
-                            heartbeatString = `(${heartbeat}s)`
-                        }
-                        if (thisMessage.batteryLevel && parseInt(thisMessage.batteryLevel) < 30)
-                            displayBattery = true;
 
-                        if (lastHeartBeatSecondsAgo < heartbeat * 1.5 || lastHeartBeatSecondsAgo < 10)
+                        else if (heartbeat < 60 && heartbeat)
+                            heartbeatString = `(${heartbeat}s)`
+
+
+                        if (timeSinceHeartbeat < heartbeat * 1.5 || timeSinceHeartbeat < 10)
                             currentReadingClass = styles.grid_entry_green;
-                        else if (lastHeartBeatSecondsAgo < heartbeat * 3 || lastHeartBeatSecondsAgo < 30)
+
+                        else if (timeSinceHeartbeat < heartbeat * 3 || timeSinceHeartbeat < 30)
                             currentReadingClass = styles.grid_entry_yellow;
+
                         else
                             currentReadingClass = styles.grid_entry_red;
 
-                        currentReadingString = `${recentReadings.devices_under_test[sensor.sensor_id]?.temperature.toFixed(2)}°C ${heartbeatString}`;
-
-                        if (calibrationProcedureId === 3 || calibrationProcedureId === 8) {
-                            currentReadingString = `${recentReadings.devices_under_test[sensor.sensor_id].humidity?.toFixed(2)}%RH\n
-                                    ${recentReadings.devices_under_test[sensor.sensor_id].temperature?.toFixed(2)}°C ${heartbeatString}`;
-                        }
-                    } else {
-                        currentReadingString = 'No data'
+                        currentReadingString = humidity ? `${humidity.value.toFixed(2)}%RH\n${temperature.value.toFixed(2)}°C ${heartbeatString}` : `${currentReadings[0].value.toFixed(2)}°C ${heartbeatString}`;
                     }
-                    switch (calibrationProcedureId) {
-                        default:
-                            if (calibrationProcedureId === 6) {
-                                elementClass = styles.grid_row_6;
-                            } else if (calibrationProcedureId === 7) {
-                                elementClass = styles.grid_row_10;
-                            }
-                            const findReadings = readings.find((reading) => (reading.set_point === setPoints[setPointIndex].temperature && reading.type === 'temperature' && reading.as_found === setPoints[setPointIndex].calibrate && reading.sensor_id === sensor.sensor_id));
 
-                            readingObject = { ...readingObject, ...findReadings };
+                    const sensorStyles = [];
+                    const sensorReadingStrings = [];
+                    let style = '';
 
-                            if (findReadings) {
-                                referenceString = referenceString + `${readingObject.reference_reading}°C\n`
-                                sensorReadingString = sensorReadingString + `${readingObject.sensor_reading}°C`;
-                                if (!readingObject.pass) {
-                                    pass = false;
+                    if (sensor.sensor_id === selectedSensor)
+                        style = styles.selected_sensor;
+
+                    setPoints.forEach((setPoint, index) => {
+                        let sensorReadingString = '';
+                        let referenceString = '';
+                        let pass = true;
+                        let readingObject = {}
+
+                        switch (procedureId) {
+                            default:
+                                if (procedureId === 6)
+                                    elementClass = styles.grid_row_6;
+                                else if (procedureId === 7)
+                                    elementClass = styles.grid_row_10;
+
+                                const findReadings = savedReadings.find((reading) => (
+                                    reading.set_point === setPoints[index].temperature
+                                    && reading.type === 'temperature'
+                                    && reading.as_found === setPoints[index].calibrate
+                                    && reading.sensor_id === sensor.sensor_id));
+
+                                readingObject = { ...readingObject, ...findReadings };
+                                if (findReadings) {
+                                    referenceString += `${readingObject.reference_reading}°C\n`
+                                    sensorReadingString += `${readingObject.sensor_reading}°C`;
+                                    if (!readingObject.pass) {
+                                        pass = false;
+                                    }
+                                    sensorStyles.push((pass) ? styles.grid_entry_green : styles.grid_entry_red);
+                                    sensorReadingStrings.push(sensorReadingString)
+                                } else {
+                                    sensorStyles.push(styles.grid_entry);
+                                    sensorReadingStrings.push(sensorReadingString)
+                                    break;
                                 }
-                                sensorStyles.push((pass) ? styles.grid_entry_green : styles.grid_entry_red);
-                            } else {
-                                sensorReadings.push('');
-                                sensorStyles.push(styles.grid_entry);
+
+                                tempReferenceReadings[`setPoint${index}`] = referenceString;
                                 break;
-                            }
 
-                            sensorReadings.push(sensorReadingString);
-                            tempReferenceReadings[`setPoint${setPointIndex}`] = referenceString;
-                            break;
+                            case 3:
+                            case 8:
+                                elementClass = procedureId === 3 ? `${styles.humidity_grid} ${styles.grid_row}` : styles.grid_row;
+                                let currentStyle = styles.grid_entry;
+                                for (const type of ['humidity', 'temperature']) {
+                                    if (savedReadings) {
+                                        const findReadings = savedReadings.find((reading) => (reading.set_point === setPoints[index][type] && reading.type === type && reading.sensor_id === sensor.sensor_id))
+                                        readingObject = { ...readingObject, ...findReadings };
 
-                        case 3:
-                        case 8:
-                            elementClass = calibrationProcedureId === 3 ? `${styles.humidity_grid} ${styles.grid_row}` : styles.grid_row;
-                            let currentStyle = styles.grid_entry;
-                            for (const type of ['humidity', 'temperature']) {
-                                if (readings) {
-                                    const findReadings = readings.find((reading) => (reading.set_point === setPoints[setPointIndex][type] && reading.type === type && reading.sensor_id === sensor.sensor_id))
-                                    readingObject = { ...readingObject, ...findReadings };
-
-                                    if (!findReadings) {
-                                        referenceString += '';
-                                        sensorReadingString += '';
-                                    } else {
-                                        if (type === 'humidity') {
-                                            referenceString += `${readingObject.reference_reading}%RH\n`;
-                                            sensorReadingString += `${readingObject.sensor_reading}%RH\n`;
+                                        if (!findReadings) {
+                                            referenceString += '';
+                                            sensorReadingString += '';
                                         } else {
-                                            referenceString += `${readingObject.reference_reading}°C\n`
-                                            sensorReadingString += `${readingObject.sensor_reading}°C`;
+                                            if (type === 'humidity') {
+                                                referenceString += `${readingObject.reference_reading}%RH\n`;
+                                                sensorReadingString += `${readingObject.sensor_reading}%RH\n`;
+                                            } else {
+                                                referenceString += `${readingObject.reference_reading}°C\n`
+                                                sensorReadingString += `${readingObject.sensor_reading}°C`;
+                                            }
+                                            if (!readingObject.pass) {
+                                                pass = false;
+                                            }
+                                            currentStyle = pass ? styles.grid_entry_green : styles.grid_entry_red;
                                         }
-                                        if (!readingObject.pass) {
-                                            pass = false;
-                                        }
-                                        currentStyle = pass ? styles.grid_entry_green : styles.grid_entry_red;
                                     }
                                 }
-                            }
 
-                            sensorStyles.push(currentStyle);
+                                sensorStyles.push(currentStyle);
+                                sensorReadingStrings.push(sensorReadingString)
 
-                            sensorReadings.push(sensorReadingString);
-                            tempReferenceReadings[`setPoint${setPointIndex}`] = referenceString;
-                            break;
-                    }
-                    if (loadingMessage) {
-                        setLoadingMessage('');
-                    }
-                }
+                                tempReferenceReadings[`setPoint${index}`] = referenceString;
+                                break;
+                        }
+                        if (loadingMessage) {
+                            setLoadingMessage('');
+                        }
+                    })
 
-                newSensorGrid.push(
-                    <div className={`${elementClass} ${style}`} key={sensor.sensor_id}>
-                        <button className={styles.default_button} onClick={() => selectSensor(sensor.sensor_id)}>
-                            {displayBattery ? <div className={styles.low_battery}></div> : <></>} {sensor.sensor_id}
-                        </button>
-                        <div className={currentReadingClass}>
-                            <SensorLink sensorId={sensor.sensor_id} text={currentReadingString} />
+                    newSensorGrid.push(
+                        <div className={`${elementClass} ${style}`} key={sensor.sensor_id}>
+                            <button className={styles.default_button} onClick={() => selectSensor(sensor.sensor_id)}>
+                                {batteryLevel <= 30 ? <div className={styles.low_battery}></div> : <></>} {sensor.sensor_id}
+                            </button>
+                            <div className={currentReadingClass}>
+                                <SensorLink sensorId={sensor.sensor_id} text={currentReadingString} />
+                            </div>
+                            {sensorStyles.map((style, index) => {
+                                return <div className={style} key={index}>{sensorReadingStrings[index]}</div>
+                            })}
                         </div>
-                        {sensorStyles.map((style, index) => {
-                            return <div className={style} key={index}>{sensorReadings[index]}</div>
+                    );
+                })
+                newSensorGrid.unshift(
+                    <div className={elementClass} key={'50'}>
+                        <div className={styles.grid_entry}>Reference</div>
+                        <div className={styles.grid_entry}></div>
+                        {setPoints.map((setPoint, index) => {
+                            return <div className={styles.grid_entry} key={index}>{tempReferenceReadings[`setPoint${index}`]}</div>
                         })}
-                    </div>
-                );
-            }
-            newSensorGrid.unshift(
-                <div className={elementClass} key={'1'}>
-                    <div className={styles.grid_entry}>Reference</div>
-                    <div className={styles.grid_entry}></div>
-                    {setPoints.map((setPoint, index) => {
-                        return <div className={styles.grid_entry} key={index}>{tempReferenceReadings[`setPoint${index}`]}</div>
-                    })}
-                </div>)
-            setSensorGrid(newSensorGrid);
-        } catch (error) {
-            console.error(error);
-        }
+                    </div>)
+                setSensorGrid(newSensorGrid);
+            })
     };
 
     const updateStableTimes = async () => {
@@ -222,15 +220,15 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
         refreshing.current = true;
 
-        callApi('get-recent-data')
-            .then((resolvedRecentReadings) => {
+        callApi('get-last-sensor-readings')
+            .then(recentReadings => {
                 if (sensorIds.length > 0)
                     callApi("get-recent-readings", { sensors: sensorIds })
-                        .then((resolvedReadings) => {
+                        .then(savedReadings => {
                             updateStableTimes()
                                 .then(refreshing.current = false)
-                            if (resolvedReadings) {
-                                updateSensors(setSensorGrid, calibrationProcedureId, resolvedReadings, updatedSensor, resolvedRecentReadings)
+                            if (recentReadings) {
+                                updateSensors(recentReadings, updatedSensor, savedReadings)
                             }
                         })
             })
@@ -249,42 +247,44 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             })
     }
 
-    const getReadings = async (stableTime, referenceAssetTag, sensorResolution) => {
-        const readingTypes = ['temperature', 'humidity']
+    const getReadings = async (stableTime, referenceAssetTag, sensorResolution, readingTypes) => {
         return callApi('get-reading-range',
             {
                 'timestamp': stableTime
             })
             .then(readings => {
                 let finalReadings = {
-                    lab_humidity: readings[0].lab_humidity,
-                    lab_temperature: readings[0].lab_temperature
+                    lab_humidity: labReadings.humidity,
+                    lab_temperature: labReadings.temperature
                 };
                 const referenceData = {};
                 sensorList.map((sensor) => finalReadings[`${sensor.sensor_id}`] = {})
                 readingTypes.forEach((readingType) => {
-                    const filteredReadings = readings.filter(reading => reading.reference_data[referenceAssetTag][readingType]);
-                    const referenceReadings = readings.map(reading => reading.reference_data[referenceAssetTag][readingType])
-                    const referenceAverage = round(average(referenceReadings), 4);
+                    const filteredReferenceReadings = readings.reference_readings.filter(r => r.asset_tag === referenceAssetTag && r.type === readingType);
+                    const referenceValues = filteredReferenceReadings.map(r => r.value);
+                    const sensorReadings = readings.sensor_readings.filter(r => sensorList.map(s => s.sensor_id).includes(r.sensor_id) && r.type === readingType)
+                    const referenceAverage = round(average(referenceValues), 4);
 
                     if (isNaN(referenceAverage))
                         return;
 
                     referenceData[`${readingType}_average`] = referenceAverage;
-                    referenceData[`${readingType}_readings`] = referenceReadings;
-                    for (const sensor of sensorList) {
+                    referenceData[`${readingType}_readings`] = referenceValues;
+                    sensorList.forEach(sensor => {
                         const referenceAndSensorDifference = [] // Array to contain the difference between the reference reading and sensor reading over the course of the 90 seconds
-                        const readingList = filteredReadings.map(reading => { // Get sensor readings from range to perform calculations
-
-                            if (!reading.devices_under_test[sensor.sensor_id]) {
+                        const readingList = []
+                        filteredReferenceReadings.forEach(reading => { // Get sensor readings from range to perform calculations
+                            if (!sensorReadings.map(r => r.sensor_id).includes(sensor.sensor_id))
                                 throw Error('Sensor readings missing')
-                            }
 
-                            const referenceReading = reading.reference_data[referenceAssetTag][readingType];
-                            const sensorReading = reading.devices_under_test[sensor.sensor_id][readingType];
+                            sensorReadings.forEach(sensorReading => {
+                                const secondsDelta = Math.abs(new Date(reading.timestamp) - new Date(sensorReading.timestamp)) / 1000
 
-                            referenceAndSensorDifference.push(round(referenceReading - sensorReading, 4));
-                            return sensorReading;
+                                if (secondsDelta <= 1.5) {
+                                    referenceAndSensorDifference.push(round(reading.value - sensorReading.value, 4));
+                                    readingList.push(sensorReading.value);
+                                }
+                            })
                         })
 
                         const sensorAverage = round(average(readingList), sensorResolution.toString().split('.')[1].length);
@@ -296,7 +296,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         finalReadingsSensor[`${readingType}_standard_deviation`] = sensorStandardDeviation;
                         finalReadingsSensor[`${readingType}_readings`] = readingList;
                         finalReadingsSensor[`${readingType}_reading_difference_data`] = referenceAndSensorDifference;
-                    }
+                    })
                     finalReadings.reference = referenceData
                 })
                 return finalReadings;
@@ -315,8 +315,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         const referenceObject = equipment.current[setPointObject.reference];
         const sensorResolution = setPointObject.reference === 'rotronic' ? 0.01 : 0.1;
 
-        getReadings(stableTime, referenceObject.asset_tag, sensorResolution)
-            .then((readings) => {
+        getReadings(stableTime, referenceObject.asset_tag, sensorResolution, readingTypes)
+            .then(readings => {
                 const referenceData = readings.reference
 
                 if (!referenceData)
@@ -341,8 +341,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current))
                             continue;
 
-                        else if (!readings || sensorAverage === undefined)
-                            return setPopupMessage(`Could not get stable data`);
+                        else if (!readings || !sensorAverage)
+                            return setPopupMessage(`Could not get stable data for sensor ${sensor.sensor_id}`);
 
                         else {
                             const variance = variances.current.filter(variance => {
@@ -419,7 +419,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             return <Button onClick={() => handleReadingButtonPress(index)} innerText={buttonText} key={index} />
         })
 
-        switch (calibrationProcedureId) {
+        switch (procedureId) {
             default:
                 break;
             case 3:
@@ -463,12 +463,12 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             refreshed.current = true;
             refresh();
 
-            callApi('get-variances-by-calibration-procedure', { calibration_procedure: calibrationProcedureId })
+            callApi('get-variances-by-calibration-procedure', { calibration_procedure: procedureId })
                 .then((response) => {
                     variances.current = response;
                 })
 
-            getReferences(calibrationProcedureId).then(references => {
+            getReferences(procedureId).then(references => {
                 const unverifiedReferences = []
                 if (referencesToVerify.length !== 0)
                     return;
