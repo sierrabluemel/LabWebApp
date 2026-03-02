@@ -6,7 +6,7 @@ const rollingDataRoutes = {
     getOnlineSensors: (req: Request, res: Response) => {
         rollingData.getOnlineSensors()
             .then((result) => {
-                res.status(200).json(result.monnit_sensor_data.map((s: any) => parseInt(s.sensorID)))
+                res.status(200).json(result.map(sensor => parseInt(sensor.sensor_id)))
             })
             .catch((err) => {
                 console.error(err);
@@ -23,25 +23,46 @@ const rollingDataRoutes = {
                 res.status(500).json({ error: `Unable to fetch recent data` });
             })
     },
-    getLastStableReading: (req: Request, res: Response) => {
-        let type = req.query.type as string ?? 'temperature';
-        let reference = req.query.reference as string;
-        let minutes = parseInt(req.query.minutes as string ?? 180);
-        let setPoint = parseInt(req.query.set_point as string ?? "");
-        let stabilityCriteria = JSON.parse(req.query.stability_criteria as string ?? "{}")
-
-        const start = new Date(Date.now() - minutes * 60000);
-        rollingData.getStableTime(start, reference, type, setPoint, stabilityCriteria)
-            .then((result) => {
-                let response = result
-                if (result)
-                    response = result.timestamp
-
-                return res.json({ Result: response });
+    getLastSensorReadings: (req: Request, res: Response) => {
+        rollingData.getLastSensorReadings()
+            .then((data) => {
+                res.json(data);
             })
             .catch((err) => {
                 console.error(err);
-                res.status(500).json({ Error: `Unable to fetch data` });
+                res.status(500).json({ error: `Unable to fetch recent data` });
+            })
+    },
+    getSensorHeartbeats: (req: Request, res: Response) => {
+        rollingData.getLastTwoSensorReadings()
+            .then(readings => {
+                const sensorIds = new Set(readings.map(s => s.sensor_id))
+                const heartBeats = [...sensorIds].map(sensorId => {
+                    const thisSensorReadings = readings.filter(r => r.sensor_id === sensorId && r.type === 'temperature')
+                    let heartbeat = null;
+                    if (thisSensorReadings.length === 2)
+                        heartbeat = (thisSensorReadings[0].timestamp - thisSensorReadings[1].timestamp)/1000
+
+                    return {
+                        sensor_id: parseInt(sensorId), 
+                        heartbeat
+                    }
+                })
+                res.json(heartBeats);
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to fetch recent data` });
+            })
+    },
+    getLastReferenceReadings: (req: Request, res: Response) => {
+        rollingData.getLastReferenceReadings()
+            .then((data) => {
+                res.json(data);
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to fetch last reference readings` });
             })
     },
     getLastStableReadings: async (req: Request, res: Response) => {
@@ -55,7 +76,7 @@ const rollingDataRoutes = {
 
         const start = new Date(Date.now() - minutes * 60000);
         Promise.all(setPoints.map(async (setPoint: any) => {
-            return rollingData.getStableTime(start, equipmentList[`${setPoint.reference}`].asset_tag, type, setPoint[`${type}`], setPoint.stabilityCriteria)
+            return rollingData.getStableTime(start, equipmentList[`${setPoint.reference}`].asset_tag, setPoint[`${type}`], setPoint.stabilityCriteria)
             .then((result) => result?.timestamp)
         }))
             .then((result) => {

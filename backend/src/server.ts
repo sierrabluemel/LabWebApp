@@ -22,9 +22,9 @@ import rollingDataRoutes from './routes/rollingData';
 
 const app = express();
 const corsOptions = {
-    origin: function (origin: string, callback: any) {
-        const whitelist = ['https://technicianportal.sensorcalibrations.com'];
-        if (whitelist.indexOf(origin) !== -1 || !origin) {
+    origin: function (origin: string | undefined, callback: any) {
+        const whitelist = ['http://localhost:3000', 'https://technicianportal.sensorcalibrations.com'];
+        if (!origin || whitelist.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -34,7 +34,7 @@ const corsOptions = {
     credentials: true
 } as CorsOptions;
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use(express.json());
@@ -109,13 +109,15 @@ app.get('/api/create-reading', auth, readingRoutes.createReading);
 
 // Rolling data
 app.get('/api/get-online-sensors', auth, rollingDataRoutes.getOnlineSensors);
-app.get('/api/get-last-stable-reading', auth, rollingDataRoutes.getLastStableReading);
 app.get('/api/get-last-stable-readings', auth, rollingDataRoutes.getLastStableReadings);
 app.get('/api/get-reading-range', auth, rollingDataRoutes.getReadingRange);
 app.get('/api/get-recent-data', auth, rollingDataRoutes.getRecentData);
+app.get('/api/get-last-sensor-readings', auth, rollingDataRoutes.getLastSensorReadings);
+app.get('/api/get-sensor-heartbeats', auth, rollingDataRoutes.getSensorHeartbeats);
+app.get('/api/get-last-reference-readings', auth, rollingDataRoutes.getLastReferenceReadings);
 
 // Equipment routes
-app.get('/api/get-equipment', equipmentRoutes.getEquipment); // Bring back auth after aggregator no longer uses the api soon™
+app.get('/api/get-equipment', auth, equipmentRoutes.getEquipment);
 app.get('/api/set-generator', auth, equipmentRoutes.setGenerator);
 app.get('/api/verify-equipment-in-testing', auth, equipmentRoutes.verifyEquipmentInTesting);
 app.get('/api/verify-equipment-in-shipping', auth, equipmentRoutes.verifyEquipmentInShipping);

@@ -3,19 +3,24 @@ import callApi from "../../utils/api/callApi";
 import styles from "../../styles/styles.module.css";
 import Equipment from "../Equipment/Equipment";
 import { useAppContext } from "../../contexts/app";
+import getEquipment from "../../utils/getEquipment";
+import parseDataBaseDate from "../../utils/parseDataBaseDate";
+import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
+
 
 function LabView() {
     const [aggregatorStatusDotStyle, setAggregatorStatusDotStyle] = useState(styles.status_dot_red);
     const [referenceList, setReferenceList] = useState([]);
-    const [labReadings, setLabReadings] = useState(null);
-    const equipmentList = useRef([]);
     const openedEquipment = useRef('');
     const isMounted = useRef(false);
-    const { technicianId } = useAppContext();
+    const [equipmentOutOfCalibration, setEquipmentOutOfCalibration] = useState([]);
+    const [labReadingString, setLabReadingString] = useState()
 
-    const setAggregatorStyle = (data) => {
+    const { equipment, technicianId, labReadings, setLabReadings } = useAppContext()
+
+    const setAggregatorStyle = (timestamp) => {
         let now = new Date()
-        const secondsAgo = (now - new Date(data.timestamp)) / 1000;
+        const secondsAgo = (now - new Date(timestamp)) / 1000;
         if (secondsAgo <= 30) {
             setAggregatorStatusDotStyle(styles.status_dot_green);
         } else if (secondsAgo > 120) {
@@ -30,24 +35,43 @@ function LabView() {
             return;
         }
 
-        callApi('get-recent-data')
-            .then(data => {
-                setAggregatorStyle(data);
+        callApi('get-last-sensor-readings')
+        .then(response => {
+            const bothReadings = response.filter(r => r.sensor_id === parseInt(process.env.REACT_APP_LAB_SENSOR_ID))
+            if (bothReadings.length > 0) {
+                const labHumidity = bothReadings.filter(r => r.type === 'humidity')[0].value
+                const labTemperature = bothReadings.filter(r => r.type === 'temperature')[0].value
+                setLabReadings({
+                    humidity: labHumidity,
+                    temperature: labTemperature
+                })
+                setLabReadingString(`${labHumidity}%RH @ ${labTemperature}°C`)
+            } else {
+                setLabReadingString('No lab readings found')
+            }
+        })
 
-                const referenceArray = [];
-                const references = {};
-                Object.assign(references, data.super_daq_data, data.rotronic_data)
-                let description;
-                const activeReferenceTags = equipmentList.current.map(equipment => equipment.asset_tag)
-                for (const reference in references) {
-                    if (activeReferenceTags.findIndex(assetTag => assetTag === reference) === -1)
-                        continue
+        callApi('get-last-reference-readings')
+            .then(response => {
+                setAggregatorStyle(response[0].timestamp);
 
-                    description = equipmentList.current.filter(equipment => equipment.asset_tag === reference)[0].description
-                    referenceArray.push(<Equipment key={reference} assetId={reference} readings={references[reference]} description={description} openedEquipment={openedEquipment} updateData={updateData} />)
-                }
-                setLabReadings(`${data.lab_humidity}%RH @ ${data.lab_temperature}°C`)
-                setReferenceList(referenceArray)
+                const referenceArray = [
+                    equipment.current.reference1,
+                    equipment.current.reference2,
+                    equipment.current.reference3,
+                    equipment.current.rotronic
+                ];
+
+                setReferenceList(referenceArray.map(reference => {
+                    return <Equipment
+                        key={reference.asset_tag}
+                        assetId={reference.asset_tag}
+                        readings={response.filter(reading => reading.asset_tag === reference.asset_tag)}
+                        description={reference.description}
+                        openedEquipment={openedEquipment}
+                        updateData={updateData}
+                    />
+                }))
             })
             .catch((err) => {
                 if (err.status !== 401) {
@@ -57,25 +81,34 @@ function LabView() {
     }
 
 
-    const getEquipment = () => {
+    const loadData = () => {
         if (!technicianId) {
             setTimeout(getEquipment, 3000)
             return;
         }
-        return callApi('get-equipment')
-            .then(equipment => {
-                equipmentList.current = equipment;
-            })
-            .catch(err => {
-                console.error(`Error getting equipment: ${err}`)
-                setTimeout(getEquipment, 1000);
+
+        return getEquipment()
+            .then(equipmentObject => {
+                equipment.current = equipmentObject;
+                const now = new Date()
+                const keys = Object.keys(equipmentObject)
+                const badEquipment = []
+                for (const key of keys) {
+                    const equipment = equipmentObject[key]
+                    if (new Date(equipment.next_calibration) < now) {
+                        badEquipment.push(`${equipment.asset_tag} (${equipment.description}) is out of calibration as of ${parseDataBaseDate(equipment.next_calibration)}`)
+                    }
+                }
+                if (badEquipment.length > 0) {
+                    setEquipmentOutOfCalibration(['EQUIPMENT OUT OF CALIBRATION', ...badEquipment]);
+                }
             })
     }
 
     useEffect(() => {
         if (!isMounted.current) {
             isMounted.current = true;
-            getEquipment()
+            loadData()
                 .then(() => {
                     updateData();
                 })
@@ -85,14 +118,17 @@ function LabView() {
     })
 
     return (
-        <div className={styles.equipment_container}>
-            <h1 className={styles.lab_readings}>
-                Aggregator status: <span className={`${aggregatorStatusDotStyle} ${styles.status_dot}`} data-testid={'statusDot'} ></span>
-                <br />
-                {labReadings}
-            </h1>
-            {(referenceList.length > 0) ? referenceList : <h1 className={styles.title}>Loading...</h1>}
-        </div>
+        <>
+            {equipmentOutOfCalibration.length === 0 ? <></> : <ConfirmationPopup confirmationArray={equipmentOutOfCalibration} setConfirmationArray={setEquipmentOutOfCalibration} handleConfirm={() => equipmentOutOfCalibration.current = []} />}
+            <div className={styles.equipment_container}>
+                <h1 className={styles.lab_readings}>
+                    Aggregator status: <span className={`${aggregatorStatusDotStyle} ${styles.status_dot}`} data-testid={'statusDot'} ></span>
+                    <br />
+                    {labReadingString}
+                </h1>
+                {(isMounted.current) ? referenceList : <h1 className={styles.title}>Loading...</h1>}
+            </div>
+        </>
     )
 }
 

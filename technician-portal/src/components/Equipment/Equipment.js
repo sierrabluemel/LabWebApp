@@ -3,10 +3,10 @@ import styles from "../../styles/styles.module.css";
 import { round } from "../../utils/customMath.js";
 
 function Equipment({ assetId, readings, description, openedEquipment, updateData }) {
+    const temperatureReading = readings.filter(reading => reading.type === 'temperature')[0]
+    const humidityReading = readings.filter(reading => reading.type === 'humidity')[0]
     let referenceColor;
     const [shownStyle, setShownStyle] = useState('')
-    const temperature = `Temperature: ${round(readings.temperature)}`;
-    const humidity = readings.hasOwnProperty('Humidity') ? `Humidity: ${round(readings.humidity)}` : ``;
 
     const toggleChecked = () => {
         if (shownStyle !== styles.equipment_popup_show) {
@@ -27,41 +27,41 @@ function Equipment({ assetId, readings, description, openedEquipment, updateData
     }, [openedEquipment.current])
 
     let elements;
-    if (!readings.hasOwnProperty('Humidity')) {
+    if (!humidityReading) {
         let stableString = 'Temperature not stable';
-        if (JSON.stringify(readings.stability_data['stable']) === 'true') {
+        if (temperatureReading.stable) {
             stableString = 'Temperature stable';
             referenceColor = styles.stable_green;
         }
         elements = (
             <>
                 <hr />
-                <h1 className={styles.title}>Temperature: {round(readings.temperature, 10)}</h1>
-                <h1 className={styles.title}>Temperature Average: {readings.stability_data.average}</h1>
+                <h1 className={styles.title}>Temperature: {round(temperatureReading.value, 10)}</h1>
+                <h1 className={styles.title}>Temperature Average: {round(temperatureReading.average, 4)}</h1>
                 <h1 className={styles.title}>{stableString}</h1>
-                <h1 className={styles.title}>Slope: {JSON.stringify(round(readings.stability_data['slope'], 10))}</h1>
-                <h1 className={styles.title}>STD DEV: {JSON.stringify(round(readings.stability_data['standard_deviation'], 10))}</h1>
+                <h1 className={styles.title}>Slope: {round(temperatureReading.slope, 6)}</h1>
+                <h1 className={styles.title}>STD DEV: {round(temperatureReading.standard_deviation, 6)}</h1>
             </>)
     } else {
         let stableString = 'Humidity not stable';
-        if (JSON.stringify(readings.stability_data.humidity['stable']) === 'true') {
+        if (humidityReading && humidityReading.stable) {
             stableString = 'Humidity stable';
             referenceColor = styles.stable_green;
         }
         elements = (
             <>
                 <hr />
-                <h1 className={styles.title}>Humidity: {readings.humidity}</h1>
-                <h1 className={styles.title}>Humidity Average: {readings.stability_data.humidity.average}</h1>
+                <h1 className={styles.title}>Humidity: {humidityReading.value}</h1>
+                <h1 className={styles.title}>Humidity Average: {round(humidityReading.average, 4)}</h1>
                 <h1 className={styles.title}>{stableString}</h1>
-                <h1 className={styles.title}>Slope: {JSON.stringify(round(readings.stability_data['humidity']['slope'], 10))}</h1>
-                <h1 className={styles.title}>STD DEV: {JSON.stringify(round(readings.stability_data['humidity']['standard_deviation'], 10))}</h1>
+                <h1 className={styles.title}>Slope: {round(humidityReading.slope, 6)}</h1>
+                <h1 className={styles.title}>STD DEV: {round(humidityReading.standard_deviation, 6)}</h1>
                 <hr />
-                <h1 className={styles.title}>Temperature: {readings.temperature}</h1>
-                <h1 className={styles.title}>Temperature Average: {readings.stability_data.temperature.average}</h1>
-                <h1 className={styles.title}>{(JSON.stringify(readings.stability_data.temperature['stable']) === 'true') ? 'Temperature stable' : 'Temperature not stable'}</h1>
-                <h1 className={styles.title}>Slope: {JSON.stringify(round(readings.stability_data['temperature']['slope'], 10))}</h1>
-                <h1 className={styles.title}>STD DEV: {JSON.stringify(round(readings.stability_data['temperature']['standard_deviation'], 10))}</h1>
+                <h1 className={styles.title}>Temperature: {temperatureReading.value}</h1>
+                <h1 className={styles.title}>Temperature Average: {round(temperatureReading.average, 4)}</h1>
+                <h1 className={styles.title}>{temperatureReading.stable ? 'Temperature stable' : 'Temperature not stable'}</h1>
+                <h1 className={styles.title}>Slope: {round(temperatureReading.slope, 6)}</h1>
+                <h1 className={styles.title}>STD DEV: {round(temperatureReading.standard_deviation, 6)}</h1>
             </>
         )
     }
@@ -75,7 +75,7 @@ function Equipment({ assetId, readings, description, openedEquipment, updateData
     return (
         <>
                 <button className={`${styles.equipment} ${referenceColor}`} onClick={toggleChecked}>
-                    {temperature}<br />{humidity}{humidity ? <br /> : ''}{assetId}
+                    Temperature: {round(temperatureReading.value, 2)}<br />{humidityReading ? <>Humidity: {round(humidityReading.value, 2)}<br /></> : ''}{assetId}
                 </button>
             {infoPopup}
         </>
