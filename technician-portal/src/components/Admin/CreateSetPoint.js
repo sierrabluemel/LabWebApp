@@ -8,8 +8,8 @@ export default function CreateSetPoint({ addingVariance, refreshVariances }) {
     const { setPopupMessage, equipmentList } = useAppContext();
     const generatorTypes = ['bath', 'drywell', 'dewar', 'chamber']
     const referenceTypes = ['prt', 'rotronic']
-    const references = equipmentList.current.filter(equipment => referenceTypes.includes(equipment.type))
-    const generators = equipmentList.current.filter(equipment => generatorTypes.includes(equipment.type))
+    const references = equipmentList.filter(equipment => referenceTypes.includes(equipment.type))
+    const generators = equipmentList.filter(equipment => generatorTypes.includes(equipment.type))
 
     const [setPoint, setSetPoint] = useState('');
     const [setPointType, setSetPointType] = useState('temperature');
