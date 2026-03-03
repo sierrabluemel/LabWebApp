@@ -258,11 +258,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     lab_temperature: labReadings.temperature
                 };
                 const referenceData = {};
-                sensorList.map((sensor) => finalReadings[`${sensor.sensor_id}`] = {})
+                sensorList.forEach((sensor) => finalReadings[`${sensor.sensor_id}`] = {})
                 readingTypes.forEach((readingType) => {
                     const filteredReferenceReadings = readings.reference_readings.filter(r => r.asset_tag === referenceAssetTag && r.type === readingType);
                     const referenceValues = filteredReferenceReadings.map(r => r.value);
-                    const sensorReadings = readings.sensor_readings.filter(r => sensorList.map(s => s.sensor_id).includes(r.sensor_id) && r.type === readingType)
+                    const allSensorReadings = readings.sensor_readings.filter(r => sensorList.map(s => s.sensor_id).includes(r.sensor_id) && r.type === readingType)
                     const referenceAverage = round(average(referenceValues), 4);
 
                     if (isNaN(referenceAverage))
@@ -274,7 +274,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         const referenceAndSensorDifference = [] // Array to contain the difference between the reference reading and sensor reading over the course of the 90 seconds
                         const readingList = []
                         filteredReferenceReadings.forEach(reading => { // Get sensor readings from range to perform calculations
-                            if (!sensorReadings.map(r => r.sensor_id).includes(sensor.sensor_id))
+                            const sensorReadings = allSensorReadings.filter(r => r.sensor_id === sensor.sensor_id)
+                            if (!allSensorReadings.map(r => r.sensor_id).includes(sensor.sensor_id))
                                 throw Error('Sensor readings missing')
 
                             sensorReadings.forEach(sensorReading => {
