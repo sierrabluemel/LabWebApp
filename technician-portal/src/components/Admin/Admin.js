@@ -22,10 +22,10 @@ function Admin() {
     const referenceList = [reference1, reference2, reference3, reference4];
     const refreshed = useRef(false);
 
-    const { setPopupMessage, equipmentList, technicianId } = useAppContext();
-    const [equipmentRows, setEquipmentRows] = useState(equipmentList.current);
+    const { setPopupMessage, equipmentList, setEquipmentList, technicianId } = useAppContext();
+    const [equipmentRows, setEquipmentRows] = useState(equipmentList);
 
-    let currentSuperDaq = equipmentList.current.filter(asset => asset.reference_tag === asset.asset_tag)[0];
+    let currentSuperDaq = equipmentList.filter(asset => asset.reference_tag === asset.asset_tag)[0];
     if (!currentSuperDaq) {
         currentSuperDaq = {};
     }
@@ -90,6 +90,13 @@ function Admin() {
         }
     }
     
+    const updateEquipment = useCallback(() => {
+        callApi('get-equipment')
+            .then(equipment => {
+                setEquipmentList(equipment);
+                setEquipmentRows(equipment);
+            })
+    }, [setEquipmentList])
 
     const refreshVariances = useCallback(() => {
             callApi('get-variances')
@@ -108,21 +115,14 @@ function Admin() {
         else
             refreshed.current = true
 
+        updateEquipment()
         refreshVariances()
-    }, [setPoints, refreshVariances])
-
-    async function updateEquipment() {
-        callApi('get-equipment')
-            .then(equipment => {
-                equipmentList.current = equipment;
-                setEquipmentRows(equipment)
-            })
-    }
+    }, [setPoints, refreshVariances, updateEquipment])
 
     async function handleConfirm(event) {
         const promises = [];
         if (isReferenceValid(superDaq)) {
-            const currentActiveSuperDaqs = equipmentList.current.filter(equipment => equipment.reference_tag === equipment.asset_tag);
+            const currentActiveSuperDaqs = equipmentList.filter(equipment => equipment.reference_tag === equipment.asset_tag);
             for (const activeSuperDaq of currentActiveSuperDaqs) {
                 const params = {
                     reference_tag: null,
@@ -186,7 +186,7 @@ function Admin() {
         setPopupMessage('Equipment updated')
     }
 
-    return (
+    return !refreshed.current ? <h1 className={styles.title}>Loading...</h1> : (
         <>
             <SensorInvoiceGenerator />
             <div className={styles.menu}>

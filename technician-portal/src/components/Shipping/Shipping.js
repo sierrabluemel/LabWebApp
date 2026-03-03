@@ -153,9 +153,9 @@ function Shipping() {
                 certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
             .then(() => getCertificates())
-            .catch((error) => {
+            .catch(error => {
                 console.error(error);
-                setPopupMessage(`An error occurred`);
+                setPopupMessage(`An error occurred while creating certificates`);
             })
     };
 

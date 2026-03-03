@@ -142,11 +142,17 @@ function ManageBatch() {
     const handleSensorConfirm = () => {
         const [sensorId, checkDigit] = parseSensorString(sensor);
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
-            callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit });
-            callApi('remove-sensor-from-batch', { sensor_id: sensorId })
-                .then(response => {
-                    setPopupMessage(response.Result);
-                    setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
+            callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
+                .then(() => {
+                    callApi('remove-sensor-from-batch', { sensor_id: sensorId })
+                        .then(response => {
+                            setPopupMessage(response.Result);
+                            setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
+                        })
+                })
+                .catch(err => {
+                    setPopupMessage(`Could not remove sensor ${sensorId} from iMonnit`)
+                    console.error(err)
                 })
         } else {
             callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })

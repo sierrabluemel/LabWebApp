@@ -288,15 +288,21 @@ const certificateRoutes = {
                     .then(() => {
                         url = `https://www.imonnit.com/json/RemoveSensor/`;
                         return monnitFetch(`${url}?${params.toString()}`)
+                            .catch((err) => {
+                                console.error(err);
+                                return res.status(500).json({ error: `Error removing sensor ${sensorId} from iMonnit network` })
+                            })
                     })
                     .catch((err) => {
                         console.error(err);
-                        res.status(500).json({ error: "Error removing sensor." })
+                        return res.status(500).json({ error: `Error setting sensor ${sensorId} to shipping heartbeat` })
                     })
             }));
 
         } catch (err) {
             console.error(err);
+            res.status(500).json({ error: `Error creating sensor certificates` })
+            return Promise.reject({ error: `Error creating sensor certificates` })
         }
     },
 };
