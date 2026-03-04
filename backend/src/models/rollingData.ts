@@ -39,6 +39,8 @@ const rollingData = {
                 pending_change
             FROM
                 sensor_readings
+            WHERE 
+                timestamp >= NOW() - INTERVAL '3 hours'
             ORDER BY 
                 sensor_id, type, timestamp DESC;
         `, []);
@@ -63,6 +65,8 @@ const rollingData = {
                 *
             FROM
                 reference_readings
+            WHERE 
+                timestamp >= NOW() - INTERVAL '3 hours'
             ORDER BY 
                 asset_tag, type, timestamp DESC;
         `, []);
@@ -101,8 +105,8 @@ const rollingData = {
             ORDER BY
                 timestamp DESC
         `, [startTime, endTime])
-        .then(sensor_readings => {
-            return executeQuery(rollingDataPool, `
+            .then(sensor_readings => {
+                return executeQuery(rollingDataPool, `
             SELECT
                 *
             FROM
@@ -112,13 +116,13 @@ const rollingData = {
             ORDER BY
                 timestamp DESC
         `, [startTime, endTime])
-        .then(reference_readings => {
-            return {
-                reference_readings,
-                sensor_readings
-            }
-        })
-        })
+                    .then(reference_readings => {
+                        return {
+                            reference_readings,
+                            sensor_readings
+                        }
+                    })
+            })
     },
     addSensorReadings: (sensorReadings: any[]) => {
         if (!sensorReadings || sensorReadings.length === 0) return Promise.resolve();
