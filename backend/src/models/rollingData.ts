@@ -28,7 +28,7 @@ const rollingData = {
             ORDER BY sensor_id, type, timestamp DESC;
         `, []);
     },
-    getLastSensorReadings: () => {
+    getLastSensorReadings: (sensorIds: number[]) => {
         return executeQuery(rollingDataPool, `
             SELECT DISTINCT ON (sensor_id, type)
                 timestamp,
@@ -39,13 +39,15 @@ const rollingData = {
                 pending_change
             FROM
                 sensor_readings
-            WHERE 
+            WHERE
                 timestamp >= NOW() - INTERVAL '3 hours'
+            AND
+                sensor_id = ANY($1::bigint[])
             ORDER BY 
                 sensor_id, type, timestamp DESC;
-        `, []);
+        `, [sensorIds]);
     },
-    getLastTwoSensorReadings: () => {
+    getLastTwoSensorReadings: (sensorIds: number[]) => {
         return executeQuery(rollingDataPool, `
             SELECT *
             FROM (
@@ -56,8 +58,14 @@ const rollingData = {
                     ) AS rn
                 FROM sensor_readings
             ) sub
-            WHERE rn <= 2
-            ORDER BY sensor_id, type, timestamp DESC;`, []);
+            WHERE 
+                rn <= 2
+            AND
+                timestamp >= NOW() - INTERVAL '3 hours'
+            AND
+                sensor_id = ANY($1::bigint[])
+            ORDER BY 
+                sensor_id, type, timestamp DESC;`, [sensorIds]);
     },
     getLastReferenceReadings: () => {
         return executeQuery(rollingDataPool, `

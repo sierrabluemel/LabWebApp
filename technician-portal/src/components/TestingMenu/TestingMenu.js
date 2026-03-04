@@ -34,7 +34,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
     }
 
     const updateSensors = async (recentReadings, selectedSensor, savedReadings) => {
-        callApi('get-sensor-heartbeats')
+        callApi('get-sensor-heartbeats', { sensor_ids: sensorList.map(s => s.sensor_id) })
             .then(heartbeats => {
                 let tempReferenceReadings = {};
 
@@ -220,7 +220,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
         refreshing.current = true;
 
-        callApi('get-last-sensor-readings')
+        callApi('get-last-sensor-readings', { sensor_ids: sensorIds })
             .then(recentReadings => {
                 if (sensorIds.length > 0)
                     callApi("get-recent-readings", { sensors: sensorIds })

@@ -41,7 +41,6 @@ function App() {
   const variances = useRef([]);
   const equipment = useRef({});
   const [equipmentList, setEquipmentList] = useState([]);
-  const [labReadings, setLabReadings] = useState(null);
 
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
 
@@ -65,7 +64,6 @@ function App() {
           expedited, setExpedited,
           equipmentList, setEquipmentList,
           searchSelection, setSearchSelection,
-          labReadings, setLabReadings,
           variances, equipment
         }}
       >

@@ -24,7 +24,9 @@ const rollingDataRoutes = {
             })
     },
     getLastSensorReadings: (req: Request, res: Response) => {
-        rollingData.getLastSensorReadings()
+        const sensorIds = req.query.sensor_ids as unknown as number[];
+
+        rollingData.getLastSensorReadings(sensorIds)
             .then((data) => {
                 res.json(data);
             })
@@ -34,7 +36,9 @@ const rollingDataRoutes = {
             })
     },
     getSensorHeartbeats: (req: Request, res: Response) => {
-        rollingData.getLastTwoSensorReadings()
+        const sensorIds = req.query.sensor_ids as unknown as number[];
+
+        rollingData.getLastTwoSensorReadings(sensorIds)
             .then(readings => {
                 const sensorIds = new Set(readings.map(s => s.sensor_id))
                 const heartBeats = [...sensorIds].map(sensorId => {
