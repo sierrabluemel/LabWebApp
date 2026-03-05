@@ -40,6 +40,7 @@ function App() {
   const [searchSelection, setSearchSelection] = useState(null)
   const variances = useRef([]);
   const equipment = useRef({});
+  const [labReadings, setLabReadings] = useState({})
   const [equipmentList, setEquipmentList] = useState([]);
 
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
@@ -63,6 +64,7 @@ function App() {
           batches, setBatches,
           expedited, setExpedited,
           equipmentList, setEquipmentList,
+          labReadings, setLabReadings,
           searchSelection, setSearchSelection,
           variances, equipment
         }}
