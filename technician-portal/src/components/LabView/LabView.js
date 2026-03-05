@@ -16,7 +16,7 @@ function LabView() {
     const [equipmentOutOfCalibration, setEquipmentOutOfCalibration] = useState([]);
     const [labReadingString, setLabReadingString] = useState()
 
-    const { equipment, technicianId } = useAppContext()
+    const { equipment, technicianId, setLabReadings } = useAppContext()
 
     const setAggregatorStyle = (timestamp) => {
         let now = new Date()
@@ -42,6 +42,7 @@ function LabView() {
                 const labHumidity = bothReadings.filter(r => r.type === 'humidity')[0].value
                 const labTemperature = bothReadings.filter(r => r.type === 'temperature')[0].value
                 setLabReadingString(`${labHumidity}%RH @ ${labTemperature}°C`)
+                setLabReadings({ humidity: labHumidity, temperature: labTemperature })
             } else {
                 setLabReadingString('No lab readings found')
             }

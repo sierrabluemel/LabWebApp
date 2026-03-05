@@ -253,6 +253,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 'timestamp': stableTime
             })
             .then(readings => {
+                console.log(labReadings)
                 let finalReadings = {
                     lab_humidity: labReadings.humidity,
                     lab_temperature: labReadings.temperature
