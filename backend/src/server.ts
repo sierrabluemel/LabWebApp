@@ -73,6 +73,7 @@ app.get('/api/set-order-shipped', auth, orderRoutes.setOrderShipped);
 app.get('/api/create-order', auth, orderRoutes.createOrder);
 app.get('/api/set-order-active-state', auth, orderRoutes.setOrderActiveState);
 app.get('/api/generate-return-record', auth, orderRoutes.generateReturnRecord);
+app.get('/api/remove-sensors-from-network', auth, orderRoutes.removeSensorsFromNetwork);
 
 // Sensor routes
 app.get('/api/get-sensors', auth, sensorRoutes.getSensors);
@@ -126,7 +127,7 @@ app.get('/api/verify-equipment-in-shipping', auth, equipmentRoutes.verifyEquipme
 app.get('/api/get-calibrations-by-month', auth, certificateRoutes.getCalibrationsByMonth);
 app.get('/api/get-certificates-by-order-id', auth, certificateRoutes.getCertificatesByOrderId);
 app.get('/api/print-certificate-labels', auth, certificateRoutes.printCertificateLabels);
-app.get('/api/create-certificate', auth, certificateRoutes.createCertificate);
+app.get('/api/create-certificates', auth, certificateRoutes.createCertificates);
 app.get('/api/update-certificate-json', auth, certificateRoutes.updateCertificateJson);
 app.get('/api/generate-order-certificates', auth, certificateRoutes.generateOrderCertificates);
 

@@ -40,7 +40,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
             .then(sensorValid => {
                 if (!sensorValid) {
                     setPopupMessage(`Sensor "${sensorID}" could not be added`);
-                    setSensors(sensors.filter(item => item !== sensorObject))
+                    setSensors(sensors.filter(item => JSON.stringify(item) !== JSON.stringify(sensorObject)))
                     setAddedSensors(addedSensors.filter(item => item !== sensorID))
                 }
             })
@@ -66,7 +66,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     }
 
     const checkStatus = () => {
-        callApi('get-online-sensors')
+        callApi('get-online-sensors', { sensor_ids: addedSensors })
             .then(response => {
                 for (const sensor of addedSensors) {
                     if (!response.includes(sensor)) {

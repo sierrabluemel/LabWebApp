@@ -2,7 +2,7 @@ import { executeNonQuery, executeQuery, executeQuerySingleReturn, rollingDataPoo
 import format from 'pg-format';
 
 const rollingData = {
-    getOnlineSensors: () => {
+    getOnlineSensors: (sensorIds: number[]) => {
         return executeQuery(rollingDataPool, `
             SELECT DISTINCT 
                 sensor_id
@@ -10,7 +10,9 @@ const rollingData = {
                 sensor_readings
             WHERE
                 timestamp >= NOW() - INTERVAL '2 hour'
-        `, []);
+            AND
+                sensor_id = ANY($1::bigint[])
+        `, [sensorIds]);
     },
     getRecentData: () => {
         return executeQuerySingleReturn(rollingDataPool, `

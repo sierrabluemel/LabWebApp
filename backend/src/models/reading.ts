@@ -6,13 +6,12 @@ let reading = {
             SELECT
                 *
             FROM
-                API_READING
+                api_reading
             WHERE
-                SENSOR_ID = ANY ($1::INT[])
-                AND TIMESTAMP IS NOT NULL
-                AND TIMESTAMP > $2
+                sensor_id = ANY ($1::INT[])
+                AND timestamp > $2
             ORDER BY
-                TIMESTAMP DESC
+                timestamp DESC;
         `, [sensorIds, earliestReadingDate]);
     },
     getReadingsBySensorId: (sensorId: number) => {

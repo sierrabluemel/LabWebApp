@@ -158,7 +158,7 @@ const certificateRoutes = {
                 res.status(500).json({ error: "An error occurred while processing the PDF." });
             })
     },
-    createCertificate: async (req: Request, res: Response) => {
+    createCertificates: async (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
 
         try {
