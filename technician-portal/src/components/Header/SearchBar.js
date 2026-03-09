@@ -12,6 +12,7 @@ export default function SearchBar() {
     const [filteredResults, setFilteredResults] = useState([]);
     const [activeIndex, setActiveIndex] = useState(-1);
     const [hoverIndex, setHoverIndex] = useState(-1);
+    const isMounted = useRef(false);
 
     const DEBOUNCE_DELAY = 250;
     const MAX_VISIBLE_RESULTS = 50;
@@ -22,10 +23,13 @@ export default function SearchBar() {
 
     // Fetch data
     useEffect(() => {
-        callApi("search-data", {}).then((response) => {
-            setSearchData(response || []);
-        });
-    }, []);
+        if (!isMounted.current) {
+            isMounted.current = true;
+            callApi("search-data", {}).then((response) => {
+                setSearchData(response || []);
+            });
+        }
+    }, [searchData]);
 
     // Flatten data into searchable entries
     useEffect(() => {
