@@ -50,6 +50,8 @@ function LabView() {
 
         callApi('get-last-reference-readings')
             .then(response => {
+                if (response.length === 0)
+                    throw Error('Unable to get aggregator readings');
                 setAggregatorStyle(response[0].timestamp);
 
                 const referenceArray = [

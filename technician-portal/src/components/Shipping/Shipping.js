@@ -147,8 +147,12 @@ function Shipping() {
         createCertificates()
     };
 
+    const removeSensorsFromNetwork = async () => {
+        callApi('remove-sensors-from-network', { order_id: orderNumber })
+    }
+
     const createCertificates = async () => {
-        callApi('create-certificate', { 'order_id': orderNumber })
+        callApi('create-certificates', { order_id: orderNumber })
             .then((certificates) => {
                 certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })

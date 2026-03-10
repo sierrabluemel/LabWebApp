@@ -4,7 +4,9 @@ import equipment from "../models/equipment";
 
 const rollingDataRoutes = {
     getOnlineSensors: (req: Request, res: Response) => {
-        rollingData.getOnlineSensors()
+        const sensorIds = req.query.sensor_ids as unknown as number[];
+
+        rollingData.getOnlineSensors(sensorIds)
             .then((result) => {
                 res.status(200).json(result.map(sensor => parseInt(sensor.sensor_id)))
             })
