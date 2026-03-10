@@ -104,7 +104,7 @@ const rollingData = {
             LIMIT 1;
         `, [setPoint, stabilityCriteria.slope, stabilityCriteria.standardDeviation, stabilityCriteria.difference, assetTag, startTime]);
     },
-    getDataInTimeRange: (startTime: Date, endTime: Date) => {
+    getDataInTimeRange: (startTime: Date, endTime: Date, sensorIds: any[]) => {
         return executeQuery(rollingDataPool, `
             SELECT
                 *
@@ -112,9 +112,11 @@ const rollingData = {
                 sensor_readings
             WHERE
                 timestamp BETWEEN $1 AND $2
+            AND
+                sensor_id = ANY($3::bigint[])
             ORDER BY
                 timestamp DESC
-        `, [startTime, endTime])
+        `, [startTime, endTime, sensorIds])
             .then(sensor_readings => {
                 return executeQuery(rollingDataPool, `
             SELECT
