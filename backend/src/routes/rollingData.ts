@@ -97,6 +97,7 @@ const rollingDataRoutes = {
     getReadingRange: (req: Request, res: Response) => {
         let seconds = parseInt(req.query.seconds as string ?? "");
         let timestamp = new Date(req.query.timestamp as string).getTime();
+        const sensorIds = req.query.sensor_ids as unknown as number[];
 
         if (isNaN(seconds)) {
             seconds = 90;
@@ -104,7 +105,7 @@ const rollingDataRoutes = {
         const start = new Date(timestamp - (seconds * 1000));
         const end = new Date(timestamp);
 
-        rollingData.getDataInTimeRange(start, end)
+        rollingData.getDataInTimeRange(start, end, sensorIds)
             .then((data) => {
                 res.json(data);
             })

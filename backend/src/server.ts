@@ -49,7 +49,6 @@ app.listen(port, ip, () => {
 
 // Sensor data buffer routes
 app.post("/api/webhook", bufferRoutes.webhook);
-app.get('/api/get-sensor-data', bufferRoutes.getSensorData);
 
 // Authentication routes
 app.post("/api/auth/sign-in", authRoutes.signIn);
@@ -73,7 +72,7 @@ app.get('/api/set-order-shipped', auth, orderRoutes.setOrderShipped);
 app.get('/api/create-order', auth, orderRoutes.createOrder);
 app.get('/api/set-order-active-state', auth, orderRoutes.setOrderActiveState);
 app.get('/api/generate-return-record', auth, orderRoutes.generateReturnRecord);
-// app.get('/api/remove-sensors-from-network', auth, orderRoutes.removeSensorsFromNetwork);
+app.get('/api/remove-sensors-from-network', auth, orderRoutes.removeSensorsFromNetwork);
 
 // Sensor routes
 app.get('/api/get-sensors', auth, sensorRoutes.getSensors);

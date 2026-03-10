@@ -250,7 +250,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
     const getReadings = async (stableTime, referenceAssetTag, sensorResolution, readingTypes) => {
         return callApi('get-reading-range',
             {
-                'timestamp': stableTime
+                timestamp: stableTime,
+                sensor_ids: sensorList.map(s => s.sensor_id)
             })
             .then(readings => {
                 let finalReadings = {
