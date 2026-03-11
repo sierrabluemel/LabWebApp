@@ -247,8 +247,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             })
     }
 
-    const getReadings = async (stableTime, referenceAssetTag, sensorResolution, readingTypes) => {
-        const sensorIds = selectedSensor.current ? selectedSensor.current : sensorList.map(s => s.sensor_id)
+    const getReadings = async (stableTime, referenceAssetTag, sensorResolution, readingTypes, sensorIds) => {
         return callApi('get-reading-range',
             {
                 timestamp: stableTime,
@@ -260,11 +259,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     lab_temperature: labReadings.temperature
                 };
                 const referenceData = {};
-                sensorList.forEach((sensor) => finalReadings[`${sensor.sensor_id}`] = {})
+                sensorIds.forEach((sensorId) => finalReadings[`${sensorId}`] = {})
                 readingTypes.forEach((readingType) => {
                     const filteredReferenceReadings = readings.reference_readings.filter(r => r.asset_tag === referenceAssetTag && r.type === readingType);
                     const referenceValues = filteredReferenceReadings.map(r => r.value);
-                    const allSensorReadings = readings.sensor_readings.filter(r => sensorList.map(s => s.sensor_id).includes(r.sensor_id) && r.type === readingType)
+                    const allSensorReadings = readings.sensor_readings.filter(r => sensorIds.includes(r.sensor_id) && r.type === readingType)
                     const referenceAverage = round(average(referenceValues), 4);
 
                     if (isNaN(referenceAverage))
@@ -272,12 +271,12 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
                     referenceData[`${readingType}_average`] = referenceAverage;
                     referenceData[`${readingType}_readings`] = referenceValues;
-                    sensorList.forEach(sensor => {
+                    sensorIds.forEach(sensorId => {
                         const referenceAndSensorDifference = [] // Array to contain the difference between the reference reading and sensor reading over the course of the 90 seconds
                         const readingList = []
                         filteredReferenceReadings.forEach(reading => { // Get sensor readings from range to perform calculations
-                            const sensorReadings = allSensorReadings.filter(r => r.sensor_id === sensor.sensor_id)
-                            if (!allSensorReadings.map(r => r.sensor_id).includes(sensor.sensor_id))
+                            const sensorReadings = allSensorReadings.filter(r => r.sensor_id === sensorId)
+                            if (!allSensorReadings.map(r => r.sensor_id).includes(sensorId))
                                 throw Error('Sensor readings missing')
 
                             sensorReadings.forEach(sensorReading => {
@@ -293,7 +292,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         const sensorAverage = round(average(readingList), sensorResolution.toString().split('.')[1].length);
                         const sensorStandardDeviation = round(standardDeviation(referenceAndSensorDifference, 10), 4);
 
-                        const finalReadingsSensor = finalReadings[`${sensor.sensor_id}`]
+                        const finalReadingsSensor = finalReadings[`${sensorId}`]
 
                         finalReadingsSensor[`${readingType}_average`] = sensorAverage;
                         finalReadingsSensor[`${readingType}_standard_deviation`] = sensorStandardDeviation;
@@ -317,8 +316,9 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         const setPointObject = setPoints[setPointIndex];
         const referenceObject = equipment.current[setPointObject.reference];
         const sensorResolution = setPointObject.reference === 'rotronic' ? 0.01 : 0.1;
+        const sensorIds = selectedSensor.current ? [selectedSensor.current] : sensorList.map(s => s.sensor_id);
 
-        getReadings(stableTime, referenceObject.asset_tag, sensorResolution, readingTypes)
+        getReadings(stableTime, referenceObject.asset_tag, sensorResolution, readingTypes, sensorIds)
             .then(readings => {
                 const referenceData = readings.reference
 
@@ -331,8 +331,8 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 readingTypes.forEach((readingType) => {
                     const referenceAverage = referenceData[`${readingType}_average`];
 
-                    for (let sensor of sensorList) {
-                        const sensorReadings = readings[`${sensor.sensor_id}`];
+                    for (let sensorId of sensorIds) {
+                        const sensorReadings = readings[`${sensorId}`];
                         const sensorAverage = sensorReadings[`${readingType}_average`];
                         const sensorStandardDeviation = sensorReadings[`${readingType}_standard_deviation`];
                         const readingRawData = {
@@ -341,11 +341,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                             sensor_and_reference_difference: sensorReadings[`${readingType}_reading_difference_data`]
                         };
 
-                        if (selectedSensor.current && sensor.sensor_id !== parseInt(selectedSensor.current))
+                        if (selectedSensor.current && sensorId !== parseInt(selectedSensor.current))
                             continue;
 
                         else if (!readings || !sensorAverage)
-                            return setPopupMessage(`Could not get stable data for sensor ${sensor.sensor_id}`);
+                            return setPopupMessage(`Could not get stable data for sensor ${sensorId}`);
 
                         else {
                             const variance = variances.current.filter(variance => {
@@ -365,7 +365,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                 sensor_reading: round(sensorAverage, 2),
                                 lab_rh: readings.lab_humidity,
                                 lab_temperature: readings.lab_temperature,
-                                sensor_id: sensor.sensor_id,
+                                sensor_id: sensorId,
                                 generator_id: equipment.current[setPointObject.generator].equipment_id,
                                 reference_id: referenceObject.equipment_id,
                                 tolerance: setPointObject.stabilityCriteria[`tolerance_${readingType}`],
@@ -379,10 +379,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                 .then(() => {
                                     refresh();
                                     if (setPointObject.calibrate) {
-                                        callApi('calibrate-sensor', { 'sensor_id': sensor.sensor_id, 'target_reading': parameters.reference_reading })
+                                        callApi('calibrate-sensor', { 'sensor_id': sensorId, 'target_reading': parameters.reference_reading })
                                             .then(response => {
                                                 if (response.Result !== 'Success') {
-                                                    setPopupMessage(`Could not calibrate sensor ${sensor.sensor_id}, please try again`)
+                                                    setPopupMessage(`Could not calibrate sensor ${sensorId}, please try again`)
                                                     console.error(response)
                                                     return;
                                                 }
@@ -390,7 +390,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                     }
                                 })
                                 .catch(err => {
-                                    setPopupMessage(`Could not create reading for sensor ${sensor.sensor_id}`)
+                                    setPopupMessage(`Could not create reading for sensor ${sensorId}`)
                                     console.error(err.response.data);
                                 })
                         }
