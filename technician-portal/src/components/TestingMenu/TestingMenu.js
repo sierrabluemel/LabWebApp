@@ -165,9 +165,9 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
                     newSensorGrid.push(
                         <div className={`${elementClass} ${style}`} key={sensor.sensor_id}>
-                            <button className={styles.default_button} onClick={() => selectSensor(sensor.sensor_id)}>
+                            <div className={styles.default_button} onClick={() => selectSensor(sensor.sensor_id)}>
                                 {batteryLevel <= 30 ? <div className={styles.low_battery}></div> : <></>} {sensor.sensor_id}
-                            </button>
+                            </div>
                             <div className={currentReadingClass}>
                                 <SensorLink sensorId={sensor.sensor_id} text={currentReadingString} />
                             </div>
@@ -248,10 +248,11 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
     }
 
     const getReadings = async (stableTime, referenceAssetTag, sensorResolution, readingTypes) => {
+        const sensorIds = selectedSensor.current ? selectedSensor.current : sensorList.map(s => s.sensor_id)
         return callApi('get-reading-range',
             {
                 timestamp: stableTime,
-                sensor_ids: sensorList.map(s => s.sensor_id)
+                sensor_ids: sensorIds
             })
             .then(readings => {
                 let finalReadings = {
@@ -477,6 +478,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 for (const reference of references) {
                     if (reference.physically_verified)
                         continue
+
+                    if (referenceStrings.current.length === 0)
+                        referenceStrings.current = ['The following references have been recently changed']
+
                     const verificationString = `Please verify that equipment ${reference.asset_tag} (${reference.description}) is being used for this test`
                     unverifiedReferences.push(reference);
                     referenceStrings.current = [...referenceStrings.current, verificationString];
