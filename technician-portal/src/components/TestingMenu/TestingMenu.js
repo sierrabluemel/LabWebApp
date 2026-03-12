@@ -344,7 +344,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         if (selectedSensor.current && sensorId !== parseInt(selectedSensor.current))
                             continue;
 
-                        else if (!readings || !sensorAverage)
+                        else if (!readings || isNaN(sensorAverage))
                             return setPopupMessage(`Could not get stable data for sensor ${sensorId}`);
 
                         else {
