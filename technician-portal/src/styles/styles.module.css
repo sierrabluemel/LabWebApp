@@ -316,9 +316,9 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     border-radius: 2px;
     text-align: center;
-    width: 80%;
+    width: 96%;
     box-sizing: border-box;
-    margin: 64px 10% 0 10%;
+    margin: 2%;
     padding: 10px;
     overflow-x: auto;
 }
@@ -344,6 +344,37 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-gap: 10px;
+}
+
+.triple_grid_menu {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 10px;
+}
+
+.show_options_button {
+    border: none;
+    background: none;
+    color: blue;
+    float: right;
+    z-index: 100;
+}
+
+.show_options_button:hover {
+    cursor: pointer;
+    color: #08afe6;
+    text-decoration: underline;
+}
+
+.extra_options_shown {
+    transition-duration: 0.5s;
+    max-height: 100vh;
+}
+
+.extra_options_hidden {
+    transition-duration: 0.5s;
+    overflow: hidden;
+    max-height: 0;
 }
 
 .search_bar {
@@ -562,14 +593,14 @@
 
 #popup_close {
     position: absolute;
-    right: 0;
+    left: 4px;
     bottom: 0;
     width: 15%;
 }
 
 #popup_confirm {
     position: absolute;
-    right: 16%;
+    right: 4px;
     bottom: 0;
     width: 15%;
 }

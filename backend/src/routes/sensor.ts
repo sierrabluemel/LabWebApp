@@ -269,6 +269,19 @@ const sensorRoutes = {
                 res.status(500).json({ error: "Error removing sensor." })
             })
     },
+    getSensorList: (req: Request, res: Response) => {
+        let url = 'https://www.imonnit.com/json/SensorList/'
+
+        monnitFetch(url)
+            .then((response) => {
+                const sensorIds = response.Result.map((s: any) => s.SensorID)
+                res.json(sensorIds)
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error getting sensors" })
+            })
+    },
 };
 
 export default sensorRoutes;

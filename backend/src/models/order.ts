@@ -31,7 +31,8 @@ const order = {
             SELECT
                 API_ORDER.ORDER_ID,
                 API_ORDER.CUSTOMER_ORDER_NUMBER,
-                API_ORDER.RECEIVED_TIMESTAMP
+                API_ORDER.RECEIVED_TIMESTAMP,
+                API_ORDER.EXPEDITED
             FROM
                 API_ORDER
             WHERE
@@ -86,6 +87,18 @@ const order = {
                 API_ORDER.ORDER_ID = $1;
         `, [orderId]);
     },
+    getSensorsByOrderId: (orderId: number) => {
+        return executeQuery(pool, `
+            SELECT
+                api_sensor.sensor_id
+            FROM
+                api_order
+                INNER JOIN api_batch ON api_order.order_id = api_batch.order_id
+                INNER JOIN api_sensor ON api_batch.batch_id = api_sensor.batch_id
+            WHERE
+                api_order.order_id = $1;
+        `, [orderId]);
+    }
 };
 
 export default order;
