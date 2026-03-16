@@ -6,6 +6,7 @@ import { useAppContext } from "../../contexts/app";
 import getEquipment from "../../utils/getEquipment";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
+import { useNavigate } from "react-router-dom";
 
 
 function LabView() {
@@ -17,6 +18,8 @@ function LabView() {
     const [labReadingString, setLabReadingString] = useState()
 
     const { equipment, technicianId, setLabReadings } = useAppContext()
+
+    const navigate = useNavigate()
 
     const setAggregatorStyle = (timestamp) => {
         let now = new Date()
@@ -35,18 +38,26 @@ function LabView() {
             return;
         }
 
-        callApi('get-last-sensor-readings', {sensor_ids: [process.env.REACT_APP_LAB_SENSOR_ID]})
-        .then(response => {
-            const bothReadings = response.filter(r => r.sensor_id === parseInt(process.env.REACT_APP_LAB_SENSOR_ID))
-            if (bothReadings.length > 0) {
-                const labHumidity = bothReadings.filter(r => r.type === 'humidity')[0].value
-                const labTemperature = bothReadings.filter(r => r.type === 'temperature')[0].value
-                setLabReadingString(`${labHumidity}%RH @ ${labTemperature}°C`)
-                setLabReadings({ humidity: labHumidity, temperature: labTemperature })
-            } else {
-                setLabReadingString('No lab readings found')
-            }
-        })
+        callApi('get-last-sensor-readings', { sensor_ids: [process.env.REACT_APP_LAB_SENSOR_ID] })
+            .then(response => {
+                const bothReadings = response.filter(r => r.sensor_id === parseInt(process.env.REACT_APP_LAB_SENSOR_ID))
+                if (bothReadings.length > 0) {
+                    const labHumidity = bothReadings.filter(r => r.type === 'humidity')[0].value
+                    const labTemperature = bothReadings.filter(r => r.type === 'temperature')[0].value
+                    setLabReadingString(`${labHumidity}%RH @ ${labTemperature}°C`)
+                    setLabReadings({ humidity: labHumidity, temperature: labTemperature })
+                } else {
+                    setLabReadingString('No lab readings found')
+                }
+            })
+            .catch((err) => {
+                if (err.status === 401) {
+                    navigate('/signIn')
+                }
+                else {
+                    console.error(`Unable to set recent data: ${err}`)
+                }
+            })
 
         callApi('get-last-reference-readings')
             .then(response => {
@@ -73,7 +84,10 @@ function LabView() {
                 }))
             })
             .catch((err) => {
-                if (err.status !== 401) {
+                if (err.status === 401) {
+                    navigate('/signIn')
+                }
+                else {
                     console.error(`Unable to set recent data: ${err}`)
                 }
             })
