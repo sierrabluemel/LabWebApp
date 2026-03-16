@@ -20,13 +20,13 @@ function ManageBatch() {
     const [heartbeat, setHeartBeat] = useState('');
     const [location, setLocation] = useState('');
     const [currentLocation, setCurrentLocation] = useState('');
-    const [confirmationArray, setConfirmationArray] = useState(false);
+    const [confirmationArray, setConfirmationArray] = useState([]);
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
     const setPoint = useRef(null);
     const isMounted = useRef(false);
     const [referencesToVerify, setReferencesToVerify] = useState([]);
-    const referenceStrings = useRef(['The following references have been recently changed'])
+    const referenceStrings = useRef([])
     const [calibrationProcedureDescription, setCalibrationProcedureDescription] = useState('');
 
     useEffect(() => {
@@ -179,8 +179,8 @@ function ManageBatch() {
     return (
         <>
             <div className={styles.menu}>
-                {referencesToVerify.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />}
-                {confirmationArray.length > 0 ? <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={handleSensorConfirm} /> : <></>}
+                <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />
+                <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={handleSensorConfirm} />
                 <div className={styles.grid_menu}>
                     <h1 className={styles.title}>{'Batch: ' + batchNumber + (currentLocation ? ` | Current location: ${currentLocation}` : ` | No location set`)}</h1>
                     <button className={styles.default_button} onClick={() => navigate('/batchEntry')}>Change batch</button>

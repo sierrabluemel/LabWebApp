@@ -118,7 +118,7 @@ function LabView() {
 
     return (
         <>
-            {equipmentOutOfCalibration.length === 0 ? <></> : <ConfirmationPopup confirmationArray={equipmentOutOfCalibration} setConfirmationArray={setEquipmentOutOfCalibration} handleConfirm={() => equipmentOutOfCalibration.current = []} />}
+            <ConfirmationPopup confirmationArray={equipmentOutOfCalibration} setConfirmationArray={setEquipmentOutOfCalibration} handleConfirm={() => equipmentOutOfCalibration.current = []} />
             <div className={styles.equipment_container}>
                 <h1 className={styles.lab_readings}>
                     Aggregator status: <span className={`${aggregatorStatusDotStyle} ${styles.status_dot}`} data-testid={'statusDot'} ></span>
