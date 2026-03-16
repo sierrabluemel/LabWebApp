@@ -15,6 +15,7 @@ function ManageBatch() {
     const {
         batchNumber, sensorList, setSensorList,
         procedureId, setPopupMessage, technicianId,
+        customerOrderNumber
     } = useAppContext()
 
     const [heartbeat, setHeartBeat] = useState('');
@@ -182,7 +183,7 @@ function ManageBatch() {
                 <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />
                 <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={handleSensorConfirm} />
                 <div className={styles.grid_menu}>
-                    <h1 className={styles.title}>{'Batch: ' + batchNumber + (currentLocation ? ` | Current location: ${currentLocation}` : ` | No location set`)}</h1>
+                    <h1 className={styles.title}>{`${customerOrderNumber} | Batch: ${batchNumber}` + (currentLocation ? ` | Current location: ${currentLocation}` : ` | No location set`)}</h1>
                     <button className={styles.default_button} onClick={() => navigate('/batchEntry')}>Change batch</button>
                     <form onSubmit={handleLocationSubmit} data-testid={'locationForm'}>
                         <input type='text' value={location} onChange={handleLocationChange} className={styles.default_text_box} placeholder={'Location'} />

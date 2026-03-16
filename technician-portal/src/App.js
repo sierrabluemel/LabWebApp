@@ -42,6 +42,7 @@ function App() {
   const equipment = useRef({});
   const [labReadings, setLabReadings] = useState({})
   const [equipmentList, setEquipmentList] = useState([]);
+  const [customerOrderNumber, setCustomerOrderNumber] = useState(null)
 
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
 
@@ -66,6 +67,7 @@ function App() {
           equipmentList, setEquipmentList,
           labReadings, setLabReadings,
           searchSelection, setSearchSelection,
+          customerOrderNumber, setCustomerOrderNumber,
           variances, equipment
         }}
       >
