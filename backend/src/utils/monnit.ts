@@ -46,7 +46,7 @@ async function recursiveQueue() {
         .finally(() => setTimeout(recursiveQueue, 1000/API_MAX_CALLS));
 }
 
-function monnitFetch(url: string, maxRetry: number = 5) {
+function monnitFetch(url: string, maxRetry: number = 10) {
     // Create the promise
     let queued = new Promise<any>((res, rej) => {
         // Push it to the queue
