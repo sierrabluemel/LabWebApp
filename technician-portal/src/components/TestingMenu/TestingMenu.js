@@ -67,11 +67,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         else if (heartbeat < 60 && heartbeat)
                             heartbeatString = `(${heartbeat}s)`
 
-
-                        if (timeSinceHeartbeat < heartbeat * 1.5 || timeSinceHeartbeat < 10)
+                        if (timeSinceHeartbeat < heartbeat * 3 || timeSinceHeartbeat < 30)
                             currentReadingClass = styles.grid_entry_green;
 
-                        else if (timeSinceHeartbeat < heartbeat * 3 || timeSinceHeartbeat < 30)
+                        else if (timeSinceHeartbeat < heartbeat * 6 || timeSinceHeartbeat < 60)
                             currentReadingClass = styles.grid_entry_yellow;
 
                         else
