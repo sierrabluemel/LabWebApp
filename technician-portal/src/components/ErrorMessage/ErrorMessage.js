@@ -15,7 +15,7 @@ function ErrorMessage() {
   return (
     <div className={styles.error_popup}>
       <h1 className={styles.title}>{popupMessage}</h1>
-      <button className={styles.default_button} id={styles.popup_close} onClick={() => setPopupMessage('')}>Close</button>
+      <button className={styles.default_button} id={styles.popup_confirm} onClick={() => setPopupMessage('')}>Close</button>
     </div>
   )
 }

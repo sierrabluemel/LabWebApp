@@ -11,7 +11,8 @@ function BatchEntry() {
     const navigate = useNavigate();
     const {
         batchNumber, setBatchNumber, setSensorList, setProcedureId,
-        technicianId, setPopupMessage, sensorGrid, setSensorGrid
+        technicianId, setPopupMessage, sensorGrid, setSensorGrid,
+        setCustomerOrderNumber
     } = useAppContext()
 
     const [batches, setBatches] = useState([<h1 className={styles.title} key={'fillerKey'}>Loading...</h1>]);
@@ -34,15 +35,11 @@ function BatchEntry() {
             setSensorGrid([]);
         }
 
-        const handleButtonClick = (batch) => {
+        const navigateToBatch = (batch, customerOrderNumber) => {
             setBatchNumber(batch.batch_id);
-            if (!technicianId) {
-                setPopupMessage('Please sign in');
-                return;
-            }
-            callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
-                .then(() => { })
+            setCustomerOrderNumber(customerOrderNumber);
             setProcedureId(batch.calibration_procedure_id);
+
             callApi('get-sensors', { 'batch_id': batch.batch_id })
                 .then(data => {
                     setSensorList(data);
@@ -52,9 +49,6 @@ function BatchEntry() {
         if (batches.length === 1 && isMounted) {
             callApi('get-batches-by-active-state', { active: true })
                 .then(response => {
-                    if (!isMounted) {
-                        return;
-                    }
                     if (response.length === 0) {
                         setBatches([<h1 className={styles.title} key={'fillerKey'}>No batches found</h1>]);
                         return;
@@ -76,7 +70,7 @@ function BatchEntry() {
                                 <hr />
                                 <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h1>
                                 {batches.map((batch, index) => {
-                                    return <BatchDisplay batch={batch} handleButtonClick={handleButtonClick} key={index} />
+                                    return <BatchDisplay batch={batch} handleButtonClick={() => navigateToBatch(batch, batches[0].customer_order_number)} key={index} />
                                 })}
                             </div>
                         )
@@ -139,7 +133,7 @@ function BatchEntry() {
 function BatchDisplay({ batch, handleButtonClick }) {
     return (
         <>
-            <button key={batch.batch_id} className={styles.batch_button} onClick={() => handleButtonClick(batch)}>
+            <button key={batch.batch_id} className={styles.batch_button} onClick={handleButtonClick}>
                 {`Batch: ${batch.batch_id} | Sensors: ${batch.sensors ? batch.sensors.length : 0} | `}
                 <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>{`CP: ${batch.calibration_procedure_id}`}</span>
             </button>

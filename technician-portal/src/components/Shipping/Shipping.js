@@ -11,6 +11,7 @@ import { useAppContext } from "../../contexts/app";
 import styles from "../../styles/styles.module.css";
 import getReferences from "../../utils/getReferences";
 import Button from "../Button/Button";
+import SensorLink from "../SensorLink/SensorLink";
 
 function Shipping() {
     const {
@@ -27,11 +28,35 @@ function Shipping() {
     const [sensor, setSensor] = useState('');
     const [sensorList, setSensorList] = useState([]);
     const [scannedSensors, setScannedSensors] = useState([]);
+    const [sensorsNotRemoved, setSensorsNotRemoved] = useState([]);
+    const [missedSensorsArray, setMissedSensorsArray] = useState([]);
+    const [optionsOpen, setOptionsOpen] = useState(false)
     const isMounted = useRef(false);
+    const [sensorsRemoved, setSensorsRemoved] = useState(false);
+    const [sensorsRemovedMessage, setSensorsRemovedMessage] = useState('Loading...')
 
-    const [confirmationArray, setConfirmationArray] = useState(false);
+    const [confirmationArray, setConfirmationArray] = useState([]);
     const [order, setOrder] = useState(null)
     const [referenceVerificationArray, setReferenceVerificationArray] = useState([]);
+
+    const checkSensorList = (sensors = null) => {
+        callApi('get-sensor-list')
+        .then(sensorsOnNetwork => {
+            const orderSensors = sensors || sensorList;
+
+            let sensorsNotRemoved = 0
+            orderSensors.forEach(sensor => {
+                sensorsOnNetwork.includes(sensor.sensor_id) && sensorsNotRemoved++;
+            })
+            if (sensorsNotRemoved > 0) {
+                setSensorsRemoved(false);
+                setSensorsRemovedMessage(`Sensors not removed: ${sensorsNotRemoved}`)
+            } else {
+                setSensorsRemoved(true);
+                setSensorsRemovedMessage('All sensors removed');
+            }
+        })
+    }
 
     const getCertificates = () => {
         callApi('get-certificates-by-order-id', { order_id: orderNumber })
@@ -114,6 +139,8 @@ function Shipping() {
         callApi('get-sensors-by-order-id', { order_id: orderNumber })
             .then(response => {
                 setSensorList(response)
+                setSensorsNotRemoved(response.map(s => s.sensor_id))
+                checkSensorList(response);
             })
             .catch((err) => {
                 console.error(err)
@@ -148,7 +175,17 @@ function Shipping() {
     };
 
     const removeSensorsFromNetwork = async () => {
-        callApi('remove-sensors-from-network', { order_id: orderNumber })
+        setSensorsRemovedMessage('Loading...')
+        callApi('remove-sensors-from-network', { sensor_ids: sensorsNotRemoved })
+            .then(response => {
+                const missed = response.sensors_missed
+                setSensorsNotRemoved(missed)
+
+                if (missed.length > 0)
+                    setMissedSensorsArray([`Unable to remove ${missed.length > 1 ? missed.length + ' sensors' : '1 sensor'}. Would you like to retry?`])
+
+                checkSensorList();
+            })
     }
 
     const createCertificates = async () => {
@@ -231,6 +268,10 @@ function Shipping() {
             .then(() => {
                 setPopupMessage('Return record printed')
             })
+            .catch(err => {
+                console.error(err)
+                setPopupMessage('Unable to print return record')
+            })
     }
 
     const createReturnRecord = () => {
@@ -247,7 +288,7 @@ function Shipping() {
                     link.click();
                     document.body.removeChild(link);
                 } else {
-                    console.error(`Expecting return record to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
+                    console.error(`Expecting return record to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get('content-type')}': ${response}`);
                     setPopupMessage(`Failed to generate return record for order ${orderNumber}`);
                 }
             })
@@ -271,7 +312,7 @@ function Shipping() {
                     link.click();
                     document.body.removeChild(link);
                 } else {
-                    console.error(`Expecting certificates to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get("content-type")}': ${response}`);
+                    console.error(`Expecting certificates to be 'application/pdf; charset=utf-8' but instead got '${response.headers.get('content-type')}': ${response}`);
                     setPopupMessage(`Failed to generate certificates for order ${orderNumber}`);
                 }
             })
@@ -302,13 +343,18 @@ function Shipping() {
             })
     }
 
+    const extraButtonsClass = `${optionsOpen ? styles.extra_options_shown : styles.extra_options_hidden}`
+
     return (
         <>
             <div className={styles.menu}>
-                {confirmationArray.length && <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />}
-                {referenceVerificationArray.length === 0 ? <></> : <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />}
+                <button onClick={() => setOptionsOpen(!optionsOpen)} className={styles.show_options_button}>More options {optionsOpen ? '▲' : '▼'}</button>
 
-                <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'}</h2>
+                <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />
+                <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />
+                <ConfirmationPopup confirmationArray={missedSensorsArray} setConfirmationArray={setMissedSensorsArray} handleConfirm={removeSensorsFromNetwork} />
+
+                <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'} | Sensors: {sensorList.length > 0 ? sensorList.length : 'Loading...'}</h2>
 
                 <div className={styles.batches_container}>
                     {
@@ -323,27 +369,35 @@ function Shipping() {
                 </div>
 
                 <div className={styles.grid_menu}>
-                    <button className={styles.default_button} onClick={generateCertificates}>Create certificates</button>
-                    {
-                        certificateList.current.length > 0
-                            ? <span className={`${styles.status_message} ${styles.status_dot_green}`}>{certificateMessage}</span>
-                            : <span className={`${styles.status_message} ${styles.status_dot_red}`}>{certificateMessage}</span>
-                    }
-                    <button className={styles.default_button} onClick={printReturnRecord}>Print return record</button>
-                    <button className={styles.default_button} onClick={printCertificates}>Print certificates</button>
-                    <Button onClick={createReturnRecord} innerText={"Download return record"} />
-                    <Button onClick={downloadCertificates} innerText={"Download certificates"} />
-                    <button className={styles.default_button} onClick={printCertificateLabels}>Print all labels</button>
+                    <Button onClick={generateCertificates} innerText={'Create certificates'} />
+                    <span className={`${styles.status_message} ${certificateList.current.length > 0 ? styles.status_dot_green : styles.status_dot_red}`}>{certificateMessage}</span>
+                    <Button onClick={removeSensorsFromNetwork} innerText={'Remove sensors'} />
+                    <span className={`${styles.status_message} ${sensorsRemoved ? styles.status_dot_green : styles.status_dot_red}`}>{sensorsRemovedMessage}</span>
+                    <Button onClick={printReturnRecord} innerText={'Print return record'} />
                     <form onSubmit={printLabel}>
                         <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
                     </form>
+                    <Button onClick={printCertificates} innerText={'Print certificates'} />
+                </div>
+
+                <div className={extraButtonsClass}>
+
+                    <hr />
+
+                    <div className={styles.triple_grid_menu}>
+                        <Button onClick={createReturnRecord} innerText={'Download return record'} />
+                        <Button onClick={downloadCertificates} innerText={'Download certificates'} />
+                        <Button onClick={printCertificateLabels} innerText={'Print all labels'} />
+                    </div>
                 </div>
 
                 <hr />
 
                 <div className={styles.sensor_container}>
                     {sensorList.map((sensor, index) => (
-                        <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.status_dot_green : styles.status_dot_red}`}>{sensor.sensor_id}:{sensor.check_digit}</div>
+                        <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.status_dot_green : styles.status_dot_red}`}>
+                            <SensorLink sensorId={sensor.sensor_id} text={`${sensor.sensor_id}:${sensor.check_digit}`} />
+                        </div>
                     ))}
                 </div>
 

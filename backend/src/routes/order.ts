@@ -3,6 +3,7 @@ import pdf from "../utils/pdf";
 import order from "../models/order";
 import { isNullOrEmpty } from "../utils/common";
 import certificate from "../models/certificate";
+import monnitFetch from "../utils/monnit";
 
 const orderRoutes = {
     createOrder: (req: Request, res: Response) => {
@@ -142,7 +143,32 @@ const orderRoutes = {
             .catch((err) => {
                 console.error(err);
             })
-    }
+    },
+    removeSensorsFromNetwork: async (req: Request, res: Response) => {
+        let sensorIds = req.query.sensor_ids as unknown as number[];
+        const sensorsMissed: any[] = []
+
+        if (!sensorIds) {
+            res.status(500).json({ error: 'No sensor ids provided' })
+            return
+        }
+
+        const url = `https://www.imonnit.com/json/RemoveSensor/`;
+        Promise.all(sensorIds.map(sensorId => {
+            return monnitFetch(`${url}?sensorID=${sensorId}`)
+                .catch(err => {
+                    sensorsMissed.push(sensorId)
+                    console.log(`Error removing sensor ${sensorId}: ${err}`)
+                })
+        })
+        )
+        let message = 'All sensors successfully removed'
+
+        if (sensorsMissed.length > 0)
+            message = 'Unable to remove all sensors'
+
+        res.status(200).json({ result: message, sensors_missed: sensorsMissed })
+    },
 };
 
 export default orderRoutes;

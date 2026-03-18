@@ -118,7 +118,7 @@ const certificateRoutes = {
         certificate.getCertificatesByOrderId(orderId)
             .then(async (certificates) => {
                 if (certificates.length == 0) {
-                    return res.status(404).json({ error: `No certificates found under order id ${orderId}` });
+                    return res.status(500).json({ error: `No certificates found under order id ${orderId}` });
                 }
 
                 certificates = certificates.sort((a, b) => a.certificate_id - b.certificate_id)
@@ -266,38 +266,7 @@ const certificateRoutes = {
                             })
                     })
             }))
-            res.json(certificates);
-
-            await Promise.all(sensors.map((s) => {
-                const sensorId = s.sensor_id;
-                const checkDigit = s.check_digit
-
-                let url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
-                const parameters = {
-                    'SensorID': sensorId,
-                    'CheckDigit': checkDigit,
-                    'reportInterval': 120,
-                    'activeStateInterval': 120,
-                } as any;
-
-                const params = new URLSearchParams();
-                for (const parameter in parameters) {
-                    params.append(parameter, parameters[parameter]);
-                };
-                return monnitFetch(`${url}?${params.toString()}`)
-                    .then(() => {
-                        url = `https://www.imonnit.com/json/RemoveSensor/`;
-                        return monnitFetch(`${url}?${params.toString()}`)
-                            .catch((err) => {
-                                console.error(err);
-                                return res.status(500).json({ error: `Error removing sensor ${sensorId} from iMonnit network` })
-                            })
-                    })
-                    .catch((err) => {
-                        console.error(err);
-                        return res.status(500).json({ error: `Error setting sensor ${sensorId} to shipping heartbeat` })
-                    })
-            }));
+            res.status(200).json(certificates);
 
         } catch (err) {
             console.error(err);

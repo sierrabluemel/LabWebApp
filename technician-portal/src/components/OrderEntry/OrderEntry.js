@@ -6,6 +6,7 @@ import callApi from "../../utils/api/callApi";
 
 import styles from "../../styles/styles.module.css";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
+import addWorkDays from "../../utils/addWorkDays";
 
 function OrderEntry() {
     const navigate = useNavigate();
@@ -15,6 +16,29 @@ function OrderEntry() {
     } = useAppContext()
 
     const [activeOrders, setActiveOrders] = useState(null)
+
+    const setOrderColors = (orders) => {
+        const today = new Date();
+        let dueDate;
+
+        orders.forEach(order => {
+            if (order.expedited)
+                dueDate = addWorkDays(new Date(order.received_timestamp), 2)
+            else
+                dueDate = addWorkDays(new Date(order.received_timestamp), 7)
+
+            if (addWorkDays(today, 0) > dueDate)
+                order.elementClass = styles.red;
+            else if (addWorkDays(today, 3) < dueDate)
+                order.elementClass = styles.green;
+            else
+                order.elementClass = styles.yellow;
+
+            order.dueDate = JSON.stringify(dueDate).replace('"', '')
+        })
+
+        return orders.sort((a, b) => a.order_id - b.order_id);
+    }
 
     const handleClick = (orderId) => {
         setOrderNumber(orderId);
@@ -70,7 +94,7 @@ function OrderEntry() {
             return;
         callApi('get-orders-to-ship')
             .then(orders => {
-                setActiveOrders(orders.sort((a, b) => a.order_id - b.order_id));
+                setActiveOrders(setOrderColors(orders));
             })
     }, [activeOrders, technicianId, orderNumber])
 
@@ -108,10 +132,10 @@ function OrderEntry() {
                 activeOrders.map(order => (
                     <button
                         key={order.order_id}
-                        className={styles.batch_button}
+                        className={`${styles.batch_button} ${order.elementClass}`}
                         onClick={() => handleClick(order.order_id)}
                     >
-                        Order: {order.order_id} | Customer Order: {order.customer_order_number} | {parseDataBaseDate(order.received_timestamp)}
+                        Order: {order.order_id} | Customer Order: {order.customer_order_number} | {parseDataBaseDate(order.dueDate)}
                     </button>
                 ))}
         </>

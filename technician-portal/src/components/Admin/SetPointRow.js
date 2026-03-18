@@ -31,23 +31,19 @@ export default function SetPointRow({ setPoint }) {
             set_point_id: setPoint.id
         }
         callApi('create-set-point-link', parameters)
-        .then(() => {
-            setPopupMessage(`Link created to Calibration Procedure ${calibrationProcedureId}`);
-            setCalibrationProcedureId('');
-        })
-        .catch((err) => {
-            console.error(err)
-            setPopupMessage('Unable to create link')
-        })
+            .then(() => {
+                setPopupMessage(`Link created to Calibration Procedure ${calibrationProcedureId}`);
+                setCalibrationProcedureId('');
+            })
+            .catch((err) => {
+                console.error(err)
+                setPopupMessage('Unable to create link')
+            })
     }
 
     return (
         <>
-            {
-                confirmationArray.length > 0 ?
-                    <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={removeSetPoint} /> :
-                    <></>
-            }
+            <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={removeSetPoint} />
             <tr key={setPoint.reference}>
                 <td className={styles.equipment_table_data}>
                     <Button onClick={() => setConfirmationArray(['Are you sure you would like to delete this set point?'])} innerText={'Delete'} className={`${styles.default_button} ${styles.red}`} />
