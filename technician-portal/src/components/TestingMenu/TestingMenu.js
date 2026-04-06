@@ -204,7 +204,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     const totalSeconds = parseInt((now.getTime() - new Date(stableTime).getTime()) / 1000);
                     const minutesAgo = parseInt(totalSeconds / 60)
 
-                    if (minutesAgo > 0)
+                    if (minutesAgo > 2)
                         return `Stable ${minutesAgo} minutes ago`;
                     else
                         return 'Stable';

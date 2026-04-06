@@ -99,6 +99,8 @@ const rollingData = {
                 asset_tag = $5
             AND
                 timestamp > $6
+            AND
+                timestamp < now() - interval '90 second'
             ORDER BY
                 timestamp DESC
             LIMIT 1;
