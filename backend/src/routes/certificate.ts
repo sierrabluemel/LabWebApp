@@ -196,7 +196,7 @@ const certificateRoutes = {
                             'CS1': parseDataBaseDate(calibrationDate),
                             'CS3': JSON.stringify(batch.calibration_procedure_id),
                             'CS4': `${temperatureReadings[0].lab_rh}% RH @ ${temperatureReadings[0].lab_temperature}°C`,
-                            'TechName': 'Colton Robinson',
+                            'TechName': 'Ross Schow',
                             'AuthName': 'Kelly S Lewis',
                             'Date': date,
                         }
