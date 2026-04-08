@@ -23,7 +23,7 @@ const pdf = {
         const form = pdfDoc.getForm();
 
         const page = pdfDoc.getPage(0);
-        let technicianSignature = fs.readFileSync(`templates/signatures/Colton Signature.png`) as any;
+        let technicianSignature = fs.readFileSync(`templates/signatures/Ross Signature.png`) as any;
         technicianSignature = await pdfDoc.embedPng(technicianSignature);
         let authorizorSignature = fs.readFileSync(`templates/signatures/Kelly Signature.png`) as any;
         authorizorSignature = await pdfDoc.embedPng(authorizorSignature);
