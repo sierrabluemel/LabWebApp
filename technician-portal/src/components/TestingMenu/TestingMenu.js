@@ -427,12 +427,12 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             case 3:
                 gridRowStyle = `${styles.humidity_grid} ${styles.grid_row}`;
                 setPointButtons = setPoints.map((setPoint, index) => {
-                    return <Button key={index} onClick={() => handleReadingButtonPress(index, ['humidity', 'temperature'])} innerText={<>{setPoint.humidity}%RH<br />{setPoint.temperature}°C</>} />
+                    return <Button key={index} onClick={() => handleReadingButtonPress(index, ['humidity', 'temperature'])} innerText={<>{setPoint.temperature}°C<br />{setPoint.humidity}%RH</>} />
                 });
                 break;
             case 8:
                 setPointButtons = setPoints.map((setPoint, index) => {
-                    return <Button key={index} onClick={() => handleReadingButtonPress(index, ['humidity', 'temperature'])} innerText={<>{setPoint.humidity}%RH<br />{setPoint.temperature}°C</>} />
+                    return <Button key={index} onClick={() => handleReadingButtonPress(index, ['humidity', 'temperature'])} innerText={<>{setPoint.temperature}°C<br />{setPoint.humidity}%RH</>} />
                 });
                 break;
             case 6:
