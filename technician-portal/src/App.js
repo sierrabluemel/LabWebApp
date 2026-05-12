@@ -42,7 +42,9 @@ function App() {
   const equipment = useRef({});
   const [labReadings, setLabReadings] = useState({})
   const [equipmentList, setEquipmentList] = useState([]);
-  const [customerOrderNumber, setCustomerOrderNumber] = useState(null)
+  const [customerOrderNumber, setCustomerOrderNumber] = useState(null);
+  const [generatorStatuses, setGeneratorStatuses] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
 
@@ -68,7 +70,9 @@ function App() {
           labReadings, setLabReadings,
           searchSelection, setSearchSelection,
           customerOrderNumber, setCustomerOrderNumber,
-          variances, equipment
+          generatorStatuses, setGeneratorStatuses,
+          variances, equipment,
+          notifications, setNotifications
         }}
       >
         <Router>

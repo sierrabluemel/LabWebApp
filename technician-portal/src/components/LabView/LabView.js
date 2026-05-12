@@ -6,7 +6,7 @@ import { useAppContext } from "../../contexts/app";
 import getEquipment from "../../utils/getEquipment";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
-import { useNavigate } from "react-router-dom";
+import Switch from "../Switch/Switch";
 
 
 function LabView() {
@@ -15,11 +15,14 @@ function LabView() {
     const openedEquipment = useRef('');
     const isMounted = useRef(false);
     const [equipmentOutOfCalibration, setEquipmentOutOfCalibration] = useState([]);
-    const [labReadingString, setLabReadingString] = useState()
+    const [labReadingString, setLabReadingString] = useState();
+    const [bath2On, setBath2On] = useState(false);
+    const [bath3On, setBath3On] = useState(false);
 
-    const { equipment, technicianId, setLabReadings } = useAppContext()
-
-    const navigate = useNavigate()
+    const {
+        equipment, technicianId, setTechnicianId, setLabReadings,
+        generatorStatuses, setGeneratorStatuses, setTechnician
+    } = useAppContext()
 
     const setAggregatorStyle = (timestamp) => {
         let now = new Date()
@@ -33,10 +36,31 @@ function LabView() {
         }
     }
 
+    const updateGeneratorStatus = (updatePower = false) => {
+        callApi('get-generator-statuses')
+            .then(response => {
+                if (updatePower) {
+                    setBath2On(response.filter(g => g.asset_tag === 'S000102')[0].power_on)
+                    setBath3On(response.filter(g => g.asset_tag === 'S000103')[0].power_on)
+                }
+
+                const bath2 = response.filter(s => s.asset_tag === 'S000102')[0];
+                const bath3 = response.filter(s => s.asset_tag === 'S000103')[0];
+                if (bath2 && bath3) {
+                    // console.log(`Bath 2: power_on: ${bath2.power_on} set_point: ${bath2.set_point} current_reading: ${bath2.current_reading}`)
+                    // console.log(`Bath 3: power_on: ${bath3.power_on} set_point: ${bath3.set_point} current_reading: ${bath3.current_reading}`)
+                }
+
+                setGeneratorStatuses(response)
+            })
+    }
+
     const updateData = () => {
         if (!technicianId) {
             return;
         }
+
+        updateGeneratorStatus();
 
         callApi('get-last-sensor-readings', { sensor_ids: [process.env.REACT_APP_LAB_SENSOR_ID] })
             .then(response => {
@@ -51,8 +75,12 @@ function LabView() {
                 }
             })
             .catch((err) => {
-                if (err.status === 401) {
-                    navigate('/signIn')
+                if (err?.status === 401) {
+                    setTechnician({});
+                    setTechnicianId(0);
+                    localStorage.clear('user')
+                    localStorage.clear('jwt')
+                    localStorage.clear('refresh')
                 }
                 else {
                     console.error(`Unable to set recent data: ${err}`)
@@ -72,6 +100,9 @@ function LabView() {
                     equipment.current.rotronic
                 ];
 
+                if (equipment.current.rotronic_backup)
+                    referenceArray.push(equipment.current.rotronic_backup)
+
                 setReferenceList(referenceArray.map(reference => {
                     return <Equipment
                         key={reference.asset_tag}
@@ -84,8 +115,12 @@ function LabView() {
                 }))
             })
             .catch((err) => {
-                if (err.status === 401) {
-                    navigate('/signIn')
+                if (err?.status === 401) {
+                    setTechnician({});
+                    setTechnicianId(0);
+                    localStorage.clear('user')
+                    localStorage.clear('jwt')
+                    localStorage.clear('refresh')
                 }
                 else {
                     console.error(`Unable to set recent data: ${err}`)
@@ -96,9 +131,11 @@ function LabView() {
 
     const loadData = () => {
         if (!technicianId) {
-            setTimeout(getEquipment, 3000)
+            setTimeout(loadData, 1000)
             return;
         }
+
+        updateGeneratorStatus(true);
 
         return getEquipment()
             .then(equipmentObject => {
@@ -107,6 +144,8 @@ function LabView() {
                 const keys = Object.keys(equipmentObject)
                 const badEquipment = []
                 for (const key of keys) {
+                    if (key === 'rotronic_backup')
+                        return;
                     const equipment = equipmentObject[key]
                     if (new Date(equipment.next_calibration) < now) {
                         badEquipment.push(`${equipment.asset_tag} (${equipment.description}) is out of calibration as of ${parseDataBaseDate(equipment.next_calibration)}`)
@@ -116,6 +155,14 @@ function LabView() {
                     setEquipmentOutOfCalibration(['EQUIPMENT OUT OF CALIBRATION', ...badEquipment]);
                 }
             })
+    }
+
+    const handleToggleBath = (bathOn, setBathOn, assetTag) => {
+        callApi('create-generator-command', { command_type: 'set_power', asset_tag: assetTag, value: bathOn ? 0 : 1 })
+            .catch(err => {
+                console.error(err)
+            })
+        setBathOn(!bathOn)
     }
 
     useEffect(() => {
@@ -140,6 +187,34 @@ function LabView() {
                     {labReadingString}
                 </h1>
                 {(isMounted.current) ? referenceList : <h1 className={styles.title}>Loading...</h1>}
+
+                {/* <div className={styles.equipment_control_menu}>
+                    <div className={styles.generator_control}>
+                        <div className={styles.title}>
+                            <span className={`${generatorStatuses} ${styles.status_dot}`} />
+                            Bath 2
+                        </div>
+                        <input className={styles.default_text_box} placeholder='Set Point' />
+                        <div className={styles.grid_menu}>
+                            <Switch isOn={bath2On} id={'bath2'} handleToggle={() => handleToggleBath(bath2On, setBath2On, 'S000102')} />
+                            <div className={styles.default_text}>
+                                {bath2On ? 'On' : 'Off'}
+                            </div>
+                        </div>
+                    </div>
+                    <div className={styles.generator_control}>
+                        <div className={styles.title}>
+                            Bath 3
+                        </div>
+                        <input className={styles.default_text_box} placeholder='Set Point' />
+                        <div className={styles.grid_menu}>
+                            <Switch isOn={bath3On} id={'bath3'} handleToggle={() => handleToggleBath(bath3On, setBath3On, 'S000103')} />
+                            <div className={styles.default_text}>
+                                {bath3On ? 'On' : 'Off'}
+                            </div>
+                        </div>
+                    </div>
+                </div> */}
             </div>
         </>
     )

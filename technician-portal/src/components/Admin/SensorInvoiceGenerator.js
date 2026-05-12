@@ -43,11 +43,11 @@ function SensorInvoiceGenerator() {
             <h1 className={styles.title}>Sensor Invoices</h1>
             <div className={styles.invoice_grid}>
                 <div>
-                    <label htmlFor="startDate">Start Date</label>
+                    <label htmlFor="startDate">Start Date: </label>
                     <DatePicker id="startDate" className={styles.date_picker} selected={startDate} onChange={date => setStartDate(date)} />
                 </div>
                 <div>
-                    <label htmlFor="endDate">End Date</label>
+                    <label htmlFor="endDate">End Date: </label>
                     <DatePicker id="endDate" className={styles.date_picker} selected={endDate} onChange={date => setEndDate(date)} />
                 </div>
                 <Button innerText={'Generate report'} onClick={generateReport} />

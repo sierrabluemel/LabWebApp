@@ -4,6 +4,7 @@ import styles from '../../styles/styles.module.css';
 import callApi from '../../utils/api/callApi';
 import Button from '../Button/Button';
 import ConfirmationPopup from '../ConfirmationPopup/ConfirmationPopup';
+import { round } from '../../utils/customMath';
 
 export default function SetPointRow({ setPoint }) {
     const { setPopupMessage } = useAppContext();
@@ -22,6 +23,14 @@ export default function SetPointRow({ setPoint }) {
                 console.error(err)
                 setPopupMessage('Unable to delete set point. Please try again later')
             })
+    }
+
+    function sanitizeNumber(number) {
+        const maxLength = 12
+        if (JSON.stringify(number).length > maxLength)
+            return `~${round(number, maxLength - 2)}`
+
+        return number
     }
 
     function addToCalibrationProcedure(event) {
@@ -58,13 +67,13 @@ export default function SetPointRow({ setPoint }) {
                     {setPoint.generator_asset_tag}
                 </td>
                 <td className={styles.equipment_table_data}>
-                    {setPoint.reference}
+                    {sanitizeNumber(setPoint.reference)}
                 </td>
                 <td className={styles.equipment_table_data}>
-                    {setPoint.bridge ? setPoint.bridge : '-'}
+                    {setPoint.bridge ? sanitizeNumber(setPoint.bridge) : '-'}
                 </td>
                 <td className={styles.equipment_table_data}>
-                    {setPoint.stability}
+                    {sanitizeNumber(setPoint.stability)}
                 </td>
                 <td className={styles.equipment_table_data}>
                     <form onSubmit={addToCalibrationProcedure}>

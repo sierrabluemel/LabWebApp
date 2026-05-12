@@ -81,6 +81,23 @@ const rollingData = {
                 asset_tag, type, timestamp DESC;
         `, []);
     },
+    getGeneratorStatuses: () => {
+        return executeQuery(rollingDataPool, `
+            SELECT
+                *
+            FROM
+                generator_status;
+        `, []);
+    },
+    createGeneratorCommand: (commandType: string, assetTag: string, value: string) => {
+        return executeQuery(rollingDataPool, `
+            INSERT INTO
+                generator_commands
+            (command_type, asset_tag, value)
+            VALUES
+            ($1, $2, $3);
+        `, [commandType, assetTag, value]);
+    },
     getStableTime: (startTime: Date, assetTag: string, setPoint: number, stabilityCriteria: any) => {
         return executeQuerySingleReturn(rollingDataPool, `
             SELECT

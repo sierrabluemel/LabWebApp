@@ -116,6 +116,8 @@ app.get('/api/get-recent-data', auth, rollingDataRoutes.getRecentData);
 app.get('/api/get-last-sensor-readings', auth, rollingDataRoutes.getLastSensorReadings);
 app.get('/api/get-sensor-heartbeats', auth, rollingDataRoutes.getSensorHeartbeats);
 app.get('/api/get-last-reference-readings', auth, rollingDataRoutes.getLastReferenceReadings);
+app.get('/api/get-generator-statuses', auth, rollingDataRoutes.getGeneratorStatuses);
+app.get('/api/create-generator-command', auth, rollingDataRoutes.createGeneratorCommand);
 
 // Equipment routes
 app.get('/api/get-equipment', auth, equipmentRoutes.getEquipment);
@@ -142,3 +144,7 @@ app.get('/api/create-set-point', auth, miscRoutes.createSetPoint);
 app.get('/api/change-set-point-active-state', auth, miscRoutes.changeSetPointActiveState);
 app.get('/api/create-set-point-link', auth, miscRoutes.createSetPointLink);
 app.get('/api/lookup-technician', auth, miscRoutes.lookupTechnician);
+app.get('/api/get-notifications', auth, miscRoutes.getNotifications);
+app.get('/api/create-notification', auth, miscRoutes.createNotification);
+app.get('/api/dismiss-notification', auth, miscRoutes.dismissNotification);
+app.get('/api/get-technicians', auth, miscRoutes.getTechnicians);

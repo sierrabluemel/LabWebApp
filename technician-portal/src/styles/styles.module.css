@@ -320,7 +320,7 @@
     box-sizing: border-box;
     margin: 2%;
     padding: 10px;
-    overflow-x: auto;
+    overflow-x: visible;
 }
 
 .default_text_box {
@@ -336,6 +336,23 @@
     margin: 5px 0;
 }
 
+.notification_text {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 2px;
+    height: 150px;
+    font-size: large;
+    font-weight: 600;
+    text-align: center;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    overflow-wrap: break-word;
+    font-family: Arial, Helvetica, sans-serif;
+    resize: none;
+    vertical-align: middle;
+    align-items: center;
+}
+
 .default_text_box:focus {
     outline: none;
 }
@@ -344,6 +361,22 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-gap: 10px;
+}
+
+.equipment_control_menu {
+    margin: 10px;
+}
+
+.generator_control {
+    background-color: #f3f3f3;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    text-align: center;
+    width: 96%;
+    box-sizing: border-box;
+    margin: 2%;
+    padding: 10px;
+    overflow-x: auto;
 }
 
 .triple_grid_menu {
@@ -574,18 +607,6 @@
     grid-column: span 5;
 }
 
-.error_popup {
-    z-index: 99999;
-    top: 2%;
-    position: absolute;
-    left: 30%;
-    width: 40%;
-    height: 20%;
-    border-radius: 2px;
-    border: #333 2px solid;
-    background-color: #f2f2f2;
-}
-
 .confirmation_popup {
     width: 50%;
     height: 30%;
@@ -595,14 +616,14 @@
     position: absolute;
     left: 4px;
     bottom: 0;
-    width: 15%;
+    width: auto;
 }
 
 #popup_confirm {
     position: absolute;
     right: 4px;
     bottom: 0;
-    width: 15%;
+    width: auto;
 }
 
 .button_and_input input {
@@ -755,7 +776,7 @@ th {
     position: fixed;
     background-color: red;
     text-align: center;
-    z-index: 1000;
+    z-index: 500;
     width: 100%;
     font-family: 'Courier New', Courier, monospace;
 }
@@ -809,6 +830,8 @@ th {
     margin: 0;
     list-style: none;
     text-align: center;
+    border-left: 1px solid #333;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     background-color: #f2f2f2;
     overflow-y: auto;
 }
@@ -846,7 +869,7 @@ th {
 }
 
 .equipment_popup_show {
-    max-height: 100vh;
+    max-height: 300vh;
 }
 
 .no_display {
@@ -1224,8 +1247,7 @@ th {
 .equipment_table {
     width: 100%;
     border-collapse: collapse;
-    margin: 20px 0;
-    font-size: 16px;
+    font-size: 14px;
     font-family: Arial, sans-serif;
 }
 
@@ -1235,7 +1257,7 @@ th {
 }
 
 .equipment_table_data {
-    padding: 12px 15px;
+    padding: 2px 3px;
     border: 1px solid #ddd;
     text-align: center;
 }
@@ -1257,6 +1279,7 @@ th {
 .invoice_grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+    grid-gap: 10px;
 }
 
 .add_set_point_container {
@@ -1379,13 +1402,11 @@ th {
     color: #000;
 }
 
-/* Optional: mark keyword highlight */
 mark {
     background-color: yellow;
     color: black;
 }
 
-/* --- Optional: consistent scroll behavior --- */
 .search_results_dropdown::-webkit-scrollbar {
     width: 8px;
 }
@@ -1514,9 +1535,11 @@ mark {
     0% {
         background-color: #fff3cd;
     }
+
     50% {
         background-color: #ffe08a;
     }
+
     100% {
         background-color: #fff3cd;
     }
@@ -1528,4 +1551,128 @@ mark {
 
 .order_details_item {
     margin: 1rem;
+}
+
+.notification_display {
+    position: absolute;
+    background-color: blue;
+    overflow: hidden;
+    transition: .75s ease-in-out;
+    transform: translateY(-100%);
+    transform: translateX(calc(-100% + 30px));
+    max-height: 0;
+    transform-origin: right top;
+    background-color: #f3f3f3;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    box-sizing: border-box;
+}
+
+.notification_display_shown {
+    transform: translateY(0);
+    transform: translateX(calc(-100% + 30px));
+    max-height: 1000px;
+    overflow: hidden;
+}
+
+.notification_card {
+    padding: 5px;
+    margin: 10px 30px 10px 5px;
+    background-color: #ececec;
+    min-width: 8vw;
+}
+
+.notification_card:hover {
+    cursor: pointer;
+}
+
+.notification_bell_image {
+    width: 30px;
+}
+
+.notification_bell_image:hover {
+    cursor: pointer;
+    filter: invert(0.2);
+}
+
+.trash_can_icon {
+    width: 20px;
+    color: red;
+    position: absolute;
+    right: 5px;
+}
+
+.trash_can_icon:hover {
+    cursor: pointer;
+    filter: invert(0.2);
+}
+
+.popup_trash_can_icon {
+    width: 30px;
+    color: red;
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+}
+
+.popup_trash_can_icon:hover {
+    cursor: pointer;
+    filter: invert(0.2);
+}
+
+.popup_background {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background-color: #7c7c7c;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    opacity: 70%;
+}
+
+.notification_popup_container {
+    width: 30vw;
+    height: 40vh;
+    position: fixed;
+    left: 35vw;
+    top: 30vh;
+    background-color: #f3f3f3;
+    opacity: 100%;
+    z-index: 1003;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.popup_header {
+    background-color: #08afe6;
+    padding: 10px;
+    color: white;
+}
+
+.close_button:after {
+    position: absolute;
+    content: "\00d7";
+    right: 7px;
+    top: 0px;
+    font-size: 35px;
+}
+
+.close_button:hover {
+    cursor: pointer;
+}
+
+
+.create_notification_grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 10px;
+}
+
+.repeat_text {
+    position: absolute;
+    bottom: 5px;
+    left: 10px;
 }

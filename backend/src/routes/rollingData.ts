@@ -71,6 +71,30 @@ const rollingDataRoutes = {
                 res.status(500).json({ error: `Unable to fetch last reference readings` });
             })
     },
+    getGeneratorStatuses: (req: Request, res: Response) => {
+        rollingData.getGeneratorStatuses()
+            .then(data => {
+                res.json(data);
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to fetch last reference readings` });
+            })
+    },
+    createGeneratorCommand: (req: Request, res: Response) => {
+        let commandType = req.query.command_type as string;
+        let assetTag = req.query.asset_tag as string;
+        let value = req.query.value as string;
+
+        rollingData.createGeneratorCommand(commandType, assetTag, value)
+            .then(() => {
+                res.json({ result: 'Success' });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to fetch last reference readings` });
+            })
+    },
     getLastStableReadings: async (req: Request, res: Response) => {
         let minutes = parseInt(req.query.minutes as string ?? 180);
         let setPoints = JSON.parse(req.query.set_points as string ?? "[]")

@@ -9,6 +9,7 @@ import SensorInvoiceGenerator from './SensorInvoiceGenerator';
 import EquipmentRow from './EquipmentRow';
 import SetPointRow from './SetPointRow';
 import CreateSetPoint from './CreateSetPoint';
+import CreateNotification from './CreateNotification';
 
 function Admin() {
     const [reference1, setReference1] = useState({});
@@ -246,6 +247,7 @@ function Admin() {
                 </div>
                 <button className={styles.equipment_save_button} onClick={handleSubmit}>Save</button>
             </div>
+            <CreateNotification />
             <div className={styles.menu}>
                 <span className={styles.plus_button_container}><button className={styles.plus_button} title='Add set point' onClick={() => setAddingVariance(!addingVariance)}></button></span>
                 <h1 className={styles.title}>
