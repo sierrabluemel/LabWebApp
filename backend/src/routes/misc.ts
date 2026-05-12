@@ -27,7 +27,7 @@ const miscRoutes = {
         }
 
         if (!column) {
-           res.status(400).json({ error: 'Invalid search type' });
+            res.status(400).json({ error: 'Invalid search type' });
         }
 
         misc.getSearchResults(column, searchValue)
@@ -152,6 +152,78 @@ const miscRoutes = {
             .catch((err) => {
                 console.error(err);
                 return res.status(500).json({ error: `Error getting technician` });
+            });
+    },
+    getNotifications: (req: Request, res: Response) => {
+        let technicianId = parseInt(req.query.technician_id as string ?? "");
+
+        misc.getNotifications(technicianId)
+            .then((result) => {
+                res.status(200).json(result)
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error getting technician` });
+            });
+    },
+    createNotification: (req: Request, res: Response) => {
+        const title = req.query.title as string;
+        const description = req.query.description as string;
+        const notifyDate = new Date(req.query.notify_date as any);
+        const technicianId = parseInt(req.query.technician_id as any);
+        const repeatable = req.query.repeatable as any as boolean;
+        const repeatInterval = parseInt(req.query.repeat_interval as any) || null;
+        const repeatUnit = req.query.repeat_unit as string || null;
+
+        misc.createNotification(title, description, notifyDate, technicianId, repeatable, repeatInterval, repeatUnit)
+            .then(() => { res.status(200).json({ Result: 'Success' }) })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error creating notification` });
+            });
+    },
+    dismissNotification: (req: Request, res: Response) => {
+        let notificationId = parseInt(req.query.notification_id as string ?? "");
+
+        misc.getNotification(notificationId)
+            .then(notification => {
+                if (notification.repeatable) {
+                    let updatedNotifyDate = new Date();
+                    updatedNotifyDate.setUTCHours(0, 0, 0, 0);
+                    switch (notification.repeat_unit) {
+                        default:
+                            console.error(`Unable to update date with unknown repeat unit: ${notification.repeat_unit}`);
+                            res.status(500).json({ error: `Error updating notification date` });
+                            break;
+                        case 'days':
+                            updatedNotifyDate.setDate(updatedNotifyDate.getDate() + notification.repeat_interval);
+                            break;
+                        case 'months':
+                            updatedNotifyDate.setMonth(updatedNotifyDate.getMonth() + notification.repeat_interval);
+                            break;
+                        case 'years':
+                            updatedNotifyDate.setFullYear(updatedNotifyDate.getFullYear() + notification.repeat_interval);
+                            break;
+                    }
+                    misc.updateNotificationDate(notificationId, updatedNotifyDate)
+                        .then(() => { res.status(200).json({ Result: 'Success' }) })
+                } else {
+                    misc.dismissNotification(notificationId)
+                        .then(() => { res.status(200).json({ Result: 'Success' }) })
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error dismissing notification` });
+            });
+
+    },
+    getTechnicians: (req: Request, res: Response) => {
+        misc.getTechnicians()
+            .then(technicians => { res.status(200).json(technicians) })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error getting technicians` });
             });
     },
 }

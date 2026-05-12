@@ -88,7 +88,7 @@ function BatchEntry() {
         return () => {
             isMounted = false;
         };
-    }, [setBatchNumber, setSensorList, setProcedureId, navigate, technicianId, setPopupMessage, batches.length, sensorGrid.length, setSensorGrid]);
+    }, [setBatchNumber, setSensorList, setProcedureId, navigate, technicianId, setPopupMessage, batches.length, sensorGrid.length, setSensorGrid, setCustomerOrderNumber]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();

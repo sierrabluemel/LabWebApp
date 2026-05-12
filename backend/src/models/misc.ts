@@ -1,4 +1,4 @@
-import { executeQuery, executeQuerySingleReturn, pool } from "../utils/db";
+import { executeQuery, executeQuerySingleReturn, executeNonQuery, pool } from "../utils/db";
 
 const allowedSearchColumns = [
     "o.order_id",
@@ -178,8 +178,60 @@ const misc = {
         return executeQuerySingleReturn(pool, `
             SELECT *
             FROM API_TECHNICIAN
-            WHERE USER_ID = $1
+            WHERE USER_ID = $1;
         `, [technicianId]);
+    },
+
+    getNotifications: (technicianId: number) => {
+        return executeQuery(pool, `
+            SELECT *
+            FROM api_notifications
+            WHERE technician_id = $1
+            AND is_dismissed != true
+            AND time_to_notify < CURRENT_TIMESTAMP
+            OR time_to_notify IS NULL
+            AND is_dismissed != true;
+        `, [technicianId]);
+    },
+
+    createNotification: (title: string, description: string, notifyDate: Date, technicianId: number, repeatable: boolean, repeatInterval: number | null, repeatUnit: string | null) => {
+        return executeNonQuery(pool, `
+            INSERT INTO api_notifications
+            (title, description, time_to_notify, technician_id, repeatable, repeat_interval, repeat_unit)
+            VALUES ($1, $2, $3, $4, $5, $6, $7);
+        `, [title, description, notifyDate, technicianId, repeatable, repeatInterval, repeatUnit]);
+    },
+
+    dismissNotification: (notificationId: number) => {
+        return executeNonQuery(pool, `
+            UPDATE api_notifications
+            SET is_dismissed = true
+            WHERE id = $1;
+        `, [notificationId]);
+    },
+
+    getNotification: (notificationId: number) => {
+        return executeQuerySingleReturn(pool, `
+            SELECT *
+            FROM api_notifications
+            WHERE id = $1;
+        `, [notificationId]);
+    },
+
+    updateNotificationDate: (notificationId: number, newDate: Date) => {
+        return executeNonQuery(pool, `
+            UPDATE api_notifications
+            SET time_to_notify = $1
+            WHERE id = $2;
+        `, [newDate, notificationId]);
+    },
+
+    getTechnicians: () => {
+        return executeQuery(pool, `
+            SELECT *
+            FROM api_technician
+            ORDER BY list_priority;
+        `, []);
     },
 }
 

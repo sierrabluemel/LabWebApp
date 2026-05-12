@@ -3,13 +3,14 @@ import styles from '../../styles/styles.module.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from "../../contexts/app";
 import SearchBar from './SearchBar';
+import NotificationCenter from './NotificationCenter';
 
 function Header({ title }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { technician, setTechnician, setTechnicianId } = useAppContext();
     const isMounted = useRef(false);
-    
+
     const logOut = useCallback(() => {
         setTechnician({});
         setTechnicianId(0);
@@ -45,8 +46,9 @@ function Header({ title }) {
             </div>
 
             <div className={styles.header_right}>
-                {!technician.first_name ? <></> :
+                {technician.first_name &&
                     <>
+                        <NotificationCenter />
                         <div className={styles.technician_name}>
                             Hello {technician.first_name || 'User'}!
                         </div>

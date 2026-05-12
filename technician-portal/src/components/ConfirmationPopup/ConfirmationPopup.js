@@ -5,9 +5,11 @@ function ConfirmationPopup({ confirmationArray, setConfirmationArray, handleConf
     return <></>
   return (
     <>
-      <div className={`${styles.error_popup} ${styles.confirmation_popup}`}>
+      <div className={styles.popup_background} onClick={() => setConfirmationArray([])}>
+      </div>
+      <div className={`${styles.notification_popup_container} ${styles.confirmation_popup}`}>
         {confirmationArray.map((string, index) => (
-          index > 0 ? <h1 key={string} className={`${styles.title} ${styles.status_dot_red}`}>{string}</h1>: <h1 key={string} className={styles.title}>{string}</h1>
+          index > 0 ? <h1 key={string} className={`${styles.title} ${styles.status_dot_red}`}>{string}</h1> : <h1 key={string} className={styles.title}>{string}</h1>
         ))}
         <button className={`${styles.default_button} ${styles.red}`} id={styles.popup_close} onClick={() => setConfirmationArray([])}>Dismiss</button>
         <button className={`${styles.default_button} ${styles.green}`} id={styles.popup_confirm} onClick={() => { setConfirmationArray([]); handleConfirm() }}>Confirm</button>
