@@ -2,7 +2,7 @@ import styles from "../../styles/styles.module.css";
 import trashCan from "../../media/trash_can.png";
 
 export default function NotificationPopup({ isOpen, setIsOpen, dismissNotification, notification }) {
-    const descriptionArray = notification.description.split('\n')
+    const descriptionArray = notification.description && notification.description.split('\n')
     return (
         isOpen &&
         <>
