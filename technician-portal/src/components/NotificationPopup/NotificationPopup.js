@@ -2,6 +2,7 @@ import styles from "../../styles/styles.module.css";
 import trashCan from "../../media/trash_can.png";
 
 export default function NotificationPopup({ isOpen, setIsOpen, dismissNotification, notification }) {
+    const descriptionArray = notification.description.split('\n')
     return (
         isOpen &&
         <>
@@ -10,9 +11,14 @@ export default function NotificationPopup({ isOpen, setIsOpen, dismissNotificati
                 {notification.title && <div className={styles.popup_header}><span className={styles.title}>{notification.title}</span></div>}
                 <br />
                 <div className={styles.notification_popup}>
-                    <div className={styles.default_text}>{notification.description}</div>
+                    <div className={styles.default_text}>{descriptionArray.map(subString => {
+                        return <>
+                            {subString}
+                            <br />
+                        </>
+                    })}</div>
 
-                    {notification.repeatable && <div className={`${styles.default_text} ${styles.repeat_text}`}>Repeats every <span style={{'textDecoration': 'underline', color: '#08afe6'}}>{notification.repeat_interval} {notification.repeat_unit}</span></div>}
+                    {notification.repeatable && <div className={`${styles.default_text} ${styles.repeat_text}`}>Repeats every <span style={{ 'textDecoration': 'underline', color: '#08afe6' }}>{notification.repeat_interval} {notification.repeat_unit}</span></div>}
 
                 </div>
                 <img alt='Delete trash can' src={trashCan} className={styles.popup_trash_can_icon} onClick={() => dismissNotification(notification.id, false)} />
