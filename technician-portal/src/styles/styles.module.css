@@ -12,7 +12,6 @@
 
 .main_body {
     margin-top: 70px;
-    /* push content below header */
     display: grid;
     grid-template-columns: 225px 1fr 225px;
 }
@@ -62,8 +61,7 @@
 }
 
 /* ---------------- Sidebars ---------------- */
-.navigation_menu,
-.equipment_container {
+.navigation_menu {
     position: fixed;
     top: 70px;
     height: calc(100% - 70px);
@@ -821,19 +819,26 @@ th {
     color: #333;
 }
 
-.equipment_container {
+.equipment_bar {
     position: fixed;
-    z-index: 1;
     right: 0;
-    width: 225px;
-    height: 100%;
+    min-height: 100%;
     margin: 0;
+    height: 100vh;
+}
+
+.equipment_container {
+    position: sticky;
+    border-left: 1px solid #333;
+    height: calc(100vh - 70px);
+    z-index: 1;
+    width: 225px;
     list-style: none;
     text-align: center;
-    border-left: 1px solid #333;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    background-color: #f2f2f2;
-    overflow-y: auto;
+    background-color: hsl(0, 0%, 95%);
+    overflow-x: hidden;
+    overflow-y: scroll;
 }
 
 .equipment {
