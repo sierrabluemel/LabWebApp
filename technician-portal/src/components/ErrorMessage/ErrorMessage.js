@@ -5,6 +5,10 @@ import styles from '../../styles/styles.module.css';
 function ErrorMessage() {
   const { popupMessage, setPopupMessage } = useAppContext()
 
+  window.addEventListener('keypress', event => {
+    setPopupMessage('');
+  })
+
   if (!popupMessage) return <></>;
 
   return (
