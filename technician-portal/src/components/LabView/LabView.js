@@ -18,10 +18,16 @@ function LabView() {
     const [labReadingString, setLabReadingString] = useState();
     const [bath2On, setBath2On] = useState(false);
     const [bath3On, setBath3On] = useState(false);
+    const [bath2SetPoint, setBath2SetPoint] = useState('');
+    const [bath3SetPoint, setBath3SetPoint] = useState('');
+    const [bath2CurrentSetPoint, setBath2CurrentSetPoint] = useState(-25);
+    const [bath3CurrentSetPoint, setBath3CurrentSetPoint] = useState(90);
+    const [toggleTime, setToggleTime] = useState(null)
 
     const {
         equipment, technicianId, setTechnicianId, setLabReadings,
-        generatorStatuses, setGeneratorStatuses, setTechnician
+        generatorStatuses, setGeneratorStatuses, setTechnician,
+        setPopupMessage
     } = useAppContext()
 
     const setAggregatorStyle = (timestamp) => {
@@ -37,20 +43,19 @@ function LabView() {
     }
 
     const updateGeneratorStatus = (updatePower = false) => {
+        if (toggleTime && new Date() - toggleTime < 10000)
+            return
+        else
+            setToggleTime(null)
+
         callApi('get-generator-statuses')
             .then(response => {
                 if (updatePower) {
                     setBath2On(response.filter(g => g.asset_tag === 'S000102')[0].power_on)
                     setBath3On(response.filter(g => g.asset_tag === 'S000103')[0].power_on)
+                    setBath2CurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000102')[0].set_point).toFixed(2))
+                    setBath3CurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000103')[0].set_point).toFixed(2))
                 }
-
-                const bath2 = response.filter(s => s.asset_tag === 'S000102')[0];
-                const bath3 = response.filter(s => s.asset_tag === 'S000103')[0];
-                if (bath2 && bath3) {
-                    // console.log(`Bath 2: power_on: ${bath2.power_on} set_point: ${bath2.set_point} current_reading: ${bath2.current_reading}`)
-                    // console.log(`Bath 3: power_on: ${bath3.power_on} set_point: ${bath3.set_point} current_reading: ${bath3.current_reading}`)
-                }
-
                 setGeneratorStatuses(response)
             })
     }
@@ -60,7 +65,7 @@ function LabView() {
             return;
         }
 
-        updateGeneratorStatus();
+        updateGeneratorStatus(true);
 
         callApi('get-last-sensor-readings', { sensor_ids: [process.env.REACT_APP_LAB_SENSOR_ID] })
             .then(response => {
@@ -158,11 +163,38 @@ function LabView() {
     }
 
     const handleToggleBath = (bathOn, setBathOn, assetTag) => {
+        setToggleTime(new Date())
         callApi('create-generator-command', { command_type: 'set_power', asset_tag: assetTag, value: bathOn ? 0 : 1 })
             .catch(err => {
-                console.error(err)
+                setPopupMessage(`Unable to turn bath ${assetTag} ${bathOn ? 'off' : 'on'}`);
+                console.error(err);
             })
         setBathOn(!bathOn)
+    }
+
+    const handleSubmitSetPoint = (event, assetTag, value, setText) => {
+        event.preventDefault();
+
+        callApi('create-generator-command', { command_type: 'adjust_set_point', asset_tag: assetTag, value: parseFloat(value) })
+            .then(() => {
+                setPopupMessage(`Bath ${assetTag} set to ${value}`);
+                setText('');
+            })
+            .catch(err => {
+                setPopupMessage(`Unable to change bath ${assetTag} to set point ${value}`);
+                console.error(err);
+            })
+
+    }
+
+    const cleanSetPointText = (setPointText) => {
+        let cleanedText = ''
+        for (let i = 0; i < setPointText.length; i++) {
+            const char = setPointText[i];
+            if (char === '.' || char === '-' || !isNaN(parseFloat(char)))
+                cleanedText = cleanedText + char
+        }
+        return cleanedText;
     }
 
     useEffect(() => {
@@ -180,41 +212,47 @@ function LabView() {
     return (
         <>
             <ConfirmationPopup confirmationArray={equipmentOutOfCalibration} setConfirmationArray={setEquipmentOutOfCalibration} handleConfirm={() => equipmentOutOfCalibration.current = []} />
-            <div className={styles.equipment_container}>
-                <h1 className={styles.lab_readings}>
-                    Aggregator status: <span className={`${aggregatorStatusDotStyle} ${styles.status_dot}`} data-testid={'statusDot'} ></span>
-                    <br />
-                    {labReadingString}
-                </h1>
-                {(isMounted.current) ? referenceList : <h1 className={styles.title}>Loading...</h1>}
+            <div className={styles.equipment_bar}>
+                <div className={styles.equipment_container}>
+                    <h1 className={styles.lab_readings}>
+                        Aggregator status: <span className={`${aggregatorStatusDotStyle} ${styles.status_dot}`} data-testid={'statusDot'} ></span>
+                        <br />
+                        {labReadingString}
+                    </h1>
+                    {(isMounted.current) ? referenceList : <h1 className={styles.title}>Loading...</h1>}
 
-                {/* <div className={styles.equipment_control_menu}>
-                    <div className={styles.generator_control}>
-                        <div className={styles.title}>
-                            <span className={`${generatorStatuses} ${styles.status_dot}`} />
-                            Bath 2
+                    <div className={styles.equipment_control_menu}>
+                        <div className={styles.generator_control}>
+                            <div className={styles.title}>
+                                <span className={`${generatorStatuses} ${styles.status_dot}`} />
+                                Bath 2
+                            </div>
+                            <form onSubmit={event => handleSubmitSetPoint(event, 'S000102', bath2SetPoint, setBath2SetPoint)}>
+                                <input className={styles.default_text_box} value={bath2SetPoint} onChange={event => setBath2SetPoint(cleanSetPointText(event.target.value))} placeholder={`Set Point (${bath2CurrentSetPoint})`} />
+                            </form>
+                            <div className={styles.grid_menu}>
+                                <Switch isOn={bath2On} id={'bath2'} handleToggle={() => handleToggleBath(bath2On, setBath2On, 'S000102')} />
+                                <div className={styles.default_text}>
+                                    {bath2On ? 'On' : 'Off'}
+                                </div>
+                            </div>
                         </div>
-                        <input className={styles.default_text_box} placeholder='Set Point' />
-                        <div className={styles.grid_menu}>
-                            <Switch isOn={bath2On} id={'bath2'} handleToggle={() => handleToggleBath(bath2On, setBath2On, 'S000102')} />
-                            <div className={styles.default_text}>
-                                {bath2On ? 'On' : 'Off'}
+                        <div className={styles.generator_control}>
+                            <div className={styles.title}>
+                                Bath 3
+                            </div>
+                            <form onSubmit={event => handleSubmitSetPoint(event, 'S000103', bath3SetPoint, setBath3SetPoint)}>
+                                <input className={styles.default_text_box} value={bath3SetPoint} onChange={event => setBath3SetPoint(cleanSetPointText(event.target.value))} placeholder={`Set Point (${bath3CurrentSetPoint})`} />
+                            </form>
+                            <div className={styles.grid_menu}>
+                                <Switch isOn={bath3On} id={'bath3'} handleToggle={() => handleToggleBath(bath3On, setBath3On, 'S000103')} />
+                                <div className={styles.default_text}>
+                                    {bath3On ? 'On' : 'Off'}
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div className={styles.generator_control}>
-                        <div className={styles.title}>
-                            Bath 3
-                        </div>
-                        <input className={styles.default_text_box} placeholder='Set Point' />
-                        <div className={styles.grid_menu}>
-                            <Switch isOn={bath3On} id={'bath3'} handleToggle={() => handleToggleBath(bath3On, setBath3On, 'S000103')} />
-                            <div className={styles.default_text}>
-                                {bath3On ? 'On' : 'Off'}
-                            </div>
-                        </div>
-                    </div>
-                </div> */}
+                </div>
             </div>
         </>
     )

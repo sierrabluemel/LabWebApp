@@ -93,8 +93,6 @@ const certificateRoutes = {
     },
     generateCertificate: (req: Request, res: Response) => {
         let certificateId = parseInt(req.query.certificate_id as string ?? "");
-        const upload = req.query.upload;
-        const print = req.query.print;
 
         certificate.getCertficateById(certificateId)
             .then(async (certificate) => {
