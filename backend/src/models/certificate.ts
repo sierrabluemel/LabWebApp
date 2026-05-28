@@ -1,10 +1,13 @@
-import { executeNonQuery, executeQuery, executeQuerySingleReturn, pool } from "../utils/db";
+import { executeQuery, executeQuerySingleReturn, pool } from "../utils/db";
 
 const certificate = {
     getCalibrationsByDateRange: (startDate: Date, endDate: Date) => {
         return executeQuery(pool, `
             SELECT
-                *
+                api_certificate.certificate_id, 
+                api_batch.calibration_procedure_id,
+                api_sensor.sensor_id,
+                api_certificate.timestamp
             FROM
                 API_ORDER
                 INNER JOIN API_BATCH ON API_ORDER.ORDER_ID = API_BATCH.ORDER_ID
