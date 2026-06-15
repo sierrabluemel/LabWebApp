@@ -82,9 +82,9 @@ const rollingDataRoutes = {
             })
     },
     createGeneratorCommand: (req: Request, res: Response) => {
-        let commandType = req.query.command_type as string;
-        let assetTag = req.query.asset_tag as string;
-        let value = req.query.value as string;
+        const commandType = req.query.command_type as string;
+        const assetTag = req.query.asset_tag as string;
+        const value = req.query.value as string;
 
         rollingData.createGeneratorCommand(commandType, assetTag, value)
             .then(() => {
@@ -96,10 +96,10 @@ const rollingDataRoutes = {
             })
     },
     getLastStableReadings: async (req: Request, res: Response) => {
-        let minutes = parseInt(req.query.minutes as string ?? 180);
-        let setPoints = JSON.parse(req.query.set_points as string ?? "[]")
-        let type: string = "temperature";
+        const minutes = parseInt(req.query.minutes as string ?? 180);
+        const setPoints = JSON.parse(req.query.set_points as string ?? "[]")
         const equipmentList: any = await equipment.getEquipment(true)
+        let type: string = "temperature";
 
         if (Object.keys(setPoints[0]).includes('humidity'))
             type = "humidity"
@@ -119,9 +119,9 @@ const rollingDataRoutes = {
 
     },
     getReadingRange: (req: Request, res: Response) => {
-        let seconds = parseInt(req.query.seconds as string ?? "");
-        let timestamp = new Date(req.query.timestamp as string).getTime();
+        const timestamp = new Date(req.query.timestamp as string).getTime();
         const sensorIds = req.query.sensor_ids as unknown as number[];
+        let seconds = parseInt(req.query.seconds as string ?? "");
 
         if (isNaN(seconds)) {
             seconds = 90;

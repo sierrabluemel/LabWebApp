@@ -20,11 +20,14 @@ function Admin() {
     const [setPoints, setSetPoints] = useState([]);
     const [addingVariance, setAddingVariance] = useState(false);
     const [confirmationArray, setConfirmationArray] = useState(false);
+    const [equipmentListFiltered, setEquipmentListFiltered] = useState(true);
     const referenceList = [reference1, reference2, reference3, reference4];
     const refreshed = useRef(false);
 
-    const { setPopupMessage, equipmentList, setEquipmentList, technicianId } = useAppContext();
-    const [equipmentRows, setEquipmentRows] = useState(equipmentList);
+    const { setPopupMessage, equipmentList, technicianId } = useAppContext();
+    const nonFilteredEquipment = equipmentList;
+    const filteredEquipment = equipmentList.filter(e => e.active === true);
+    const [equipmentRows, setEquipmentRows] = useState(filteredEquipment);
 
     let currentSuperDaq = equipmentList.filter(asset => asset.reference_tag === asset.asset_tag)[0];
     if (!currentSuperDaq) {
@@ -65,6 +68,11 @@ function Admin() {
         }
     }
 
+    function handleActiveSelected() {
+        updateEquipment();
+        setEquipmentListFiltered(!equipmentListFiltered);
+    }
+
     function handleSubmit(event) {
         let warningMessage = ['This will set the following references:'];
         if (isReferenceValid(superDaq)) {
@@ -90,24 +98,21 @@ function Admin() {
             setPopupMessage('No references have valid data')
         }
     }
-    
+
     const updateEquipment = useCallback(() => {
-        callApi('get-equipment')
-            .then(equipment => {
-                setEquipmentList(equipment);
-                setEquipmentRows(equipment);
-            })
-    }, [setEquipmentList])
+        console.log(JSON.stringify(equipmentRows) === JSON.stringify(filteredEquipment))
+        setEquipmentRows(JSON.stringify(equipmentRows) === JSON.stringify(filteredEquipment) ? nonFilteredEquipment : filteredEquipment);
+    }, [equipmentListFiltered, filteredEquipment, nonFilteredEquipment])
 
     const refreshVariances = useCallback(() => {
-            callApi('get-variances')
-                .then(response => {
-                    setSetPoints(response)
-                })
-                .catch((err) => {
-                    console.error(err)
-                    setPopupMessage('Unable to get set points')
-                })
+        callApi('get-variances')
+            .then(response => {
+                setSetPoints(response)
+            })
+            .catch((err) => {
+                console.error(err)
+                setPopupMessage('Unable to get set points')
+            })
     }, [setPopupMessage])
 
     useEffect(() => {
@@ -116,7 +121,7 @@ function Admin() {
         else
             refreshed.current = true
 
-        updateEquipment()
+        updateEquipment();
         refreshVariances()
     }, [setPoints, refreshVariances, updateEquipment])
 
@@ -239,7 +244,7 @@ function Admin() {
                     <EquipmentConfigRow
                         generatorText="Chamber"
                         generatorHint="RH"
-                        generatorTag="S000105"
+                        generatorTag="S000138"
                         description="Rotronic HygroClip2 Humidity Reference"
                         selectedOption={reference4}
                         setSelectedOption={setReference4}
@@ -253,7 +258,7 @@ function Admin() {
                 <h1 className={styles.title}>
                     Set Points
                 </h1>
-                <CreateSetPoint key={setPoints.length} addingVariance={addingVariance} refreshVariances={refreshVariances} />
+                {equipmentList && equipmentList.length > 0 && <CreateSetPoint key={setPoints.length} addingVariance={addingVariance} refreshVariances={refreshVariances} />}
                 <table className={styles.equipment_table}>
                     <thead className={styles.equipment_table_head}>
                         <tr>
@@ -289,6 +294,12 @@ function Admin() {
             <div className={styles.menu}>
                 <h1 className={styles.title}>
                     Lab Equipment
+                    <span className={styles.right_align_checkbox}>
+                        <label className={styles.check_box_container}>
+                            <input className={styles.grid_check_box} type="checkbox" onChange={handleActiveSelected} checked={equipmentListFiltered} />
+                            <span className={styles.expedite_text}>Show Inactive</span>
+                        </label>
+                    </span>
                 </h1>
                 <table className={styles.equipment_table}>
                     <thead className={styles.equipment_table_head}>
@@ -314,7 +325,7 @@ function Admin() {
                         </tr>
                     </thead>
                     <tbody className={styles.equipment_table_body}>
-                        {equipmentRows.map(equipment => <EquipmentRow key={equipment.asset_tag} equipment={equipment} />)}
+                        {equipmentRows && equipmentRows.map(equipment => <EquipmentRow key={equipment.asset_tag} equipment={equipment} />)}
                     </tbody>
                 </table>
             </div>

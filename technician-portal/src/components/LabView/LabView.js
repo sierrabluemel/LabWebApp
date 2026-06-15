@@ -22,12 +22,17 @@ function LabView() {
     const [bath3SetPoint, setBath3SetPoint] = useState('');
     const [bath2CurrentSetPoint, setBath2CurrentSetPoint] = useState(-25);
     const [bath3CurrentSetPoint, setBath3CurrentSetPoint] = useState(90);
+    const [chamberHumidityOn, setChamberHumidityOn] = useState(false);
+    const [chamberTemperatureOn, setChamberTemperatureOn] = useState(false);
+    const [chamberHumiditySetPoint, setChamberHumiditySetPoint] = useState('');
+    const [chamberTemperatureSetPoint, setChamberTemperatureSetPoint] = useState('');
+    const [chamberHumidityCurrentSetPoint, setChamberHumidityCurrentSetPoint] = useState(20);
+    const [chamberTemperatureCurrentSetPoint, setChamberTemperatureCurrentSetPoint] = useState(40);
     const [toggleTime, setToggleTime] = useState(null)
 
     const {
         equipment, technicianId, setTechnicianId, setLabReadings,
-        generatorStatuses, setGeneratorStatuses, setTechnician,
-        setPopupMessage
+        setTechnician, setPopupMessage
     } = useAppContext()
 
     const setAggregatorStyle = (timestamp) => {
@@ -51,12 +56,15 @@ function LabView() {
         callApi('get-generator-statuses')
             .then(response => {
                 if (updatePower) {
-                    setBath2On(response.filter(g => g.asset_tag === 'S000102')[0].power_on)
-                    setBath3On(response.filter(g => g.asset_tag === 'S000103')[0].power_on)
-                    setBath2CurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000102')[0].set_point).toFixed(2))
-                    setBath3CurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000103')[0].set_point).toFixed(2))
+                    setChamberHumidityOn(response.filter(g => g.asset_tag === 'S000138')[0].humidity_on)
+                    setChamberTemperatureOn(response.filter(g => g.asset_tag === 'S000138')[0].temperature_on)
+                    setBath2On(response.filter(g => g.asset_tag === 'S000102')[0].temperature_on)
+                    setBath3On(response.filter(g => g.asset_tag === 'S000103')[0].temperature_on)
+                    setChamberHumidityCurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000138')[0].humidity_set_point).toFixed(2))
+                    setChamberTemperatureCurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000138')[0].temperature_set_point).toFixed(2))
+                    setBath2CurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000102')[0].temperature_set_point).toFixed(2))
+                    setBath3CurrentSetPoint(parseFloat(response.filter(g => g.asset_tag === 'S000103')[0].temperature_set_point).toFixed(2))
                 }
-                setGeneratorStatuses(response)
             })
     }
 
@@ -162,26 +170,37 @@ function LabView() {
             })
     }
 
-    const handleToggleBath = (bathOn, setBathOn, assetTag) => {
+    const handleToggleGenerator = (generatorOn, setGeneratorOn, assetTag, isTemperature = true) => {
         setToggleTime(new Date())
-        callApi('create-generator-command', { command_type: 'set_power', asset_tag: assetTag, value: bathOn ? 0 : 1 })
+        const commandType = isTemperature ? 'set_temperature_power' : 'set_humidity_power';
+
+        callApi('create-generator-command', {
+            command_type: commandType,
+            asset_tag: assetTag,
+            value: generatorOn ? 0 : 1,
+        })
             .catch(err => {
-                setPopupMessage(`Unable to turn bath ${assetTag} ${bathOn ? 'off' : 'on'}`);
+                setPopupMessage(`Unable to turn generator ${assetTag} ${generatorOn ? 'off' : 'on'}`);
                 console.error(err);
             })
-        setBathOn(!bathOn)
+        setGeneratorOn(!generatorOn)
     }
 
-    const handleSubmitSetPoint = (event, assetTag, value, setText) => {
+    const handleSubmitSetPoint = (event, assetTag, value, setText, isTemperature = true) => {
         event.preventDefault();
+        const commandType = isTemperature ? 'adjust_temperature' : 'adjust_humidity'
 
-        callApi('create-generator-command', { command_type: 'adjust_set_point', asset_tag: assetTag, value: parseFloat(value) })
+        callApi('create-generator-command', {
+            command_type: commandType,
+            asset_tag: assetTag,
+            value: parseFloat(value),
+        })
             .then(() => {
-                setPopupMessage(`Bath ${assetTag} set to ${value}`);
+                setPopupMessage(`Generator ${assetTag} set to ${value}`);
                 setText('');
             })
             .catch(err => {
-                setPopupMessage(`Unable to change bath ${assetTag} to set point ${value}`);
+                setPopupMessage(`Unable to change generator ${assetTag} to set point ${value}`);
                 console.error(err);
             })
 
@@ -224,31 +243,44 @@ function LabView() {
                     <div className={styles.equipment_control_menu}>
                         <div className={styles.generator_control}>
                             <div className={styles.title}>
-                                <span className={`${generatorStatuses} ${styles.status_dot}`} />
+                                Chamber
+                            </div>
+                            ({chamberHumidityCurrentSetPoint}% @ {chamberTemperatureCurrentSetPoint}°C)
+                            <div className={styles.generator_grid}>
+                                <form onSubmit={event => handleSubmitSetPoint(event, 'S000138', chamberTemperatureSetPoint, setChamberTemperatureSetPoint)}>
+                                    <input className={styles.default_text_box} value={chamberTemperatureSetPoint} onChange={event => setChamberTemperatureSetPoint(cleanSetPointText(event.target.value))} placeholder={`Temp (${chamberTemperatureOn ? 'On' : 'Off'})`} />
+                                </form>
+                                <Switch isOn={chamberTemperatureOn} id={'chamberTemperature'} handleToggle={() => handleToggleGenerator(chamberTemperatureOn, setChamberTemperatureOn, 'S000138')} />
+                            </div>
+                            <div className={styles.generator_grid}>
+                                <form onSubmit={event => handleSubmitSetPoint(event, 'S000138', chamberHumiditySetPoint, setChamberHumiditySetPoint, false)}>
+                                    <input className={styles.default_text_box} value={chamberHumiditySetPoint} onChange={event => setChamberHumiditySetPoint(cleanSetPointText(event.target.value))} placeholder={`Humidity (${chamberHumidityOn ? 'On' : 'Off'})`} />
+                                </form>
+                                <Switch isOn={chamberHumidityOn} id={'chamberHumidity'} handleToggle={() => handleToggleGenerator(chamberHumidityOn, setChamberHumidityOn, 'S000138', false)} />
+                            </div>
+                        </div>
+                        <div className={styles.generator_control}>
+                            <div className={styles.title}>
                                 Bath 2
                             </div>
-                            <form onSubmit={event => handleSubmitSetPoint(event, 'S000102', bath2SetPoint, setBath2SetPoint)}>
-                                <input className={styles.default_text_box} value={bath2SetPoint} onChange={event => setBath2SetPoint(cleanSetPointText(event.target.value))} placeholder={`Set Point (${bath2CurrentSetPoint})`} />
-                            </form>
-                            <div className={styles.grid_menu}>
-                                <Switch isOn={bath2On} id={'bath2'} handleToggle={() => handleToggleBath(bath2On, setBath2On, 'S000102')} />
-                                <div className={styles.default_text}>
-                                    {bath2On ? 'On' : 'Off'}
-                                </div>
+                            ({bath2CurrentSetPoint}°C)
+                            <div className={styles.generator_grid}>
+                                <form onSubmit={event => handleSubmitSetPoint(event, 'S000102', bath2SetPoint, setBath2SetPoint)}>
+                                    <input className={styles.default_text_box} value={bath2SetPoint} onChange={event => setBath2SetPoint(cleanSetPointText(event.target.value))} placeholder={`Temp (${bath2On ? 'On' : 'Off'})`} />
+                                </form>
+                                <Switch isOn={bath2On} id={'bath2'} handleToggle={() => handleToggleGenerator(bath2On, setBath2On, 'S000102')} />
                             </div>
                         </div>
                         <div className={styles.generator_control}>
                             <div className={styles.title}>
                                 Bath 3
                             </div>
-                            <form onSubmit={event => handleSubmitSetPoint(event, 'S000103', bath3SetPoint, setBath3SetPoint)}>
-                                <input className={styles.default_text_box} value={bath3SetPoint} onChange={event => setBath3SetPoint(cleanSetPointText(event.target.value))} placeholder={`Set Point (${bath3CurrentSetPoint})`} />
-                            </form>
-                            <div className={styles.grid_menu}>
-                                <Switch isOn={bath3On} id={'bath3'} handleToggle={() => handleToggleBath(bath3On, setBath3On, 'S000103')} />
-                                <div className={styles.default_text}>
-                                    {bath3On ? 'On' : 'Off'}
-                                </div>
+                            ({bath3CurrentSetPoint}°C)
+                            <div className={styles.generator_grid}>
+                                <form onSubmit={event => handleSubmitSetPoint(event, 'S000103', bath3SetPoint, setBath3SetPoint)}>
+                                    <input className={styles.default_text_box} value={bath3SetPoint} onChange={event => setBath3SetPoint(cleanSetPointText(event.target.value))} placeholder={`Temp (${bath3On ? 'On' : 'Off'})`} />
+                                </form>
+                                <Switch isOn={bath3On} id={'bath3'} handleToggle={() => handleToggleGenerator(bath3On, setBath3On, 'S000103')} />
                             </div>
                         </div>
                     </div>

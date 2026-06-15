@@ -92,7 +92,7 @@ it('renders equipment box for each reference', async () => {
                             },
                         },
                         super_daq_data: {
-                            S000105: {
+                            S000138: {
                                 "Humidity": 91.29,
                                 "Temperature": 26.32,
                                 "stability_data": {
@@ -125,7 +125,7 @@ it('renders equipment box for each reference', async () => {
                             "asset_tag": "S000103",
                         },
                         {
-                            "asset_tag": "S000105",
+                            "asset_tag": "S000138",
                         },
                         {
                             "asset_tag": "S000111",
