@@ -4,7 +4,7 @@ async function filterEquipment(equipList: any[]) {
     const bath1 = equipList.filter(e => e.asset_tag === 'S000101')[0] as any;
     const bath2 = equipList.filter(e => e.asset_tag === 'S000102')[0] as any;
     const bath3 = equipList.filter(e => e.asset_tag === 'S000103')[0] as any;
-    const chamber = equipList.filter(e => e.asset_tag === 'S000105')[0] as any;
+    const chamber = equipList.filter(e => e.asset_tag === 'S000138')[0] as any;
 
     const reference1 = equipList.filter(e => e.asset_tag === bath1.reference_tag)[0]
     const reference2 = equipList.filter(e => e.asset_tag === bath2.reference_tag)[0]

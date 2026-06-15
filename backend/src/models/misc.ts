@@ -67,25 +67,6 @@ const misc = {
         `, []);
     },
 
-    temp: (searchString: string) => {
-        const searchRegEx = `%${searchString}%`;
-        return executeQuery(pool, `
-            SELECT
-                API_BATCH.BATCH_ID,
-                API_ORDER.ORDER_ID,
-                API_ORDER.CUSTOMER_ORDER_NUMBER,
-                API_SENSOR.SENSOR_ID
-            FROM API_ORDER
-            INNER JOIN API_BATCH ON API_ORDER.ORDER_ID = API_BATCH.ORDER_ID
-            INNER JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
-            WHERE
-                CAST(API_BATCH.BATCH_ID AS TEXT) ILIKE $1 OR
-                CAST(API_ORDER.ORDER_ID AS TEXT) ILIKE $1 OR
-                API_ORDER.CUSTOMER_ORDER_NUMBER ILIKE $1 OR
-                CAST(API_SENSOR.SENSOR_ID AS TEXT) ILIKE $1
-        `, [searchRegEx]);
-    },
-
     getCustomerById: (customerId: number) => {
         return executeQuerySingleReturn(pool, `
             SELECT *

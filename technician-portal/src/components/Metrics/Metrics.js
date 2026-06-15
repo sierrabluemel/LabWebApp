@@ -7,6 +7,7 @@ import { Bar } from 'react-chartjs-2';
 import styles from "../../styles/styles.module.css";
 import callApi from '../../utils/api/callApi';
 import addWorkDays from '../../utils/addWorkDays';
+import { useAppContext } from '../../contexts/app';
 
 Chart.register(
 	CategoryScale, LinearScale, BarElement,
@@ -27,6 +28,8 @@ function Metrics() {
 	const [sensorsInShipping, setSensorsInShipping] = useState(0);
 	const isMounted = useRef(false);
 
+	const { setEquipmentList } = useAppContext()
+
 	const monthNames = [
 		"January", "February", "March", "April", "May", "June", "July",
 		"August", "September", "October", "November", "December"
@@ -35,6 +38,11 @@ function Metrics() {
 	useEffect(() => {
 		if (isMounted.current)
 			return
+
+		callApi('get-equipment')
+			.then(equipment => {
+				setEquipmentList(equipment);
+			})
 
 		isMounted.current = true;
 		const today = new Date()
@@ -57,7 +65,7 @@ function Metrics() {
 						}
 						let sensorDue;
 						sensor.expedited ? sensorDue = addWorkDays(new Date(sensor.received_timestamp), 2) :
-						sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
+							sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
 
 						if (!dueDate || sensorDue < dueDate) {
 							dueDate = sensorDue;

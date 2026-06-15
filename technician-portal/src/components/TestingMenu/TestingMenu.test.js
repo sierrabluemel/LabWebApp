@@ -33,7 +33,7 @@ const equipment = {
             physically_verified: true
         },
         chamber: {
-            asset_tag: 'S000105',
+            asset_tag: 'S000138',
             physically_verified: false,
             equipment_id: 5
         },

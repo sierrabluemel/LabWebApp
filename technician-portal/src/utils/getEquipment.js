@@ -5,7 +5,7 @@ async function getEquipment() {
         const bath1 = equipmentList.filter(equipment => equipment.asset_tag === 'S000101')[0];
         const bath2 = equipmentList.filter(equipment => equipment.asset_tag === 'S000102')[0];
         const bath3 = equipmentList.filter(equipment => equipment.asset_tag === 'S000103')[0];
-        const chamber = equipmentList.filter(equipment => equipment.asset_tag === 'S000105')[0];
+        const chamber = equipmentList.filter(equipment => equipment.asset_tag === 'S000138')[0];
         const drywell = equipmentList.filter(equipment => equipment.asset_tag === 'S000117')[0];
         const dewar = equipmentList.filter(equipment => equipment.asset_tag === 'S000118')[0];
         const equipment = {

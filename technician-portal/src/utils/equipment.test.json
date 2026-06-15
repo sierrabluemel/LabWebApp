@@ -44,9 +44,9 @@
         "reference_tag": null
     },
     {
-        "equipment_id": 5,
-        "asset_tag": "S000105",
-        "description": "Cincinnati Sub-Zero MCBH-1.2-.33-H/AC Chamber",
+        "equipment_id": 38,
+        "asset_tag": "S000138",
+        "description": "Rotronic HygroGen 2 XL",
         "last_calibration": "2023-02-20T07:00:00.000Z",
         "next_calibration": "2024-03-21T06:00:00.000Z",
         "calibration_certificate_number": "nan",

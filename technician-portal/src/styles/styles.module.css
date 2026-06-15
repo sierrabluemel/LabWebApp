@@ -1681,3 +1681,17 @@ mark {
     bottom: 5px;
     left: 10px;
 }
+
+.generator_grid {
+    display: grid;
+    grid-template-columns: 5fr 1fr;
+}
+
+.switch_container {
+    transform: translate(8%, -15%);
+    -ms-transform: translate(8%, -15%);
+}
+
+.right_align_checkbox {
+    float: right;
+}
