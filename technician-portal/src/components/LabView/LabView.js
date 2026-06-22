@@ -48,7 +48,7 @@ function LabView() {
     }
 
     const updateGeneratorStatus = (updatePower = false) => {
-        if (toggleTime && new Date() - toggleTime < 10000)
+        if (toggleTime && new Date() - toggleTime < 15000)
             return
         else
             setToggleTime(null)
