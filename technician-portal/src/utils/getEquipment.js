@@ -20,7 +20,7 @@ async function getEquipment() {
             reference3: equipmentList.filter(equipment => equipment.asset_tag === bath3.reference_tag)[0],
             superDaq: equipmentList.filter(equipment => equipment.reference_tag === equipment.asset_tag)[0],
             rotronic: equipmentList.filter(equipment => equipment.asset_tag === chamber.reference_tag)[0],
-            rotronic_backup: equipmentList.filter(equipment => equipment.asset_tag === equipment.reference_tag && equipment.description === 'Rotronic HygroClip2 Humidity Reference')[0],
+            // rotronic_backup: equipmentList.filter(equipment => equipment.asset_tag === equipment.reference_tag && equipment.description === 'Rotronic HygroClip2 Humidity Reference')[0],
         }
         return equipment;
     })
