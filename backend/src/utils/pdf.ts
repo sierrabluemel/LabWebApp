@@ -146,10 +146,10 @@ const pdf = {
 
             const textArray = [
                 `MNT-${sensor.certificate_id}`,
-                JSON.stringify(sensor.sensor_id),
+                sensor.cable_id ? JSON.stringify(sensor.cable_id) : JSON.stringify(sensor.sensor_id),
                 sensor.generate_certificate_json.CS5,
                 sensor.manufacturer,
-                sensor.sku,
+                sensor.cable_sku ? sensor.cable_sku : sensor.sku,
                 sensor.customer_order_number,
                 JSON.stringify(sensor.calibration_procedure_id),
             ];

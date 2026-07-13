@@ -63,13 +63,16 @@ const certificateRoutes = {
         const dueDate = req.query.due_date;
         const certificateNumber = req.query.certificate_number;
         const sensorId = req.query.sensor_id;
+        const cableId = req.query.cable_id;
+        const deviceString = cableId ? `cable_id=${cableId}` : `sensor_id=${sensorId}`
+        console.log(`http://localhost:4000/print-label/?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}&${deviceString}`)
         if (process.env.STATUS === 'development') {
             res.json({ 'Result': `Failed: print disabled in test environment` });
             return;
         }
         let url = `http://localhost:4000/print-label/`;
 
-        fetch(`${url}?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}&sensor_id=${sensorId}`)
+        fetch(`${url}?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}&${deviceString}`)
             .then((response: any) => {
                 res.json({ 'Result': JSON.stringify(response) })
             })
@@ -182,14 +185,21 @@ const certificateRoutes = {
                         const today = new Date();
                         const date = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
                         const calibrationDate = temperatureReadings[0].timestamp;
+                        let sku = s.sku;
+                        let deviceId = s.sensor_id
+
+                        if (s.cable_id) {
+                            sku = s.cable_sku;
+                            deviceId = s.cable_id;
+                        }
 
                         let certificateJson = {
                             'C1': customer.name,
                             'C2': `${customer.address_line_1}, ${customer.address_line_2}`,
                             'C3': `${customer.city}, ${customer.state} ${customer.zip_code}`,
                             'D1': 'Manufacturer: Monnit Corp',
-                            'D2': `Model: ${s.sku}`,
-                            'D3': `Identifier/Serial: ${s.sensor_id}`,
+                            'D2': `Model: ${sku}`,
+                            'D3': `Identifier/Serial: ${deviceId}`,
                             'D4': 'Condition: Functional',
                             'CS1': parseDataBaseDate(calibrationDate),
                             'CS3': JSON.stringify(batch.calibration_procedure_id),
@@ -253,6 +263,7 @@ const certificateRoutes = {
                             'CertificationExpirationDate': dueDate.toISOString(),
                             'CalibrationFacilityID': 5,
                             'CalibrationNumber': `MNT-${cert.certificate_id}`,
+                            'CableID': s.cable_id
                         } as any;
                         const params = new URLSearchParams();
                         for (const parameter in parameters) {

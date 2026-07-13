@@ -41,21 +41,21 @@ function Shipping() {
 
     const checkSensorList = (sensors = null) => {
         callApi('get-sensor-list')
-        .then(sensorsOnNetwork => {
-            const orderSensors = sensors || sensorList;
+            .then(sensorsOnNetwork => {
+                const orderSensors = sensors || sensorList;
 
-            let sensorsNotRemoved = 0
-            orderSensors.forEach(sensor => {
-                sensorsOnNetwork.includes(sensor.sensor_id) && sensorsNotRemoved++;
+                let sensorsNotRemoved = 0
+                orderSensors.forEach(sensor => {
+                    sensorsOnNetwork.includes(sensor.sensor_id) && sensorsNotRemoved++;
+                })
+                if (sensorsNotRemoved > 0) {
+                    setSensorsRemoved(false);
+                    setSensorsRemovedMessage(`Sensors not removed: ${sensorsNotRemoved}`)
+                } else {
+                    setSensorsRemoved(true);
+                    setSensorsRemovedMessage('All sensors removed');
+                }
             })
-            if (sensorsNotRemoved > 0) {
-                setSensorsRemoved(false);
-                setSensorsRemovedMessage(`Sensors not removed: ${sensorsNotRemoved}`)
-            } else {
-                setSensorsRemoved(true);
-                setSensorsRemovedMessage('All sensors removed');
-            }
-        })
     }
 
     const getCertificates = () => {
@@ -206,8 +206,18 @@ function Shipping() {
             setPopupMessage(`There are no labels to print`)
         }
         for (const certificate of certificateList.current) {
+            const parameters = {
+                sensor_id: certificate.sensor_id,
+                calibration_date: certificate.generate_certificate_json.CS1,
+                due_date: certificate.generate_certificate_json.CS2,
+                certificate_number: `MNT-${certificate.certificate_id}`
+            }
+
+            if (certificate.cable_id)
+                parameters.cable_id = certificate.cable_id
+
             try {
-                await callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
+                await callApi('print-certificate-labels', parameters)
             } catch (error) {
                 console.error(error)
                 setPopupMessage('Unable to print label');
@@ -236,8 +246,17 @@ function Shipping() {
             setSensor('');
             return
         }
+        const parameters = {
+            sensor_id: certificate.sensor_id,
+            calibration_date: certificate.generate_certificate_json.CS1,
+            due_date: certificate.generate_certificate_json.CS2,
+            certificate_number: `MNT-${certificate.certificate_id}`
+        }
 
-        callApi('print-certificate-labels', { sensor_id: certificate.sensor_id, calibration_date: certificate.generate_certificate_json.CS1, due_date: certificate.generate_certificate_json.CS2, certificate_number: `MNT-${certificate.certificate_id}` })
+        if (certificate.cable_id)
+            parameters.cable_id = certificate.cable_id
+
+        callApi('print-certificate-labels', parameters)
             .then(setScannedSensors([...scannedSensors, sensorId]))
             .catch((err) => {
                 console.error(err)

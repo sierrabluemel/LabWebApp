@@ -31,21 +31,23 @@ const sensor = {
                 API_ORDER.ACTIVE = TRUE;
         `, [])
     },
-    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number) => {
+    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number, cableId: number | null, cableSku: string | null) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
-                API_SENSOR (
-                    SENSOR_ID,
-                    CHECK_DIGIT,
-                    MANUFACTURER,
-                    SKU,
-                    BATCH_ID
+                api_sensor (
+                    sensor_id,
+                    check_digit,
+                    manufacturer,
+                    sku,
+                    batch_id,
+                    cable_id,
+                    cable_sku
                 )
             VALUES
-                ($1, $2, $3, $4, $5)
+                ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
                 *
-        `, [sensorId, checkDigit, manufacturer, sku, batchId])
+        `, [sensorId, checkDigit, manufacturer, sku, batchId, cableId, cableSku])
     },
     setBatchId: (sensorId: number, batchId: number) => {
         return executeQuerySingleReturn(pool, `

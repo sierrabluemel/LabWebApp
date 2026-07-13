@@ -100,7 +100,6 @@ function Admin() {
     }
 
     const updateEquipment = useCallback(() => {
-        console.log(JSON.stringify(equipmentRows) === JSON.stringify(filteredEquipment))
         setEquipmentRows(JSON.stringify(equipmentRows) === JSON.stringify(filteredEquipment) ? nonFilteredEquipment : filteredEquipment);
     }, [equipmentListFiltered, filteredEquipment, nonFilteredEquipment])
 
