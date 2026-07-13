@@ -133,9 +133,7 @@ const sensorRoutes = {
         let sensorId = parseInt(req.query.sensor_id as string ?? "");
         let checkDigit = req.query.check_digit as string;
         let batchId = parseInt(req.query.batch_id as string ?? "");
-        let sku: string;
         const manufacturer = 'Monnit Corporation';
-        let url = `https://www.imonnit.com/json/AssignSensor/`;
 
         const parameters = {
             'NetworkID': sillyConfig.stagingNetworks[0],
@@ -149,18 +147,32 @@ const sensorRoutes = {
             params.append(parameter, parameters[parameter]);
         };
 
-        monnitFetch(`${url}?${params.toString()}`)
+        monnitFetch(`https://www.imonnit.com/json/AssignSensor/?${params.toString()}`)
             .then(() => {
-                url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
-                return monnitFetch(`${url}?${params.toString()}`)
+                return monnitFetch(`https://www.imonnit.com/json/SensorSetHeartbeat/?${params.toString()}`)
             })
             .then(() => {
-                url = 'https://www.imonnit.com/json/LookUpSensor/'
-                return monnitFetch(`${url}?${params.toString()}`)
+                return monnitFetch(`https://www.imonnit.com/json/LookUpSensor/?${params.toString()}`)
             })
             .then((response) => {
-                sku = response['Result']['SKU'];
-                return sensor.createSensor(sensorId, checkDigit, manufacturer, sku, batchId)
+                if (response.Result.IsCableEnabled)
+                    return monnitFetch(`https://www.imonnit.com/json/CableLookup/?CableID=${response.Result.CableID}`)
+                        .then(res => {
+                            return {
+                                sku: response.Result.SKU,
+                                cableId: res.Result.CableID,
+                                cableSku: res.Result.SKU
+                            }
+                        })
+                else
+                    return {
+                        sku: response.Result.SKU,
+                        cableId: null,
+                        cableSku: null
+                }
+            })
+            .then(data => {
+                return sensor.createSensor(sensorId, checkDigit, manufacturer, data.sku, batchId, data.cableId, data.cableSku)
             })
             .then((result) => {
                 res.json(result);
@@ -200,13 +212,13 @@ const sensorRoutes = {
             params.append(parameter, parameters[parameter]);
         };
         monnitFetch(`${url}?${params.toString()}`)
-        .then((data) => {
-            res.json(data);
-        })
-        .catch((error) => {
-            console.error(error);
-            res.json({ 'Result': error });
-        })
+            .then((data) => {
+                res.json(data);
+            })
+            .catch((error) => {
+                console.error(error);
+                res.json({ 'Result': error });
+            })
     },
     getSensorsByOrderId: async (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");

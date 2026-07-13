@@ -16,32 +16,32 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
 
     const [addedSensors, setAddedSensors] = useState([]);
     const [sensors, setSensors] = useState([]);
-    const [sensor, setSensor] = useState('');
+    const [sensorString, setSensorString] = useState('');
     const [displayed, setDisplayed] = useState(true);
-    const [location, setLocation] = useState('');
+    const [locationString, setLocationString] = useState('');
     const [currentLocation, setCurrentLocation] = useState('No location set');
     const [confirmationArray, setConfirmationArray] = useState(false);
 
     const handleAddSensor = (event) => {
         event.preventDefault();
-        if (!sensor)
+        if (!sensorString)
             return;
-        const [sensorID, checkDigit] = parseSensorString(sensor);
-        const sensorObject = { sensor: `${sensorID}:${checkDigit}`, online: false }
+        const [sensorId, checkDigit] = parseSensorString(sensorString);
+        const sensorObject = { sensor: `${sensorId}:${checkDigit}`, online: false }
 
-        setSensor('');
-        if (addedSensors.includes(sensorID)) {
-            setPopupMessage(`Sensor "${sensorID}" is already in this batch`);
+        setSensorString('');
+        if (addedSensors.includes(sensorId)) {
+            setPopupMessage(`Sensor "${sensorId}" is already in this batch`);
             return;
         }
 
-        setAddedSensors([...addedSensors, parseInt(sensorID)]);
-        addSensor(sensor, batchNumber)
+        setAddedSensors([...addedSensors, parseInt(sensorId)]);
+        addSensor(sensorString, batchNumber)
             .then(sensorValid => {
                 if (!sensorValid) {
-                    setPopupMessage(`Sensor "${sensorID}" could not be added`);
+                    setPopupMessage(`Sensor "${sensorId}" could not be added`);
                     setSensors(sensors.filter(item => JSON.stringify(item) !== JSON.stringify(sensorObject)))
-                    setAddedSensors(addedSensors.filter(item => item !== sensorID))
+                    setAddedSensors(addedSensors.filter(item => item !== sensorId))
                 }
             })
         setSensors([...sensors, sensorObject]);
@@ -49,12 +49,12 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
 
     const handleSetLocation = (event) => {
         event.preventDefault();
-        setBatchLocation(location, technicianId, batchNumber)
+        setBatchLocation(locationString, technicianId, batchNumber)
             .then(error => {
                 if (!error) {
-                    setPopupMessage(`Batch ${batchNumber} moved to ${location}`);
-                    setCurrentLocation(location);
-                    setLocation('');
+                    setPopupMessage(`Batch ${batchNumber} moved to ${locationString}`);
+                    setCurrentLocation(locationString);
+                    setLocationString('');
                 } else {
                     throw new Error(error)
                 }
@@ -117,10 +117,10 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
             <button className={`${styles.default_button} ${styles.double_span}`} onClick={() => setDisplayed(false)}>{`Hide (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
             <h1 className={styles.title}>{`Current location: ${currentLocation}`}</h1>
             <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
-                <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Sensor ID:Check Digit'} />
+                <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={'Sensor ID:Check Digit'} />
             </form>
             <form onSubmit={handleSetLocation} data-testid={'setLocationForm'} >
-                <input type='text' value={location} onChange={event => setLocation(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
+                <input type='text' value={locationString} onChange={event => setLocationString(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
             </form>
             <button type="button" className={`${styles.remove_batch_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
             <ScannedSensors sensorList={sensors} />
