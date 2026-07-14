@@ -66,24 +66,30 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     }
 
     const checkStatus = () => {
-        callApi('get-online-sensors', { sensor_ids: addedSensors })
-            .then(response => {
-                for (const sensor of addedSensors) {
-                    if (!response.includes(sensor)) {
-                        continue;
-                    }
-                    let newSensors = []
-                    for (const sensorElement of sensors) {
-                        if (parseSensorString(sensorElement.sensor)[0] === sensor)
-                            sensorElement.online = true;
-                        newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online });
-                    }
-                    setSensors(newSensors)
-                }
+        callApi('get-sensors-by-batch-id', { batch_id: batchNumber })
+            .then(batchSensors => {
+                callApi('get-online-sensors', { sensor_ids: addedSensors })
+                    .then(response => {
+                        for (const sensor of addedSensors) {
+                            if (!response.includes(sensor)) {
+                                continue;
+                            }
+                            let newSensors = []
+                            for (const sensorElement of sensors) {
+                                if (parseSensorString(sensorElement.sensor)[0] === sensor) {
+                                    sensorElement.online = true;
+                                    sensorElement.cable_id = batchSensors.filter(s => s.sensor_id === sensor)[0].cable_id
+                                }
+                                newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online, cable_id: sensorElement.cable_id });
+                            }
+                            setSensors(newSensors)
+                        }
+                    })
+                    .catch(error => {
+                        console.error(error);
+                    })
             })
-            .catch(error => {
-                console.error(error);
-            })
+
     }
 
     useEffect(() => {
