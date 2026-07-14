@@ -165,7 +165,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     newSensorGrid.push(
                         <div className={`${elementClass} ${style}`} key={sensor.sensor_id}>
                             <div className={styles.default_button} onClick={() => selectSensor(sensor.sensor_id)}>
-                                {batteryLevel <= 30 ? <div className={styles.low_battery}></div> : <></>} {sensor.sensor_id}
+                                {batteryLevel <= 30 ? <div className={styles.low_battery}></div> : <></>} {sensor.cable_id ? `${sensor.sensor_id} (${sensor.cable_id})` :sensor.sensor_id}
                             </div>
                             <div className={currentReadingClass}>
                                 <SensorLink sensorId={sensor.sensor_id} text={currentReadingString} />

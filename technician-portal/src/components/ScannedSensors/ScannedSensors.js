@@ -9,7 +9,7 @@ const ScannedSensors = ({ sensorList }) => {
                 <div className={styles.grid_menu}>
                     {sensorList.map((sensor, index) => (
                         <div key={index} className={`${styles.double_span} ${sensor.online ? styles.green_sensor : styles.offline_sensor}`}>
-                            <SensorLink sensorId={sensor.sensor.split(':')[0]} text={sensor.sensor} />
+                            <SensorLink sensorId={sensor.sensor.split(':')[0]} text={sensor.cable_id ? `${sensor.sensor} (Cable: ${sensor.cable_id})` : sensor.sensor} />
                         </div>
                     ))}
                 </div>
