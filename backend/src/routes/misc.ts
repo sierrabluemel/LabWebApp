@@ -21,6 +21,9 @@ const miscRoutes = {
             case 'sensor_id':
                 column = 's.sensor_id';
                 break;
+            case 'cable_id':
+                column = 's.cable_id';
+                break;
             default:
                 column = '';
                 break;

@@ -164,6 +164,13 @@ const sensorRoutes = {
                                 cableSku: res.Result.SKU
                             }
                         })
+                        .catch(err => {
+                            return {
+                                sku: response.Result.SKU,
+                                cableId: null,
+                                cableSku: null
+                            }
+                        })
                 else
                     return {
                         sku: response.Result.SKU,

@@ -60,7 +60,7 @@ export default function SearchBar() {
 
     // Debounced search
     useEffect(() => {
-        const priority = ["customer_order_number", "order_id", "batch_id", "sensor_id"];
+        const priority = ["customer_order_number", "order_id", "batch_id", "sensor_id", "cable_id"];
         const incrementalSearch = (value) => {
             if (!value || !searchableEntries.length) {
                 setFilteredResults([]);

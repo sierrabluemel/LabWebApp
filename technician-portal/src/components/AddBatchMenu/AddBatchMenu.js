@@ -78,7 +78,9 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
                             for (const sensorElement of sensors) {
                                 if (parseSensorString(sensorElement.sensor)[0] === sensor) {
                                     sensorElement.online = true;
-                                    sensorElement.cable_id = batchSensors.filter(s => s.sensor_id === sensor)[0].cable_id
+                                    const sensorList = batchSensors.filter(s => s.sensor_id === sensor)
+                                    if (sensorList.length > 0)
+                                        sensorElement.cable_id = sensorList[0].cable_id
                                 }
                                 newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online, cable_id: sensorElement.cable_id });
                             }
