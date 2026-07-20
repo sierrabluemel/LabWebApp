@@ -4,6 +4,7 @@ const allowedSearchColumns = [
     "o.order_id",
     "b.batch_id",
     "s.sensor_id",
+    "s.cable_id",
     "o.customer_order_number"
 ];
 
@@ -33,6 +34,7 @@ const misc = {
             b.current_location,
             s.sensor_id,
             s.sku AS sensor_sku,
+            s.cable_id,
             c.certificate_id,
             c.timestamp as certificate_timestamp,
             c.pass as certificate_pass,
@@ -57,13 +59,14 @@ const misc = {
     searchData: () => {
         return executeQuery(pool, `
             SELECT
-                API_BATCH.BATCH_ID,
-                API_ORDER.ORDER_ID,
-                API_ORDER.CUSTOMER_ORDER_NUMBER,
-                API_SENSOR.SENSOR_ID
-            FROM API_ORDER
-            INNER JOIN API_BATCH ON API_ORDER.ORDER_ID = API_BATCH.ORDER_ID
-            INNER JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
+                api_batch.batch_id,
+                api_order.order_id,
+                api_order.customer_order_number,
+                api_sensor.sensor_id,
+                api_sensor.cable_id
+            FROM api_order
+            INNER JOIN api_batch ON api_order.order_id = api_batch.order_id
+            INNER JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
         `, []);
     },
 

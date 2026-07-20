@@ -90,8 +90,10 @@ export default function SearchResults() {
 
                 setResultData(res);
 
-                if (searchSelection.key === 'sensor_id') {
-                    const sensorId = String(searchSelection.value);
+                if (searchSelection.key === 'sensor_id' || searchSelection.key === 'cable_id') {
+                    let sensorId = String(searchSelection.value);
+                    if (searchSelection.key === 'cable_id')
+                        sensorId = String(res.filter(r => r.cable_id === searchSelection.value)[0].sensor_id)
                     const sensorRow = res.find(r => String(r.sensor_id) === sensorId);
 
                     if (sensorRow) {
@@ -167,6 +169,7 @@ export default function SearchResults() {
                 sensors[sensorId] = {
                     sensor_id: sensorId,
                     sensor_sku: row.sensor_sku || "N/A",
+                    cable_id: row.cable_id || null,
                     certificates: []
                 };
             }
@@ -265,7 +268,7 @@ export default function SearchResults() {
                                                                     key={`sensor-${sensor.sensor_id}`}
                                                                     className={`${styles.sensorItem} ${highlightedSensorId === sensor.sensor_id ? styles.highlightItem : ""}`}
                                                                 >
-                                                                    <SensorLink sensorId={sensor.sensor_id} text={`Sensor ${sensor.sensor_id}`} />
+                                                                    <SensorLink sensorId={sensor.sensor_id} text={`Sensor ${sensor.cable_id ? `${sensor.sensor_id} (${sensor.cable_id})` : sensor.sensor_id}`} />
                                                                     {` - ${sensor.sensor_sku}`}
                                                                     {sensor.certificates.length > 0 && (
                                                                         <>
