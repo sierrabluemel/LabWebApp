@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import { useAppContext } from "../../contexts/app";
 import addSensor from "../../utils/addSensor";
 import parseSensorString from "../../utils/parseSensorString";

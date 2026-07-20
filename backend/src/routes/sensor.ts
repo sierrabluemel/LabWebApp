@@ -154,32 +154,8 @@ const sensorRoutes = {
             .then(() => {
                 return monnitFetch(`https://www.imonnit.com/json/LookUpSensor/?${params.toString()}`)
             })
-            .then((response) => {
-                if (response.Result.IsCableEnabled)
-                    return monnitFetch(`https://www.imonnit.com/json/CableLookup/?CableID=${response.Result.CableID}`)
-                        .then(res => {
-                            return {
-                                sku: response.Result.SKU,
-                                cableId: res.Result.CableID,
-                                cableSku: res.Result.SKU
-                            }
-                        })
-                        .catch(err => {
-                            return {
-                                sku: response.Result.SKU,
-                                cableId: null,
-                                cableSku: null
-                            }
-                        })
-                else
-                    return {
-                        sku: response.Result.SKU,
-                        cableId: null,
-                        cableSku: null
-                }
-            })
-            .then(data => {
-                return sensor.createSensor(sensorId, checkDigit, manufacturer, data.sku, batchId, data.cableId, data.cableSku)
+            .then(response => {
+                return sensor.createSensor(sensorId, checkDigit, manufacturer, response.Result.SKU, batchId)
             })
             .then((result) => {
                 res.json(result);
@@ -299,6 +275,22 @@ const sensorRoutes = {
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: "Error getting sensors" })
+            })
+    },
+    addCableToSensor: (req: Request, res: Response) => {
+        const cableId = parseInt(req.query.cable_id as any);
+        const sensorId = parseInt(req.query.sensor_id as any);
+        let url = `https://www.imonnit.com/json/CableLookup/?CableID=${cableId}`
+
+        monnitFetch(url)
+            .then(result => {
+                const cableSku = result.Result.SKU
+                sensor.addCableToSensor(sensorId, cableId, cableSku)
+                    .then(() => res.json({ Result: 'Cable added to sensor' }));
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error setting cable" })
             })
     },
 };

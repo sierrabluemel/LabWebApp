@@ -415,7 +415,7 @@ function Shipping() {
                 <div className={styles.sensor_container}>
                     {sensorList.map((sensor, index) => (
                         <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.status_dot_green : styles.status_dot_red}`}>
-                            <SensorLink sensorId={sensor.sensor_id} text={`${sensor.sensor_id}:${sensor.check_digit}`} />
+                            <SensorLink sensorId={sensor.sensor_id} text={sensor.cable_id ? `${sensor.sensor_id}:${sensor.check_digit} (Cable: ${sensor.cable_id})` : `${sensor.sensor_id}:${sensor.check_digit}`} />
                         </div>
                     ))}
                 </div>

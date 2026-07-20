@@ -65,7 +65,6 @@ const certificateRoutes = {
         const sensorId = req.query.sensor_id;
         const cableId = req.query.cable_id;
         const deviceString = cableId ? `cable_id=${cableId}` : `sensor_id=${sensorId}`
-        console.log(`http://localhost:4000/print-label/?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}&${deviceString}`)
         if (process.env.STATUS === 'development') {
             res.json({ 'Result': `Failed: print disabled in test environment` });
             return;

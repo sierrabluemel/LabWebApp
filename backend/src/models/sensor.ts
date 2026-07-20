@@ -31,7 +31,7 @@ const sensor = {
                 API_ORDER.ACTIVE = TRUE;
         `, [])
     },
-    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number, cableId: number | null, cableSku: string | null) => {
+    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
                 api_sensor (
@@ -39,23 +39,23 @@ const sensor = {
                     check_digit,
                     manufacturer,
                     sku,
-                    batch_id,
-                    cable_id,
-                    cable_sku
+                    batch_id
                 )
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7)
+                ($1, $2, $3, $4, $5)
             RETURNING
                 *
-        `, [sensorId, checkDigit, manufacturer, sku, batchId, cableId, cableSku])
+        `, [sensorId, checkDigit, manufacturer, sku, batchId])
     },
     setBatchId: (sensorId: number, batchId: number) => {
         return executeQuerySingleReturn(pool, `
-            UPDATE API_SENSOR
+            UPDATE api_sensor
             SET
-                BATCH_ID = $1
+                batch_id = $1,
+                cable_id = NULL,
+                cable_sku = NULL
             WHERE
-                SENSOR_ID = $2
+                sensor_id = $2
             RETURNING
                 *
         `, [batchId, sensorId]);
@@ -89,6 +89,16 @@ const sensor = {
             WHERE
                 SENSOR_ID = $1;
         `, [sensorId])
+    },
+    addCableToSensor: (sensorId: number, cableId: number, cableSku: string) => {
+        return executeNonQuery(pool, `
+            UPDATE api_sensor
+            SET
+                cable_id = $1,
+                cable_sku = $2
+            WHERE
+                sensor_id = $3;
+        `, [cableId, cableSku, sensorId])
     },
 };
 

@@ -86,6 +86,7 @@ app.get('/api/get-sensors-by-batch-id', auth, sensorRoutes.getSensorsByBatchId);
 app.get('/api/remove-sensor-from-batch', auth, sensorRoutes.removeSensorFromBatch);
 app.get('/api/remove-sensor', auth, sensorRoutes.removeSensor);
 app.get('/api/get-sensor-list', auth, sensorRoutes.getSensorList);
+app.get('/api/add-cable-to-sensor', auth, sensorRoutes.addCableToSensor);
 
 // Batch routes
 app.get('/api/get-batch-by-id', auth, batchRoutes.getBatchById);
