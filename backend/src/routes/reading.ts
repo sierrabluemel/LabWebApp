@@ -6,7 +6,7 @@ const readingRoutes = {
         const sensors = req.query.sensors as Array<string>;
         const sensorIds = sensors.map(sensor => parseInt(sensor.trim()));
         const now = new Date();
-        const earliestReadingDate = new Date(now.setDate(now.getDate() - 30)).toISOString();
+        const earliestReadingDate = new Date(now.setDate(now.getDate() - 2)).toISOString();
 
         reading.getRecentReadingsBySensorIds(sensorIds, earliestReadingDate)
             .then((readings) => {
