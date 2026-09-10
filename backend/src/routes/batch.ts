@@ -274,7 +274,6 @@ const batchRoutes = {
         sensor.getSensorsByBatchId(batchId)
             .then((sensors) => {
                 return Promise.all(sensors.map((sensorObject) => {
-
                     let url = `https://www.imonnit.com/json/SensorSetHeartbeat/`;
                     const parameters = {
                         SensorID: sensorObject.sensor_id,
@@ -288,6 +287,7 @@ const batchRoutes = {
                     return monnitFetch(`${url}?${params.toString()}`)
                         .then((response) => {
                             if (response.Result !== 'Success') {
+                                console.error(`Unable to set heartbeat for sensor: ${sensorObject.sensor_id}: ${response.json()}`);
                                 return Promise.reject(response.Result);
                             } else {
                                 return response;

@@ -20,7 +20,7 @@ const sensorRoutes = {
                     res.json(result);
                 })
         } else {
-            query = sensor.getSensorById(batchId)
+            query = sensor.getSensorsByBatchId(batchId)
                 .then((result) => {
                     res.json(result);
                 })
@@ -275,6 +275,37 @@ const sensorRoutes = {
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: "Error getting sensors" })
+            })
+    },
+    getSensorCableId: (req: Request, res: Response) => {
+        const sensorId = parseInt(req.query.sensor_id as any);
+        let url = `https://www.imonnit.com/json/SensorGetExtended?sensorID=${sensorId}`
+
+        monnitFetch(url)
+            .then(response => {
+                const cableId = response.Result.CableID;
+                if (cableId < 0)
+                    return res.status(500).json({ error: "cableID returned is not valid" })
+
+                if (!cableId)
+                    return res.status(509).json({ Result: 'No cableID found from iMonnit' })
+
+                url = `https://www.imonnit.com/json/CableLookup/?CableID=${cableId}`
+                monnitFetch(url)
+                    .then(result => {
+                        const cableSku = result.Result.SKU
+                        sensor.addCableToSensor(sensorId, cableId, cableSku)
+                            .then(() => res.json({ Result: 'Cable added to sensor' }));
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        res.status(500).json({ error: "Error setting cable" })
+                    })
+
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error looking up sensor" })
             })
     },
     addCableToSensor: (req: Request, res: Response) => {

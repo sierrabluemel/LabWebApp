@@ -1,18 +1,28 @@
 import { Request, Response } from "express";
 import rollingData from "../models/rollingData";
+import sensor from "../models/sensor";
 import equipment from "../models/equipment";
 
 const rollingDataRoutes = {
     getOnlineSensors: (req: Request, res: Response) => {
-        const sensorIds = req.query.sensor_ids as unknown as number[];
+        const orderId = req.query.order_id as any as number;
+        return sensor.getSensorByOrderId(orderId)
+            .then(sensors => {
+                const sensorIds = sensors.map(s => s.sensor_id)
 
-        rollingData.getOnlineSensors(sensorIds)
-            .then((result) => {
-                res.status(200).json(result.map(sensor => parseInt(sensor.sensor_id)))
-            })
-            .catch((err) => {
-                console.error(err);
-                res.status(500).json({ error: `Failed to get online sensors.` });
+                rollingData.getOnlineSensors(sensorIds)
+                    .then((result) => {
+                        res.status(200).json({
+                            online_sensors: result.map(sensor => parseInt(sensor.sensor_id)),
+                            order_sensors: sensors.map(s => {
+                                return { sensor_id: s.sensor_id, batch_id: s.batch_id, cable_id: s.cable_id }
+                            })
+                        })
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        res.status(500).json({ error: `Failed to get online sensors.` });
+                    })
             })
     },
     getRecentData: (req: Request, res: Response) => {
@@ -47,10 +57,10 @@ const rollingDataRoutes = {
                     const thisSensorReadings = readings.filter(r => r.sensor_id === sensorId && r.type === 'temperature')
                     let heartbeat = null;
                     if (thisSensorReadings.length === 2)
-                        heartbeat = (thisSensorReadings[0].timestamp - thisSensorReadings[1].timestamp)/1000
+                        heartbeat = (thisSensorReadings[0].timestamp - thisSensorReadings[1].timestamp) / 1000
 
                     return {
-                        sensor_id: parseInt(sensorId), 
+                        sensor_id: parseInt(sensorId),
                         heartbeat
                     }
                 })
@@ -107,7 +117,7 @@ const rollingDataRoutes = {
         const start = new Date(Date.now() - minutes * 60000);
         Promise.all(setPoints.map(async (setPoint: any) => {
             return rollingData.getStableTime(start, equipmentList[`${setPoint.reference}`].asset_tag, setPoint[`${type}`], setPoint.stabilityCriteria)
-            .then((result) => result?.timestamp)
+                .then((result) => result?.timestamp)
         }))
             .then((result) => {
                 return res.json({ Result: result });
