@@ -67,7 +67,7 @@ function Shipping() {
                 }
                 const fullDate = new Date(certificates[0].timestamp)
                 const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
-                setCertificateMessage(`Certificates generated on ${dateString}`);
+                setCertificateMessage(`${certificates.length} certificate${certificates.length > 1 ? 's' : ''} generated on ${dateString}`);
                 certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
     }
@@ -190,6 +190,19 @@ function Shipping() {
 
     const createCertificates = async () => {
         callApi('create-certificates', { order_id: orderNumber })
+            .then((certificates) => {
+                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
+            })
+            .then(() => getCertificates())
+            .catch(error => {
+                console.error(error);
+                setPopupMessage(`An error occurred while creating certificates`);
+            })
+    };
+
+    const generateCertificate = async (sensorId) => {
+        setCertificateMessage('Generating certificates...');
+        callApi('create-certificates', { order_id: orderNumber, sensor_id: sensorId })
             .then((certificates) => {
                 certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
@@ -415,7 +428,9 @@ function Shipping() {
                 <div className={styles.sensor_container}>
                     {sensorList.map((sensor, index) => (
                         <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.status_dot_green : styles.status_dot_red}`}>
-                            <SensorLink sensorId={sensor.sensor_id} text={sensor.cable_id ? `${sensor.sensor_id}:${sensor.check_digit} (Cable: ${sensor.cable_id})` : `${sensor.sensor_id}:${sensor.check_digit}`} />
+                            <SensorLink sensorId={sensor.sensor_id} text={sensor.cable_id ? `${sensor.sensor_id} C: ${sensor.cable_id}` : `${sensor.sensor_id}`} />
+                            {certificateList.current.find(c => c.sensor_id === sensor.sensor_id) && <span> | <a className={styles.sensor_link} href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${certificateList.current.find(c => c.sensor_id === sensor.sensor_id).certificate_id}.pdf`} target="_blank" rel="noreferrer">MNT-{certificateList.current.find(c => c.sensor_id === sensor.sensor_id).certificate_id}</a></span>}
+                            <Button innerText={'Create certificate'} onClick={() => generateCertificate(sensor.sensor_id)} />
                         </div>
                     ))}
                 </div>

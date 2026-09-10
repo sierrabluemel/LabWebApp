@@ -358,7 +358,7 @@
 .grid_menu {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-gap: 10px;
+    grid-column-gap: 10px;
 }
 
 .equipment_control_menu {
@@ -380,7 +380,7 @@
 .triple_grid_menu {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-gap: 10px;
+    grid-column-gap: 6px;
 }
 
 .show_options_button {
@@ -453,6 +453,14 @@
     text-align: center;
     word-wrap: break-word;
     grid-column: span 2;
+}
+
+.current_location_text {
+    margin-top: 8px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: large;
+    text-align: center;
+    word-wrap: break-word;
 }
 
 .sensor_grid_box {
@@ -806,14 +814,17 @@ th {
 }
 
 .offline_sensor {
-    padding: 4px;
+    margin: 4px;
+    padding-top: 8px;
     background-color: #e1e1e1;
     border-style: solid;
     border-width: 0.1px;
+    height: 60%;
 }
 
 .green_sensor {
-    padding: 4px;
+    margin: 4px;
+    padding-top: 8px;
     border: none;
     background-color: #5ff037;
     color: #333;
@@ -1146,16 +1157,6 @@ th {
 
 .check_box_container input:checked~.grid_check_box:after {
     display: block;
-}
-
-.remove_batch_button {
-    height: max-content;
-    border-radius: 2px;
-    height: 28px;
-    cursor: pointer;
-    font-size: large;
-    color: #f1f1f1;
-    border: none;
 }
 
 .text {
@@ -1600,6 +1601,22 @@ mark {
     filter: invert(0.2);
 }
 
+.back_arrow_container {
+    position: relative;
+}
+
+.back_arrow_image {
+    width: 30px;
+    left: 20px;
+    top: 10px;
+    position: absolute;
+}
+
+.back_arrow_image:hover {
+    cursor: pointer;
+    filter: invert(0.4);
+}
+
 .trash_can_icon {
     width: 20px;
     color: red;
@@ -1694,4 +1711,8 @@ mark {
 
 .right_align_checkbox {
     float: right;
+}
+
+.add_batch_container {
+    grid-template-columns: 2fr 3fr;
 }

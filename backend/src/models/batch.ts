@@ -4,11 +4,15 @@ const batch = {
     getBatchById: (batchId: number) => {
         return executeQuerySingleReturn(pool, `
             SELECT
-                *
+                *, api_order.customer_order_number
             FROM
-                API_BATCH
+                api_batch
+            INNER JOIN
+                api_order
+            ON
+                api_order.order_id = api_batch.order_id
             WHERE
-                BATCH_ID = $1
+                batch_id = $1
         `, [batchId])
     },
     getBatchesByOrderId: (orderId: number) => {

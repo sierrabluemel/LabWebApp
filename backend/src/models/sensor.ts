@@ -9,15 +9,15 @@ const sensor = {
                 API_SENSOR
         `, []);
     },
-    getSensorById: (batchId: number) => {
+    getSensorById: (sensorId: number) => {
         return executeQuery(pool, `
             SELECT
                 *
             FROM
-                API_SENSOR
+                api_sensor
             WHERE
-                BATCH_ID = $1
-        `, [batchId]);
+                sensor_id = $1
+        `, [sensorId]);
     },
     getActiveSensors: () => {
         return executeQuery(pool, `

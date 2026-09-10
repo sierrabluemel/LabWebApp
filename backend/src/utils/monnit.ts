@@ -25,7 +25,7 @@ async function recursiveQueue() {
         .then((response) => {
             // Get response
             if (response.status !== 200)
-                return Promise.reject(response.json());
+                return Promise.reject(response);
             else
                 return response.json()
         })

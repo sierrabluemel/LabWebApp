@@ -160,9 +160,15 @@ const certificateRoutes = {
     },
     createCertificates: async (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
+        const sensorId = parseInt(req.query.sensor_id as string ?? "")
 
         try {
-            let sensors = await sensor.getSensorByOrderId(orderId);
+            let sensors;
+            if (!sensorId)
+                sensors = await sensor.getSensorByOrderId(orderId);
+            else
+                sensors = await sensor.getSensorById(sensorId);
+
             let thisOrder = await order.getOrderById(orderId);
             let customer = await misc.getCustomerById(thisOrder.customer_id);
             let batches = await batch.getBatchesByOrderId(orderId)

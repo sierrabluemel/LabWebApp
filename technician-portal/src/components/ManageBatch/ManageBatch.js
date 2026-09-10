@@ -5,10 +5,12 @@ import callApi from "../../utils/api/callApi";
 import callApiAdvanced from "../../utils/api/callApiAdvanced";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 import TestingMenu from "../TestingMenu/TestingMenu";
+import backArrow from "../../media/arrow.png";
 
 import styles from "../../styles/styles.module.css";
 import parseSensorString from "../../utils/parseSensorString";
 import setBatchLocation from "../../utils/setBatchLocation";
+import Button from "../Button/Button";
 
 function ManageBatch() {
     const navigate = useNavigate();
@@ -21,7 +23,6 @@ function ManageBatch() {
     const [heartbeat, setHeartBeat] = useState('');
     const [location, setLocation] = useState('');
     const [currentLocation, setCurrentLocation] = useState('');
-    const [confirmationArray, setConfirmationArray] = useState([]);
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
     const setPoint = useRef(null);
@@ -81,6 +82,23 @@ function ManageBatch() {
             });
     }
 
+    const getSensorLeads = async () => {
+        await Promise.all(sensorList.map(sensor => {
+            return callApi('get-sensor-cable-id', { sensor_id: sensor.sensor_id })
+                .catch(err => {
+                    if (err.status !== 509) {
+                        setPopupMessage('Unable to automatically add cable to sensor')
+                        console.error(`Unable to automatically add cable to sensor: ${err}`)
+                    }
+                })
+        }))
+        setPopupMessage('Got all leads');
+        callApi('get-sensors', { 'batch_id': batchNumber })
+            .then(data => {
+                setSensorList(data);
+            })
+    }
+
     const handleHeartBeatChange = (event) => {
         setHeartBeat(event.target.value);
     }
@@ -126,21 +144,11 @@ function ManageBatch() {
     }
 
     const handleSensorChange = (event) => {
-        setSensor(event.target.value)
+        setSensor(event.target.value.toUpperCase());
     }
 
     const handleSensorSubmit = (event) => {
-        event.preventDefault();
-        const sensorId = parseInt(parseSensorString(sensor)[0]);
-
-        if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
-            setConfirmationArray([`Would you like to REMOVE sensor ${sensorId} from batch ${batchNumber}?`])
-        } else {
-            setConfirmationArray([`Would you like to ADD sensor ${sensorId} to batch ${batchNumber}?`])
-        }
-    }
-
-    const handleSensorConfirm = () => {
+        event.preventDefault()
         const [sensorId, checkDigit] = parseSensorString(sensor);
         if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
             callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
@@ -181,18 +189,20 @@ function ManageBatch() {
         <>
             <div className={styles.menu}>
                 <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />
-                <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={handleSensorConfirm} />
+                <div className={styles.back_arrow_container}>
+                    <img className={styles.back_arrow_image} onClick={() => navigate('/batchEntry')} src={backArrow} alt="Back button" />
+                </div>
                 <div className={styles.grid_menu}>
-                    <h1 className={styles.title}>{`${customerOrderNumber} | Batch: ${batchNumber}` + (currentLocation ? ` | Current location: ${currentLocation}` : ` | No location set`)}</h1>
-                    <button className={styles.default_button} onClick={() => navigate('/batchEntry')}>Change batch</button>
+                    <h1 className={styles.title}>{`${customerOrderNumber} | Batch: ${batchNumber} | ${currentLocation ? `Current location: ${currentLocation}` : `No location set`}`}</h1>
+                    <Button innerText={'Print work order'} onClick={printWorkOrder} />
                     <form onSubmit={handleLocationSubmit} data-testid={'locationForm'}>
                         <input type='text' value={location} onChange={handleLocationChange} className={styles.default_text_box} placeholder={'Location'} />
                     </form>
-                    <button className={styles.default_button} onClick={downloadWorkOrder}>Download work order</button>
+                    <Button innerText={'Get sensor leads'} onClick={getSensorLeads} />
                     <form onSubmit={handleHeartBeatSubmit} data-testid={'heartbeatForm'}>
                         <input type='text' value={heartbeat} onChange={handleHeartBeatChange} className={styles.default_text_box} placeholder={'Heartbeat (minutes)'} />
                     </form>
-                    <button className={styles.default_button} onClick={printWorkOrder}>Print work order</button>
+                    <Button innerText={'Download work order'} onClick={downloadWorkOrder} />
                     <form onSubmit={handleSensorSubmit}>
                         <input type='text' value={sensor} onChange={handleSensorChange} className={styles.default_text_box} placeholder={'Add/remove sensor'} />
                     </form>

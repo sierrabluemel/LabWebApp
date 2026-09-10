@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAppContext } from "../../contexts/app";
@@ -11,8 +11,7 @@ function BatchEntry() {
     const navigate = useNavigate();
     const {
         batchNumber, setBatchNumber, setSensorList, setProcedureId,
-        technicianId, setPopupMessage, sensorGrid, setSensorGrid,
-        setCustomerOrderNumber
+        technicianId, sensorGrid, setSensorGrid, setCustomerOrderNumber
     } = useAppContext()
 
     const [batches, setBatches] = useState([<h1 className={styles.title} key={'fillerKey'}>Loading...</h1>]);
@@ -28,23 +27,34 @@ function BatchEntry() {
         return allSensors
     }
 
+    const navigateToBatch = useCallback((batch_id) => {
+        callApi('get-batch-by-id', { 'batch_id': batch_id })
+            .then(batch => {
+                setBatchNumber(batch.batch_id);
+                setCustomerOrderNumber(batch.customer_order_number);
+
+                callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
+
+                setProcedureId(batch.calibration_procedure_id);
+
+                callApi('get-sensors', { 'batch_id': batch.batch_id })
+                    .then(data => {
+                        setSensorList(data);
+                        navigate('/manageBatch');
+                    })
+            })
+    }, [navigate, setBatchNumber, setCustomerOrderNumber, setProcedureId, setSensorList, technicianId])
+
+    const handleSubmit = (event) => {
+        event.preventDefault()
+        navigateToBatch(parseInt(batchNumber))
+    }
+
     useEffect(() => {
         let isMounted = true;
 
         if (sensorGrid.length > 0) {
             setSensorGrid([]);
-        }
-
-        const navigateToBatch = (batch, customerOrderNumber) => {
-            setBatchNumber(batch.batch_id);
-            setCustomerOrderNumber(customerOrderNumber);
-            setProcedureId(batch.calibration_procedure_id);
-
-            callApi('get-sensors', { 'batch_id': batch.batch_id })
-                .then(data => {
-                    setSensorList(data);
-                    navigate('/manageBatch');
-                })
         }
         if (batches.length === 1 && isMounted) {
             callApi('get-batches-by-active-state', { active: true })
@@ -70,7 +80,7 @@ function BatchEntry() {
                                 <hr />
                                 <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h1>
                                 {batches.map((batch, index) => {
-                                    return <BatchDisplay batch={batch} handleButtonClick={() => navigateToBatch(batch, batches[0].customer_order_number)} key={index} />
+                                    return <BatchDisplay batch={batch} handleButtonClick={() => navigateToBatch(batch.batch_id)} key={index} />
                                 })}
                             </div>
                         )
@@ -88,35 +98,11 @@ function BatchEntry() {
         return () => {
             isMounted = false;
         };
-    }, [setBatchNumber, setSensorList, setProcedureId, navigate, technicianId, setPopupMessage, batches.length, sensorGrid.length, setSensorGrid, setCustomerOrderNumber]);
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        if (!technicianId) {
-            setPopupMessage('Please sign in');
-            return;
-        }
-        if (isNaN(parseInt(batchNumber))) {
-            setPopupMessage('Batch must be a number')
-            return;
-        }
-        callApi('get-batch-by-id', { 'batch_id': batchNumber })
-            .then(batch => {
-                callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
-                setProcedureId(batch.calibration_procedure_id);
-                return callApi('get-sensors', { 'batch_id': batch.batch_id })
-            })
-            .then(data => {
-                setSensorList(data);
-                navigate('/manageBatch');
-            })
-            .catch(() => {
-                return setPopupMessage(`Unable to get batch ${batchNumber}`)
-            })
-    }
+    }, [setSensorGrid, batches.length, navigateToBatch, sensorGrid.length]);
 
     const handleChange = (event) => {
-        setBatchNumber(event.target.value);
+        if ((!isNaN(event.target.value) && !isNaN(parseFloat(event.target.value))) || event.target.value === '')
+            setBatchNumber(event.target.value);
     }
 
     return (

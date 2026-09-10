@@ -9,8 +9,9 @@ import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 import styles from "../../styles/styles.module.css";
 import setBatchLocation from "../../utils/setBatchLocation";
+import Button from "../Button/Button";
 
-function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches }) {
+function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches, orderId }) {
     const { setPopupMessage, technicianId } = useAppContext();
 
     const [addedSensors, setAddedSensors] = useState([]);
@@ -40,7 +41,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
                 if (!sensorValid) {
                     setPopupMessage(`Sensor "${sensorId}" could not be added`);
                     setSensors(sensors.filter(item => JSON.stringify(item) !== JSON.stringify(sensorObject)))
-                    setAddedSensors(addedSensors.filter(item => item !== sensorId))
+                    setAddedSensors(addedSensors.filter(item => parseInt(item) !== parseInt(sensorId)))
                 }
             })
         setSensors([...sensors, sensorObject]);
@@ -64,31 +65,39 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
             })
     }
 
+    const getAllLeads = async () => {
+        await Promise.all(sensors.map(sensor => {
+            return callApi('get-sensor-cable-id', { sensor_id: sensor.sensor.split(':')[0] })
+                .catch(err => {
+                    if (err.status !== 509) {
+                        setPopupMessage('Unable to automatically add cable to sensor')
+                        console.error(`Unable to automatically add cable to sensor: ${err}`)
+                    }
+                })
+        }))
+        setPopupMessage('Got all leads')
+    }
+
     const checkStatus = () => {
-        callApi('get-sensors-by-batch-id', { batch_id: batchNumber })
-            .then(batchSensors => {
-                callApi('get-online-sensors', { sensor_ids: addedSensors })
-                    .then(response => {
-                        for (const sensor of addedSensors) {
-                            if (!response.includes(sensor)) {
-                                continue;
-                            }
-                            let newSensors = []
-                            for (const sensorElement of sensors) {
-                                if (parseSensorString(sensorElement.sensor)[0] === sensor) {
-                                    sensorElement.online = true;
-                                    const sensorList = batchSensors.filter(s => s.sensor_id === sensor)
-                                    if (sensorList.length > 0)
-                                        sensorElement.cable_id = sensorList[0].cable_id
-                                }
-                                newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online, cable_id: sensorElement.cable_id });
-                            }
-                            setSensors(newSensors)
+        callApi('get-online-sensors', { order_id: orderId })
+            .then(response => {
+                for (const sensor of addedSensors) {
+                    if (!response.online_sensors.includes(sensor)) {
+                        continue;
+                    }
+                    let newSensors = []
+                    for (const sensorElement of sensors) {
+                        if (parseSensorString(sensorElement.sensor)[0] === sensor) {
+                            sensorElement.online = true;
+                            sensorElement.cable_id = response.order_sensors.filter(s => s.sensor_id === sensor)[0].cable_id
                         }
-                    })
-                    .catch(error => {
-                        console.error(error);
-                    })
+                        newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online, cable_id: sensorElement.cable_id });
+                    }
+                    setSensors(newSensors)
+                }
+            })
+            .catch(error => {
+                console.error(error);
             })
 
     }
@@ -122,16 +131,23 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
         <>
             {confirmationArray.length > 0 ? <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={removeBatch} /> : <></>}
             <button className={`${styles.default_button} ${styles.double_span}`} onClick={() => setDisplayed(false)}>{`Hide (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
-            <h1 className={styles.title}>{`Current location: ${currentLocation}`}</h1>
-            <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
-                <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={'Sensor ID:Check Digit'} />
-            </form>
-            <form onSubmit={handleSetLocation} data-testid={'setLocationForm'} >
-                <input type='text' value={locationString} onChange={event => setLocationString(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
-            </form>
-            <button type="button" className={`${styles.remove_batch_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
+
+            <div className={styles.current_location_text}>{`Current location: ${currentLocation}`}</div>
+            <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
+
+
+            <div className={styles.grid_menu}>
+                <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
+                    <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={'Scan Sensor'} />
+                </form>
+                <form onSubmit={handleSetLocation} data-testid={'setLocationForm'} >
+                    <input type='text' value={locationString} onChange={event => setLocationString(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
+                </form>
+                <Button onClick={printWorkOrder} innerText={'Print work order'} />
+                <Button onClick={getAllLeads} innerText={'Get all leads'} />
+            </div>
+
             <ScannedSensors sensorList={sensors} />
-            <button className={styles.default_button} onClick={printWorkOrder}>Print work order</button>
         </>
     )
 }
