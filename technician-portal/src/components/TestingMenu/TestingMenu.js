@@ -289,7 +289,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         })
 
                         const sensorAverage = round(average(readingList), sensorResolution.toString().split('.')[1].length);
-                        const sensorStandardDeviation = round(standardDeviation(referenceAndSensorDifference, 10), 4);
+                        const sensorStandardDeviation = round(standardDeviation(referenceAndSensorDifference, 8), 4);
 
                         const finalReadingsSensor = finalReadings[`${sensorId}`]
 
