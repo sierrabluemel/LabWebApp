@@ -81,7 +81,17 @@ const miscRoutes = {
             })
             .catch((err) => {
                 console.error(err);
-                return res.status(500).json({ error: `Error getting calibration procecures` });
+                return res.status(500).json({ error: `Error getting variances` });
+            });
+    },
+    getHumidityVariances: (req: Request, res: Response) => {
+        misc.getHumidityVariances()
+            .then((result) => {
+                res.json(result);
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error getting humidity variances` });
             });
     },
     getVariancesByCalibrationProcedure: (req: Request, res: Response) => {
@@ -119,6 +129,28 @@ const miscRoutes = {
                 return res.status(500).json({ error: `Error creating set point` });
             });
     },
+    createHumidityVariance: (req: Request, res: Response) => {
+        const assetTag = req.query.asset_tag as string ?? "";
+        const temperature = parseFloat(req.query.temperature as string ?? "");
+        const humidity = parseFloat(req.query.humidity as string ?? "");
+        const calibrationUncertainty = parseFloat(req.query.calibration_uncertainty as string ?? "");
+        const readingResolutionUncertainty = parseFloat(req.query.reading_resolution_uncertainty as string ?? "");
+        const interpolationUncertainty = parseFloat(req.query.interpolation_uncertainty as string ?? "");
+        const driftUncertainty = parseFloat(req.query.drift_uncertainty as string ?? "");
+        const hysteresisUncertainty = parseFloat(req.query.hysteresis_uncertainty as string ?? "");
+        const gasTemperatureDependanceUncertainty = parseFloat(req.query.gas_temperature_dependance_uncertainty as string ?? "");
+        const heatDissipationUncertainty = parseFloat(req.query.heat_dissipation_uncertainty as string ?? "");
+        const selfHeatingUncertainty = parseFloat(req.query.self_heating_uncertainty as string ?? "");
+
+        misc.createHumidityVariance(assetTag, temperature, humidity, calibrationUncertainty, readingResolutionUncertainty, interpolationUncertainty, driftUncertainty, hysteresisUncertainty, gasTemperatureDependanceUncertainty, heatDissipationUncertainty, selfHeatingUncertainty)
+            .then((result) => {
+                res.json(result);
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error creating set point` });
+            });
+    },
     createSetPointLink: (req: Request, res: Response) => {
         const setPointId = parseInt(req.query.set_point_id as string ?? "");
         const calibrationProcedureId = parseInt(req.query.calibration_procedure_id as string ?? "");
@@ -137,6 +169,19 @@ const miscRoutes = {
         const activeState = req.query.active_state as unknown as boolean ?? false;
 
         misc.changeSetPointActiveState(setPointId, activeState)
+            .then((result) => {
+                res.json(result);
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error setting set point active state` });
+            });
+    },
+    changeHumidityVarianceActiveState: (req: Request, res: Response) => {
+        const varianceId = parseInt(req.query.variance_id as string ?? "");
+        const activeState = req.query.active_state as unknown as boolean ?? false;
+
+        misc.changeHumidityVarianceActiveState(varianceId, activeState)
             .then((result) => {
                 res.json(result);
             })

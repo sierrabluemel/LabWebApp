@@ -89,7 +89,14 @@ const misc = {
     getVariances: () => {
         return executeQuery(pool, `
             SELECT *
-            FROM API_VARIANCES
+            FROM api_variances
+        `, []);
+    },
+
+    getHumidityVariances: () => {
+        return executeQuery(pool, `
+            SELECT *
+            FROM api_humidity_variances
         `, []);
     },
 
@@ -138,6 +145,38 @@ const misc = {
         `, [setPoint, readingType, reference, drift, bridge, uniformity, stability, dutResolution, referenceAssetTag, generatorAssetTag, referenceType, generatorType]);
     },
 
+    createHumidityVariance: (
+        assetTag: string,
+        temperature: number,
+        humidity: number,
+        calibrationUncertainty: number,
+        readingResolutionUncertainty: number,
+        interpolationUncertainty: number,
+        driftUncertainty: number,
+        hysteresisUncertainty: number,
+        gasTemperatureDependanceUncertainty: number,
+        heatDissipationUncertainty: number,
+        selfHeatingUncertainty: number
+    ) => {
+        return executeQuery(pool, `
+            INSERT INTO api_humidity_variances (
+            asset_tag,
+            temperature,
+            humidity,
+            calibration_uncertainty,
+            reading_resolution_uncertainty,
+            interpolation_uncertainty,
+            drift_uncertainty,
+            hysteresis_uncertainty,
+            gas_temperature_dependance_uncertainty,
+            heat_dissipation_uncertainty,
+            self_heating_uncertainty
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            RETURNING *;
+        `, [assetTag, temperature, humidity, calibrationUncertainty, readingResolutionUncertainty, interpolationUncertainty, driftUncertainty, hysteresisUncertainty, gasTemperatureDependanceUncertainty, heatDissipationUncertainty, selfHeatingUncertainty]);
+    },
+
     createSetPointLink: (setPointId: number, calibrationProcedureId: number) => {
         return executeQuery(pool, `
             INSERT INTO API_CALIBRATION_PROCEDURE_VARIANCES (
@@ -156,6 +195,15 @@ const misc = {
             WHERE ID = $1
             RETURNING *
         `, [setPointId, activeState]);
+    },
+
+    changeHumidityVarianceActiveState: (varianceId: number, activeState: boolean) => {
+        return executeQuery(pool, `
+            UPDATE api_humidity_variances
+            SET active = $2
+            WHERE variance_id = $1
+            RETURNING *
+        `, [varianceId, activeState]);
     },
 
     getTechnicianById: (technicianId: number) => {

@@ -85,7 +85,7 @@ export default function CreateSetPoint({ addingVariance, refreshVariances }) {
                 <input type='text' value={stabilityVariance} onChange={event => setStabilityVariance(event.target.value)} className={styles.default_text_box} placeholder={'Stability Variance'} />
                 <input type='text' value={uniformityVariance} onChange={event => setUniformityVariance(event.target.value)} className={styles.default_text_box} placeholder={'Uniformity Variance'} />
                 <input type='text' value={dutResolutionVariance} onChange={event => setDutResolutionVariance(event.target.value)} className={styles.default_text_box} placeholder={'DUT Resolution Variance'} />
-                <Button onClick={handleSubmit} innerText='Create set point' />
+                <Button onClick={handleSubmit} innerText='Create variance' />
             </form>
         </>
     )

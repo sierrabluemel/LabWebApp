@@ -6,7 +6,7 @@ import Button from '../Button/Button';
 import ConfirmationPopup from '../ConfirmationPopup/ConfirmationPopup';
 import { round } from '../../utils/customMath';
 
-export default function SetPointRow({ setPoint }) {
+export default function SetPointRow({ setPoint, refreshVariances }) {
     const { setPopupMessage } = useAppContext();
     const [confirmationArray, setConfirmationArray] = useState([])
     const [calibrationProcedureId, setCalibrationProcedureId] = useState('')
@@ -19,6 +19,7 @@ export default function SetPointRow({ setPoint }) {
             active_state: false
         }
         callApi('change-set-point-active-state', parameters)
+            .then(() => refreshVariances())
             .catch((err) => {
                 console.error(err)
                 setPopupMessage('Unable to delete set point. Please try again later')

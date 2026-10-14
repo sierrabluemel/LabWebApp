@@ -10,6 +10,8 @@ import EquipmentRow from './EquipmentRow';
 import SetPointRow from './SetPointRow';
 import CreateSetPoint from './CreateSetPoint';
 import CreateNotification from './CreateNotification';
+import CreateHumidityVariance from './CreateHumidityVariance';
+import HumidityVarianceRow from './HumidityVarianceRow';
 
 function Admin() {
     const [reference1, setReference1] = useState({});
@@ -18,7 +20,9 @@ function Admin() {
     const [reference4, setReference4] = useState({});
     const [superDaq, setSuperDaq] = useState({});
     const [setPoints, setSetPoints] = useState([]);
+    const [humidityVariances, setHumidityVariances] = useState([]);
     const [addingVariance, setAddingVariance] = useState(false);
+    const [addingHumidityVariance, setAddingHumidityVariance] = useState(false);
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [equipmentListFiltered, setEquipmentListFiltered] = useState(true);
     const referenceList = [reference1, reference2, reference3, reference4];
@@ -101,7 +105,7 @@ function Admin() {
 
     const updateEquipment = useCallback(() => {
         setEquipmentRows(JSON.stringify(equipmentRows) === JSON.stringify(filteredEquipment) ? nonFilteredEquipment : filteredEquipment);
-    }, [equipmentListFiltered, filteredEquipment, nonFilteredEquipment])
+    }, [filteredEquipment, nonFilteredEquipment, equipmentRows])
 
     const refreshVariances = useCallback(() => {
         callApi('get-variances')
@@ -111,6 +115,14 @@ function Admin() {
             .catch((err) => {
                 console.error(err)
                 setPopupMessage('Unable to get set points')
+            })
+        callApi('get-humidity-variances')
+            .then(response => {
+                setHumidityVariances(response)
+            })
+            .catch((err) => {
+                console.error(err)
+                setPopupMessage('Unable to get humidity variances')
             })
     }, [setPopupMessage])
 
@@ -160,7 +172,7 @@ function Admin() {
         }
 
         for (const reference of referenceList) {
-            if (Object.keys(reference).length === 0) // Check if reference is empty Object
+            if (Object.keys(reference).length === 0)
                 continue;
             if (!isReferenceValid(reference))
                 continue;
@@ -253,6 +265,47 @@ function Admin() {
             </div>
             <CreateNotification />
             <div className={styles.menu}>
+                <span className={styles.plus_button_container}><button className={styles.plus_button} title='Add humidity variance' onClick={() => setAddingHumidityVariance(!addingHumidityVariance)}></button></span>
+                <h1 className={styles.title}>
+                    Humidity Variances
+                </h1>
+                {equipmentList && equipmentList.length > 0 && <CreateHumidityVariance key={humidityVariances.length} addingVariance={addingHumidityVariance} refreshVariances={refreshVariances} /> }
+                <table className={styles.equipment_table}>
+                    <thead className={styles.equipment_table_head}>
+                        <tr>
+                            <td className={styles.equipment_table_data}></td>
+                            <td className={styles.equipment_table_data}>
+                                Asset Tag
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Temperature
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Humidity
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Calibration
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Interpolation
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Drift
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Hysteresis
+                            </td>
+                            <td className={styles.equipment_table_data}>
+                                Gas Temperature Dependance
+                            </td>
+                        </tr>
+                    </thead>
+                    <tbody className={styles.equipment_table_body}>
+                        {humidityVariances.filter(variance => variance.active === true).map((variance, index) => <HumidityVarianceRow key={index} variance={variance} refreshVariances={refreshVariances} />)}
+                    </tbody>
+                </table>
+            </div>
+            <div className={styles.menu}>
                 <span className={styles.plus_button_container}><button className={styles.plus_button} title='Add set point' onClick={() => setAddingVariance(!addingVariance)}></button></span>
                 <h1 className={styles.title}>
                     Set Points
@@ -286,7 +339,7 @@ function Admin() {
                         </tr>
                     </thead>
                     <tbody className={styles.equipment_table_body}>
-                        {setPoints.filter(setPoint => setPoint.active === true).map((setPoint, index) => <SetPointRow key={index} setPoint={setPoint} />)}
+                        {setPoints.filter(setPoint => setPoint.active === true).map((setPoint, index) => <SetPointRow key={index} setPoint={setPoint} refreshVariances={refreshVariances} />)}
                     </tbody>
                 </table>
             </div>

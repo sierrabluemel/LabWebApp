@@ -29,7 +29,7 @@ function Equipment({ assetId, readings, description, openedEquipment, updateData
     let elements;
     if (!humidityReading) {
         let stableString = 'Temperature not stable';
-        if (temperatureReading.stable) {
+        if (temperatureReading?.stable) {
             stableString = 'Temperature stable';
             referenceColor = styles.stable_green;
         }
