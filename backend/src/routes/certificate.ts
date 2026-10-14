@@ -284,7 +284,12 @@ const certificateRoutes = {
 
         } catch (err) {
             console.error(err);
-            res.status(500).json({ error: `Error creating sensor certificates` })
+
+            if (err instanceof TypeError)
+                res.status(500).json({ error: `Not enough readings to generate certificate` })
+            else
+                res.status(500).json({ error: `Error creating sensor certificates` })
+
             return Promise.reject({ error: `Error creating sensor certificates` })
         }
     },

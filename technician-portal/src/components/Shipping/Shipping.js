@@ -195,8 +195,13 @@ function Shipping() {
             })
             .then(() => getCertificates())
             .catch(error => {
+                setCertificateMessage('No certificates found');
                 console.error(error);
-                setPopupMessage(`An error occurred while creating certificates`);
+
+                if (error.response.data.error === 'Not enough readings to generate certificate')
+                    setPopupMessage(`Not enough readings present to create certificates`);
+                else
+                    setPopupMessage(`An error occurred while creating certificates`);
             })
     };
 
