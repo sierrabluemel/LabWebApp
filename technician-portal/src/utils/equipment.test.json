@@ -134,7 +134,7 @@
     {
         "equipment_id": 13,
         "asset_tag": "S000113",
-        "description": "Rotronic HygroClip2 Humidity Reference",
+        "description": "Rotronic HygroClip2 Humidity and Temperature Reference",
         "last_calibration": "2023-11-30T07:00:00.000Z",
         "next_calibration": "2024-11-29T07:00:00.000Z",
         "calibration_certificate_number": "A12491",
@@ -201,7 +201,7 @@
     {
         "equipment_id": 19,
         "asset_tag": "S000119",
-        "description": "Rotronic HygroClip2 Humidity Reference",
+        "description": "Rotronic HygroClip2 Humidity and Temperature Reference",
         "last_calibration": "2023-01-11T07:00:00.000Z",
         "next_calibration": "2024-02-10T07:00:00.000Z",
         "calibration_certificate_number": "99-0494160502",

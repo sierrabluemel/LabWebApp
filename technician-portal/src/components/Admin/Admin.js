@@ -256,7 +256,7 @@ function Admin() {
                         generatorText="Chamber"
                         generatorHint="RH"
                         generatorTag="S000138"
-                        description="Rotronic HygroClip2 Humidity Reference"
+                        description="Rotronic HygroClip2 Humidity and Temperature Reference"
                         selectedOption={reference4}
                         setSelectedOption={setReference4}
                     />
