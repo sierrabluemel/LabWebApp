@@ -199,9 +199,9 @@ function Shipping() {
                 console.error(error);
 
                 if (error.response.data.error === 'Not enough readings to generate certificate')
-                    setPopupMessage(`Not enough readings present to create certificates`);
+                    setPopupMessage(`Not enough readings present to generate certificates`);
                 else
-                    setPopupMessage(`An error occurred while creating certificates`);
+                    setPopupMessage(`An error occurred while generating certificates`);
             })
     };
 
@@ -214,7 +214,7 @@ function Shipping() {
             .then(() => getCertificates())
             .catch(error => {
                 console.error(error);
-                setPopupMessage(`An error occurred while creating certificates`);
+                setPopupMessage(`An error occurred while generating certificates`);
             })
     };
 
@@ -406,7 +406,7 @@ function Shipping() {
                 </div>
 
                 <div className={styles.grid_menu}>
-                    <Button onClick={generateCertificates} innerText={'Create certificates'} />
+                    <Button onClick={generateCertificates} innerText={'Generate certificates'} />
                     <span className={`${styles.status_message} ${certificateList.current.length > 0 ? styles.status_dot_green : styles.status_dot_red}`}>{certificateMessage}</span>
                     <Button onClick={removeSensorsFromNetwork} innerText={'Remove sensors'} />
                     <span className={`${styles.status_message} ${sensorsRemoved ? styles.status_dot_green : styles.status_dot_red}`}>{sensorsRemovedMessage}</span>
@@ -435,7 +435,7 @@ function Shipping() {
                         <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.status_dot_green : styles.status_dot_red}`}>
                             <SensorLink sensorId={sensor.sensor_id} text={sensor.cable_id ? `${sensor.sensor_id} C: ${sensor.cable_id}` : `${sensor.sensor_id}`} />
                             {certificateList.current.find(c => c.sensor_id === sensor.sensor_id) && <span> | <a className={styles.sensor_link} href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${certificateList.current.find(c => c.sensor_id === sensor.sensor_id).certificate_id}.pdf`} target="_blank" rel="noreferrer">MNT-{certificateList.current.find(c => c.sensor_id === sensor.sensor_id).certificate_id}</a></span>}
-                            <Button innerText={'Create certificate'} onClick={() => generateCertificate(sensor.sensor_id)} />
+                            <Button innerText={'Generate certificate'} onClick={() => generateCertificate(sensor.sensor_id)} />
                         </div>
                     ))}
                 </div>
