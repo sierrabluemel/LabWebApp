@@ -23,7 +23,7 @@ import rollingDataRoutes from './routes/rollingData';
 const app = express();
 const corsOptions = {
     origin: function (origin: string | undefined, callback: any) {
-        const whitelist = ['http://localhost:3000', 'https://technicianportal.sensorcalibrations.com'];
+        const whitelist = ['http://localhost:3000', 'https://technicianportal.sensorcalibrations.com', 'https://sensorcalibrations.com'];
         if (!origin || whitelist.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
