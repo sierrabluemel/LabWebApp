@@ -148,6 +148,28 @@ test('submit batch number with valid number navigates', async () => {
     expect(mockedUseNavigate).toBeCalledWith('/manageBatch')
 })
 
+test('submit batch number that doesn\'t exist shows popup', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation(url => url === `http://${ip}/api/get-batch-by-id/` ? Promise.resolve({ data: null }) : defaultGet(url))
+    const mockSetPopupMessage = jest.fn()
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{
+                batchNumber: 999, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
+                technicianId: 1, setPopupMessage: mockSetPopupMessage, sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
+            }}>
+                <BatchEntry />
+            </AppWrapper>
+        )
+    })
+    await act(async () => {
+        fireEvent.submit(screen.getByTestId('batchForm'))
+    })
+    expect(mockSetPopupMessage).toBeCalledWith('Batch 999 not found')
+    expect(mockedUseNavigate).not.toBeCalledWith('/manageBatch')
+})
+
 test('submit batch number without technicianId doesn\'t continue', async () => {
     await act(async () => {
         render(

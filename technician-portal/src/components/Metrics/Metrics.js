@@ -92,7 +92,7 @@ function Metrics() {
 					setSensorsInShipping(sensorsToShip);
 				})
 
-			const colors = ['#FF000095', '#0000FF95', '#FFFF0095', '#FF000095', '#FFFF0095', '#08afe695']
+			const colors = ['#d9636e', '#4f86c6', '#d9b13b', '#d98b5f', '#4fa872', '#8a6fbf', '#3fa3ad', '#c96a9e']
 			const promises = [];
 			calibrationProcedures.current = await callApi('get-calibration-procedures')
 			if (!Array.isArray(calibrationProcedures.current)) {

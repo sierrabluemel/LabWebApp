@@ -22,7 +22,7 @@ export default function NotificationPopup({ isOpen, setIsOpen, dismissNotificati
                         </span>
                     })}</div>
 
-                    {notification.repeatable && <div className={`${styles.default_text} ${styles.repeat_text}`}>Repeats every <span style={{ 'textDecoration': 'underline', color: '#08afe6' }}>{notification.repeat_interval} {notification.repeat_unit}</span></div>}
+                    {notification.repeatable && <div className={`${styles.default_text} ${styles.repeat_text}`}>Repeats every <span style={{ 'textDecoration': 'underline', color: 'var(--primary)' }}>{notification.repeat_interval} {notification.repeat_unit}</span></div>}
 
                 </div>
                 <img alt='Delete trash can' src={trashCan} className={styles.popup_trash_can_icon} onClick={() => dismissNotification(notification.id, false)} />

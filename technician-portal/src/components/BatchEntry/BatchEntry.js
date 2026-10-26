@@ -39,6 +39,10 @@ function BatchEntry() {
         }
         callApi('get-batch-by-id', { 'batch_id': batch_id })
             .then(batch => {
+                if (!batch) {
+                    setPopupMessage(`Batch ${batch_id} not found`);
+                    return;
+                }
                 setBatchNumber(batch.batch_id);
                 setCustomerOrderNumber(batch.customer_order_number);
 

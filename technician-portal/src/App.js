@@ -47,7 +47,7 @@ function App() {
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
 
   return (
-    <div className={styles.App}>
+    <div className={`${styles.App} ${banner ? styles.has_banner : ''}`}>
       <meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
       <AppWrapper
         sharedState={{
