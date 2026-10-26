@@ -46,6 +46,13 @@
     --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.12);
     --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.2);
     --top-offset: 0px;
+    --header-h: 70px;
+    --sidebar-w: 225px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -87,9 +94,106 @@ mark {
 }
 
 .main_body {
-    margin-top: calc(70px + var(--top-offset));
+    margin-top: calc(var(--header-h) + var(--top-offset));
     display: grid;
-    grid-template-columns: 225px 1fr 225px;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--sidebar-w);
+}
+
+.display_area {
+    min-width: 0;
+    padding: var(--space-2) var(--space-4);
+}
+
+/* small layout helpers, reuse these instead of adding screen-specific grids */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+}
+
+.row > .default_button {
+    width: auto;
+    margin: 0;
+}
+
+.row_end {
+    justify-content: flex-end;
+    margin-top: var(--space-4);
+}
+
+.grow {
+    flex: 1;
+    min-width: 200px;
+}
+
+.action_cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.default_button.small_button {
+    width: auto;
+    display: block;
+    padding: 3px 10px;
+    font-size: 0.85rem;
+    margin: var(--space-2) 0 0;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.toolbar .title {
+    margin: 0;
+    text-align: left;
+    flex: 1;
+    min-width: 260px;
+}
+
+.toolbar .back_arrow_image {
+    position: static;
+}
+
+/* sized for a short ID plus its button, not the full card */
+.inline_form {
+    max-width: 360px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.inline_form > .default_button {
+    width: auto;
+    min-width: 120px;
+    margin: 0;
+}
+
+.section_heading {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: var(--space-4) 0 var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border);
+}
+
+.default_text {
+    margin: 0;
 }
 
 .grid_menu {
@@ -107,7 +211,7 @@ mark {
 
 .grid_row {
     display: grid;
-    grid-template-columns: repeat(6, 15.5%);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
     max-width: 100%;
     margin-bottom: 10px;
@@ -116,7 +220,7 @@ mark {
 
 .grid_row_6 {
     display: grid;
-    grid-template-columns: repeat(7, 13.55%);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 10px;
     max-width: 100%;
     margin-bottom: 10px;
@@ -125,7 +229,7 @@ mark {
 
 .grid_row_10 {
     display: grid;
-    grid-template-columns: repeat(11, 9%);
+    grid-template-columns: repeat(11, minmax(0, 1fr));
     gap: 10px;
     max-width: 100%;
     margin-bottom: 10px;
@@ -141,7 +245,15 @@ mark {
 
 .testing_grid {
     display: grid;
-    overflow-x: auto;
+}
+
+/* set point buttons stay visible while scrolling long batches; .App is the scroller, under the fixed header */
+.testing_grid > :first-child {
+    position: sticky;
+    top: calc(var(--header-h) + var(--top-offset));
+    z-index: 2;
+    background-color: var(--surface-alt);
+    padding: var(--space-2) 0;
 }
 
 .humidity_grid {
@@ -162,28 +274,98 @@ mark {
     margin: 20px 0;
 }
 
-.metrics_text_container {
-    margin: 0 20px;
-    border-top: 3px solid var(--border-strong);
+.kpi_grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
-.metrics_text_grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+.kpi_tile {
+    padding: var(--space-3) var(--space-4);
+    border-left: 1px solid var(--border);
+}
+
+.kpi_tile:first-child {
+    border-left: none;
+}
+
+.status_pill {
+    padding: var(--space-1) var(--space-2);
+    font-size: 0.9rem;
+}
+
+.action_card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg);
+}
+
+.action_card h4 {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.action_card .default_button {
+    margin: 0;
+}
+
+.kpi_label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.kpi_value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: var(--space-1);
 }
 
 .graph_grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    grid-gap: 16px;
-    margin: 30px 20px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-gap: var(--space-4);
+    margin: var(--space-3) 0;
 }
 
+/* input and button sized to match .inline_form */
 .order_entry {
     display: grid;
-    grid-template-columns: 1fr 3fr 2fr;
-    grid-gap: 10px;
-    margin: 20px;
+    grid-template-columns: 232px auto auto;
+    justify-content: start;
+    align-items: center;
+    grid-gap: var(--space-2) var(--space-3);
+}
+
+.order_entry > .default_button {
+    width: auto;
+    min-width: 120px;
+    margin: 0;
+}
+
+.order_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-3);
+}
+
+.order_card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg);
+}
+
+.order_group_title {
+    font-size: 0.95rem;
+    margin: 0;
 }
 
 .admin_grid {
@@ -225,10 +407,6 @@ mark {
     grid-template-columns: 5fr 1fr;
 }
 
-.add_batch_container {
-    grid-template-columns: 2fr 3fr;
-}
-
 .double_span {
     grid-column: span 2;
 }
@@ -247,15 +425,16 @@ mark {
     top: var(--top-offset);
     left: 0;
     width: 100%;
-    display: flex;
+    /* equal side columns keep the title and search centered on the page */
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 600px) 1fr;
     align-items: center;
-    justify-content: space-between;
     background-color: var(--sidebar);
     border-bottom: 1px solid var(--sidebar-active);
     padding: 5px 20px;
     z-index: 100;
     box-sizing: border-box;
-    height: 70px;
+    height: var(--header-h);
 }
 
 .header_left {
@@ -268,12 +447,11 @@ mark {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;
-    max-width: 600px;
     margin: 0 20px;
 }
 
 .header_right {
+    justify-self: end;
     display: flex;
     align-items: center;
     gap: 15px;
@@ -371,10 +549,10 @@ mark {
 /* ---------------- Navigation ---------------- */
 .navigation_menu {
     position: fixed;
-    top: calc(70px + var(--top-offset));
+    top: calc(var(--header-h) + var(--top-offset));
     left: 0;
-    width: 225px;
-    height: calc(100% - 70px - var(--top-offset));
+    width: var(--sidebar-w);
+    height: calc(100% - var(--header-h) - var(--top-offset));
     overflow-y: auto;
     z-index: 1;
     margin: 0;
@@ -476,8 +654,7 @@ mark {
 }
 
 .default_button:focus-visible,
-.batch_button:focus-visible,
-.equipment_save_button:focus-visible {
+.batch_button:focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
 }
@@ -497,8 +674,8 @@ mark {
     font-size: 1rem;
     font-weight: 600;
     color: var(--primary);
-    margin: 5px;
-    width: 32%;
+    margin: 0;
+    width: 100%;
     box-sizing: border-box;
     box-shadow: var(--shadow-sm);
     background-color: var(--surface);
@@ -510,31 +687,6 @@ mark {
 }
 
 .batch_button:active {
-    box-shadow: none;
-}
-
-.equipment_save_button {
-    box-shadow: var(--shadow-sm);
-    border-radius: var(--radius);
-    padding: 7px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 600;
-    background-color: var(--primary);
-    color: var(--text-inverse);
-    width: 33%;
-    box-sizing: border-box;
-    transition: background-color 0.2s;
-    border: none;
-    margin-top: 10px;
-}
-
-.equipment_save_button:hover {
-    background-color: var(--primary-hover);
-}
-
-.equipment_save_button:active {
     box-shadow: none;
 }
 
@@ -551,10 +703,6 @@ mark {
     cursor: pointer;
     color: var(--primary-hover);
     text-decoration: underline;
-}
-
-.plus_button_container {
-    float: left;
 }
 
 .plus_button {
@@ -731,11 +879,14 @@ mark {
     text-align: center;
 }
 
+/* the box is absolutely positioned and pulled left by its own width, so pad for it */
 .check_box_container {
     position: relative;
     cursor: pointer;
     margin: 10px;
+    padding-left: 33px;
     text-align: left;
+    white-space: nowrap;
 }
 
 .admin_check_box_container {
@@ -794,10 +945,6 @@ mark {
     -ms-transform: translate(8%, -15%);
 }
 
-.right_align_checkbox {
-    float: right;
-}
-
 /* ---------------- Cards and panels ---------------- */
 .menu,
 .generator_control {
@@ -814,6 +961,17 @@ mark {
 
 .menu {
     overflow-x: visible;
+    text-align: left;
+    width: 100%;
+    margin: var(--space-3) 0;
+    padding: var(--space-4);
+}
+
+.subsection {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-3);
+    background-color: var(--surface);
 }
 
 .generator_control {
@@ -826,10 +984,7 @@ mark {
 
 .test_menu {
     position: relative;
-    max-width: 90%;
-    margin-top: 10px;
-    margin-left: 4%;
-    margin-right: 4%;
+    margin-top: var(--space-3);
     text-align: center;
     background-color: var(--surface-alt);
     border-radius: var(--radius);
@@ -873,17 +1028,6 @@ mark {
     margin: 5px 0;
 }
 
-.status_message {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-    display: inline-block;
-    border-radius: var(--radius);
-    padding: 6px 10px;
-    font-size: 1.05rem;
-    margin: 5px 0;
-    box-sizing: border-box;
-}
 
 .selected_sensor {
     background-color: var(--primary-soft);
@@ -939,9 +1083,9 @@ mark {
 .equipment_container {
     position: sticky;
     border-left: 1px solid var(--border);
-    height: calc(100vh - 70px - var(--top-offset));
+    height: calc(100vh - var(--header-h) - var(--top-offset));
     z-index: 1;
-    width: 225px;
+    width: var(--sidebar-w);
     list-style: none;
     text-align: center;
     background-color: var(--surface-alt);
@@ -960,7 +1104,7 @@ mark {
     box-shadow: var(--shadow-sm);
     margin: 10px 10px 0;
     padding: 6px;
-    width: 200px;
+    width: calc(var(--sidebar-w) - 25px);
     z-index: 1;
 }
 
@@ -973,7 +1117,7 @@ mark {
 .equipment_popup {
     color: var(--text);
     background-color: var(--surface);
-    width: 200px;
+    width: calc(var(--sidebar-w) - 25px);
     transition-duration: 0.75s;
     overflow: hidden;
     max-height: 0;
@@ -997,6 +1141,13 @@ mark {
 }
 
 /* ---------------- Tables ---------------- */
+.equipment_table_head th {
+    position: sticky;
+    top: calc(var(--header-h) + var(--top-offset));
+    background-color: var(--sidebar);
+    z-index: 1;
+}
+
 .equipment_table {
     width: 100%;
     border-collapse: collapse;
@@ -1268,6 +1419,35 @@ mark {
 }
 
 /* ---------------- Status colors and badges ---------------- */
+/* soft status colors, styled like the sidebar's equipment status cards */
+.soft_good,
+.soft_warn,
+.soft_bad {
+    border: 1px solid;
+    border-radius: var(--radius);
+}
+
+.soft_good {
+    background-color: var(--success-soft);
+    border-color: var(--success);
+}
+
+.soft_warn {
+    background-color: var(--warning-soft);
+    border-color: var(--warning);
+}
+
+.soft_bad {
+    background-color: var(--danger-soft);
+    border-color: var(--danger);
+}
+
+.kpi_tile.soft_good,
+.kpi_tile.soft_warn,
+.kpi_tile.soft_bad {
+    margin: var(--space-1);
+}
+
 .red,
 .green,
 .yellow {
@@ -1496,6 +1676,26 @@ mark {
 .collapsed {
     transition-duration: 1s;
     max-height: 0;
+}
+
+/* ---------------- Laptop widths ---------------- */
+@media (max-width: 1400px) {
+    :root {
+        --sidebar-w: 190px;
+    }
+
+    .batches_container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .sensor_container,
+    .kpi_grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .kpi_tile:nth-child(4) {
+        border-left: none;
+    }
 }
 
 /* ---------------- Animations ---------------- */

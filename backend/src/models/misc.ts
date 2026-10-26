@@ -19,8 +19,8 @@ const misc = {
         WITH matching_orders AS (
             SELECT DISTINCT o.order_id
             FROM API_ORDER o
-            INNER JOIN API_BATCH b ON b.order_id = o.order_id
-            INNER JOIN API_SENSOR s ON s.batch_id = b.batch_id
+            LEFT JOIN API_BATCH b ON b.order_id = o.order_id
+            LEFT JOIN API_SENSOR s ON s.batch_id = b.batch_id
             LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id
             WHERE ${column} = $1
         )
@@ -42,8 +42,8 @@ const misc = {
             il.log_id AS interaction_log_id
         FROM matching_orders mo
         INNER JOIN API_ORDER o ON o.order_id = mo.order_id
-        INNER JOIN API_BATCH b ON b.order_id = o.order_id
-        INNER JOIN API_SENSOR s ON s.batch_id = b.batch_id
+        LEFT JOIN API_BATCH b ON b.order_id = o.order_id
+        LEFT JOIN API_SENSOR s ON s.batch_id = b.batch_id
         LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id
         LEFT JOIN API_INTERACTION_LOG il ON il.batch_id = b.batch_id
         ORDER BY
@@ -65,8 +65,8 @@ const misc = {
                 api_sensor.sensor_id,
                 api_sensor.cable_id
             FROM api_order
-            INNER JOIN api_batch ON api_order.order_id = api_batch.order_id
-            INNER JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
+            LEFT JOIN api_batch ON api_order.order_id = api_batch.order_id
+            LEFT JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
         `, []);
     },
 

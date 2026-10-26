@@ -89,9 +89,8 @@ function BatchEntry() {
                         const batches = [...new Set(response.filter(batch => batch.order_id === order.order_id))].sort((a, b) => a.batch_id - b.batch_id);
                         const receivedDate = parseDataBaseDate(batches[0].received_timestamp);
                         batchList.push(
-                            <div key={orders.indexOf(order)}>
-                                <hr />
-                                <h1 className={styles.title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h1>
+                            <div key={orders.indexOf(order)} className={styles.order_card}>
+                                <h3 className={styles.order_group_title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h3>
                                 {batches.map((batch, index) => {
                                     return <BatchDisplay batch={batch} handleButtonClick={() => navigateToBatch(batch.batch_id)} key={index} />
                                 })}
@@ -100,7 +99,7 @@ function BatchEntry() {
                     }
 
                     if (isMounted) {
-                        setBatches(batchList);
+                        setBatches(<div className={styles.order_grid} key={'orderGrid'}>{batchList}</div>);
                     }
                 })
                 .catch((err) => {
@@ -121,11 +120,12 @@ function BatchEntry() {
     return (
         <div className={styles.menu} >
             <Receiving />
-            <hr />
-            <form onSubmit={handleSubmit} data-testid={'batchForm'} >
+            <h2 className={styles.section_heading}>Open a batch by batch number</h2>
+            <form onSubmit={handleSubmit} data-testid={'batchForm'} className={styles.inline_form}>
                 <input type='text' value={batchNumber} onChange={handleChange} className={styles.default_text_box} placeholder={'Batch Number'} />
                 <button type='submit' className={styles.default_button}>Submit</button>
             </form>
+            <h2 className={styles.section_heading}>Active batches</h2>
             {batches}
         </div>
     );

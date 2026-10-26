@@ -139,18 +139,19 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
 
     if (!displayed) {
         return (
-            <button className={`${styles.default_button} ${styles.double_span}`} onClick={() => setDisplayed(true)}>{`Expand (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
+            <button className={styles.default_button} onClick={() => setDisplayed(true)}>{`Expand (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
         )
     }
 
     return (
-        <>
+        <section className={`${styles.subsection} ${styles.stack}`}>
             {confirmationArray.length > 0 ? <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={removeBatch} /> : <></>}
-            <button className={`${styles.default_button} ${styles.double_span}`} onClick={() => setDisplayed(false)}>{`Hide (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
+            <button className={styles.default_button} onClick={() => setDisplayed(false)}>{`Hide (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
 
-            <div className={styles.current_location_text}>{`Current location: ${currentLocation}`}</div>
-            <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
-
+            <div className={styles.row}>
+                <div className={`${styles.current_location_text} ${styles.grow}`}>{`Current location: ${currentLocation}`}</div>
+                <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
+            </div>
 
             <div className={styles.grid_menu}>
                 <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
@@ -164,7 +165,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
             </div>
 
             <ScannedSensors sensorList={sensors} />
-        </>
+        </section>
     )
 }
 

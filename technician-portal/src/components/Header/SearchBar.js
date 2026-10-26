@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../../contexts/app";
 import formatKey from "../../utils/formatKey";
@@ -21,15 +21,21 @@ export default function SearchBar() {
 
     const { setSearchSelection } = useAppContext()
 
-    // Fetch data
+    // Fetch data on mount, and again on every focus so orders and batches created since then show up
+    const loadSearchData = useCallback(() => {
+        callApi("search-data", {})
+            .then((response) => {
+                setSearchData(response || []);
+            })
+            .catch((err) => console.error(err));
+    }, []);
+
     useEffect(() => {
         if (!isMounted.current) {
             isMounted.current = true;
-            callApi("search-data", {}).then((response) => {
-                setSearchData(response || []);
-            });
+            loadSearchData();
         }
-    }, [searchData]);
+    }, [loadSearchData]);
 
     // Flatten data into searchable entries
     useEffect(() => {
@@ -192,6 +198,7 @@ export default function SearchBar() {
                 value={searchString}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onFocus={loadSearchData}
                 className={styles.search_bar_input}
                 placeholder="Search"
                 aria-label="Search"

@@ -11,7 +11,7 @@ export default function SearchResults() {
     const {
         searchSelection, setPopupMessage, setBatchNumber,
         technicianId, setProcedureId, setSensorList,
-        setOrderNumber, setBatches
+        setOrderNumber, setBatches, setCustomerOrderNumber
     } = useAppContext();
 
     const [resultData, setResultData] = useState([]);
@@ -46,15 +46,21 @@ export default function SearchResults() {
         setBatchNumber(batchId);
         if (!technicianId) return setPopupMessage('Please sign in');
 
+        // same steps as the Open Batch field in BatchEntry
         callApi('get-batch-by-id', { batch_id: batchId })
             .then(batch => {
+                if (!batch) {
+                    setPopupMessage(`Batch ${batchId} not found`);
+                    return;
+                }
+                setCustomerOrderNumber(batch.customer_order_number);
                 callApi('update-batch-technician', { department: 'testing', technician_id: technicianId, batch_id: batch.batch_id });
                 setProcedureId(batch.calibration_procedure_id);
-                return callApi('get-sensors', { batch_id: batch.batch_id });
-            })
-            .then(data => {
-                setSensorList(data);
-                navigate('/manageBatch');
+                return callApi('get-sensors', { batch_id: batch.batch_id })
+                    .then(data => {
+                        setSensorList(data);
+                        navigate('/manageBatch');
+                    });
             })
             .catch(() => setPopupMessage(`Unable to get batch ${batchId}`));
     };
@@ -63,10 +69,19 @@ export default function SearchResults() {
         setOrderNumber(orderId);
         if (!technicianId) return setPopupMessage('Please sign in');
 
+        // same steps as the order buttons in OrderEntry
         callApi('get-batches-by-order-id', { order_id: orderId })
             .then(response => {
                 setBatches(response);
                 navigate('/shipping');
+                for (const batch of response) {
+                    callApi('log-batch-interaction', {
+                        department: 'shipping',
+                        start: true,
+                        technician_id: technicianId,
+                        batch_id: batch.batch_id
+                    })
+                }
             })
             .catch(() => setPopupMessage(`Unable to get order ${orderId}`));
     };
@@ -137,11 +152,10 @@ export default function SearchResults() {
         const byOrder = {};
 
         rows.forEach(row => {
+            if (row.order_id == null) return;
             const orderId = String(row.order_id);
             const batchId = String(row.batch_id);
             const sensorId = String(row.sensor_id);
-
-            if (!orderId || !batchId || !sensorId) return;
 
             if (!byOrder[orderId]) {
                 byOrder[orderId] = {
@@ -154,6 +168,9 @@ export default function SearchResults() {
                 };
             }
 
+            // orders with no batches yet, and batches with no sensors yet, still show up
+            if (row.batch_id == null) return;
+
             if (!byOrder[orderId].batches[batchId]) {
                 byOrder[orderId].batches[batchId] = {
                     batch_id: batchId,
@@ -162,6 +179,8 @@ export default function SearchResults() {
                     sensors: {}
                 };
             }
+
+            if (row.sensor_id == null) return;
 
             const sensors = byOrder[orderId].batches[batchId].sensors;
 
@@ -248,9 +267,9 @@ export default function SearchResults() {
                                                         CP: {batchData.calibration_procedure_id}{isBatchOpen ? " ▲" : " ▼"}
                                                     </span>
                                                     <span className={styles.order_details_item}>
-                                                        {batchData.current_location ? 
+                                                        {batchData.current_location ?
                                                         `Current location: ${batchData.current_location}`
-                                                        : <span className={styles.grid_entry_red}>SHIPPED</span>}
+                                                        : order.shipped_timestamp ? <span className={styles.grid_entry_red}>SHIPPED</span> : 'No location set'}
                                                         </span>
                                                 </button>
 

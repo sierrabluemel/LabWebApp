@@ -101,7 +101,8 @@ function OrderEntry() {
     return (
         <>
             <div className={styles.menu}>
-                <form onSubmit={handleSubmit}>
+                <h2 className={styles.section_heading}>Open an order by order number</h2>
+                <form onSubmit={handleSubmit} className={styles.inline_form}>
                     <input
                         type='text'
                         value={orderNumber}
@@ -116,28 +117,28 @@ function OrderEntry() {
                         Submit
                     </button>
                 </form>
+                <h2 className={styles.section_heading}>Orders to ship</h2>
+                {!activeOrders &&
+                    <h1 className={styles.title}>Loading...</h1>
+                }
+
+                {activeOrders?.length === 0 &&
+                    <h1 className={styles.title}>No orders found</h1>
+                }
+
+                {activeOrders?.length > 0 &&
+                    <div className={styles.batches_container}>
+                        {activeOrders.map(order => (
+                            <button
+                                key={order.order_id}
+                                className={`${styles.batch_button} ${order.elementClass}`}
+                                onClick={() => handleClick(order.order_id)}
+                            >
+                                Order: {order.order_id} | Customer Order: {order.customer_order_number} | {parseDataBaseDate(order.dueDate)}
+                            </button>
+                        ))}
+                    </div>}
             </div>
-            <br />
-            <hr />
-            <br />
-            {!activeOrders &&
-                <h1 className={styles.title}>Loading...</h1>
-            }
-
-            {activeOrders?.length === 0 &&
-                <h1 className={styles.title}>No orders found</h1>
-            }
-
-            {activeOrders?.length > 0 &&
-                activeOrders.map(order => (
-                    <button
-                        key={order.order_id}
-                        className={`${styles.batch_button} ${order.elementClass}`}
-                        onClick={() => handleClick(order.order_id)}
-                    >
-                        Order: {order.order_id} | Customer Order: {order.customer_order_number} | {parseDataBaseDate(order.dueDate)}
-                    </button>
-                ))}
         </>
     )
 }

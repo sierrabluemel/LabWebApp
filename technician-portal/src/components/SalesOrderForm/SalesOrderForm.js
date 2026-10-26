@@ -76,31 +76,33 @@ function SalesOrderForm() {
 
     if (!order) {
         return (
-            <h1 className={styles.title}>Loading...</h1>
+            <div className={styles.menu}>
+                <h1 className={styles.title}>Loading...</h1>
+            </div>
         )
     }
 
     return (
         <div className={styles.menu}>
-                <ConfirmationPopup
-                    confirmationArray={doneMessage}
-                    setConfirmationArray={setDoneMessage}
-                    handleConfirm={() => finish(false)}
-                    handleDismiss={() => finish(true)}
-                    confirmText={'Go to testing'}
-                    dismissText={'Add another order'}
-                />
-                <h1 className={styles.title}>{salesOrder} | Order due: {dueDate.current ? dueDate.current : 'Loading...'}</h1>
-                <DropDown
-                    options={calibrationProcedures}
-                    selectedOption={selectedOption}
-                    setSelectedOption={setSelectedOption}
-                    batches={batches}
-                    setBatches={setBatches}
-                />
-            <div className={`${styles.grid_menu} ${styles.add_batch_container}`}>
+            <ConfirmationPopup
+                confirmationArray={doneMessage}
+                setConfirmationArray={setDoneMessage}
+                handleConfirm={() => finish(false)}
+                handleDismiss={() => finish(true)}
+                confirmText={'Go to testing'}
+                dismissText={'Add another order'}
+            />
+            <h1 className={styles.title}>{salesOrder} | Order due: {dueDate.current ? dueDate.current : 'Loading...'}</h1>
+            <DropDown
+                options={calibrationProcedures}
+                selectedOption={selectedOption}
+                setSelectedOption={setSelectedOption}
+                batches={batches}
+                setBatches={setBatches}
+            />
+            <div className={styles.stack}>
                 {batchDisplay}
-                <button onClick={handleSubmit} className={`${styles.default_button} ${styles.double_span}`}>Complete Sales Order</button>
+                <button onClick={handleSubmit} className={styles.default_button}>Complete Sales Order</button>
             </div>
         </div>
     );

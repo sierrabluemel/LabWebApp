@@ -189,20 +189,22 @@ function ManageBatch() {
         <>
             <div className={styles.menu}>
                 <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />
-                <div className={styles.back_arrow_container}>
+                <div className={styles.toolbar}>
                     <img className={styles.back_arrow_image} onClick={() => navigate('/batchEntry')} src={backArrow} alt="Back button" />
-                </div>
-                <div className={styles.grid_menu}>
                     <h1 className={styles.title}>{`${customerOrderNumber} | Batch: ${batchNumber} | ${currentLocation ? `Current location: ${currentLocation}` : `No location set`}`}</h1>
-                    <Button innerText={'Print work order'} onClick={printWorkOrder} />
+                    <div className={styles.row}>
+                        <Button innerText={'Print work order'} onClick={printWorkOrder} />
+                        <Button innerText={'Download work order'} onClick={downloadWorkOrder} />
+                        <Button innerText={'Get sensor leads'} onClick={getSensorLeads} />
+                    </div>
+                </div>
+                <div className={styles.triple_grid_menu}>
                     <form onSubmit={handleLocationSubmit} data-testid={'locationForm'}>
                         <input type='text' value={location} onChange={handleLocationChange} className={styles.default_text_box} placeholder={'Location'} />
                     </form>
-                    <Button innerText={'Get sensor leads'} onClick={getSensorLeads} />
                     <form onSubmit={handleHeartBeatSubmit} data-testid={'heartbeatForm'}>
                         <input type='text' value={heartbeat} onChange={handleHeartBeatChange} className={styles.default_text_box} placeholder={'Heartbeat (minutes)'} />
                     </form>
-                    <Button innerText={'Download work order'} onClick={downloadWorkOrder} />
                     <form onSubmit={handleSensorSubmit}>
                         <input type='text' value={sensor} onChange={handleSensorChange} className={styles.default_text_box} placeholder={'Add/remove sensor'} />
                     </form>

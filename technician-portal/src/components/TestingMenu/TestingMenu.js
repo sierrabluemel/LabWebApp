@@ -178,8 +178,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 })
                 newSensorGrid.unshift(
                     <div className={elementClass} key={'50'}>
-                        <div className={styles.grid_entry}>Reference</div>
-                        <div className={styles.grid_entry}></div>
+                        <div className={`${styles.grid_entry} ${styles.double_span}`}>Reference</div>
                         {setPoints.map((setPoint, index) => {
                             return <div className={styles.grid_entry} key={index}>{tempReferenceReadings[`setPoint${index}`]}</div>
                         })}
@@ -447,10 +446,9 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             <div className={styles.testing_grid}>
                 <div className={gridRowStyle}>
                     <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
-                    <div className={styles.grid_entry}></div>
+                    <div className={styles.grid_entry}>Current reading</div>
                     {setPointButtons}
-                    <div className={styles.grid_entry}>Stable times</div>
-                    <div className={styles.grid_entry}></div>
+                    <div className={`${styles.grid_entry} ${styles.double_span}`}>Stable times</div>
                     {stableTimeStrings.map((stableTime, index) => {
                         return <StableTimeDisplay stableTime={stableTime} key={index} />;
                     })}

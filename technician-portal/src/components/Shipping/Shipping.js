@@ -385,13 +385,22 @@ function Shipping() {
     return (
         <>
             <div className={styles.menu}>
-                <button onClick={() => setOptionsOpen(!optionsOpen)} className={styles.show_options_button}>More options {optionsOpen ? '▲' : '▼'}</button>
-
                 <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={endShipping} />
                 <ConfirmationPopup confirmationArray={referenceVerificationArray} setConfirmationArray={setReferenceVerificationArray} handleConfirm={confirmReferences} />
                 <ConfirmationPopup confirmationArray={missedSensorsArray} setConfirmationArray={setMissedSensorsArray} handleConfirm={removeSensorsFromNetwork} />
 
-                <h2>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'} | Sensors: {sensorList.length > 0 ? sensorList.length : 'Loading...'}</h2>
+                <div className={styles.toolbar}>
+                    <h2 className={styles.title}>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'} | Sensors: {sensorList.length > 0 ? sensorList.length : 'Loading...'}</h2>
+                    <button onClick={() => setOptionsOpen(!optionsOpen)} className={styles.show_options_button}>More options {optionsOpen ? '▲' : '▼'}</button>
+                </div>
+
+                <div className={extraButtonsClass}>
+                    <div className={styles.triple_grid_menu}>
+                        <Button onClick={createReturnRecord} innerText={'Download return record'} />
+                        <Button onClick={downloadCertificates} innerText={'Download certificates'} />
+                        <Button onClick={printCertificateLabels} innerText={'Print all labels'} />
+                    </div>
+                </div>
 
                 <div className={styles.batches_container}>
                     {
@@ -405,44 +414,42 @@ function Shipping() {
                     }
                 </div>
 
-                <div className={styles.grid_menu}>
-                    <Button onClick={generateCertificates} innerText={'Generate certificates'} />
-                    <span className={`${styles.status_message} ${certificateList.current.length > 0 ? styles.status_dot_green : styles.status_dot_red}`}>{certificateMessage}</span>
-                    <Button onClick={removeSensorsFromNetwork} innerText={'Remove sensors'} />
-                    <span className={`${styles.status_message} ${sensorsRemoved ? styles.status_dot_green : styles.status_dot_red}`}>{sensorsRemovedMessage}</span>
-                    <Button onClick={printReturnRecord} innerText={'Print return record'} />
-                    <form onSubmit={printLabel}>
-                        <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
-                    </form>
-                    <Button onClick={printCertificates} innerText={'Print certificates'} />
-                </div>
-
-                <div className={extraButtonsClass}>
-
-                    <hr />
-
-                    <div className={styles.triple_grid_menu}>
-                        <Button onClick={createReturnRecord} innerText={'Download return record'} />
-                        <Button onClick={downloadCertificates} innerText={'Download certificates'} />
-                        <Button onClick={printCertificateLabels} innerText={'Print all labels'} />
+                <h3 className={styles.section_heading}>Actions</h3>
+                <div className={styles.action_cards}>
+                    <div className={styles.action_card}>
+                        <h4>Certificates</h4>
+                        <span className={`${styles.status_pill} ${certificateList.current.length > 0 ? styles.soft_good : styles.soft_bad}`}>{certificateMessage}</span>
+                        <Button onClick={generateCertificates} innerText={'Generate certificates'} />
+                        <Button onClick={printCertificates} innerText={'Print certificates'} />
+                    </div>
+                    <div className={styles.action_card}>
+                        <h4>Network</h4>
+                        <span className={`${styles.status_pill} ${sensorsRemoved ? styles.soft_good : styles.soft_bad}`}>{sensorsRemovedMessage}</span>
+                        <Button onClick={removeSensorsFromNetwork} innerText={'Remove sensors'} />
+                    </div>
+                    <div className={styles.action_card}>
+                        <h4>Return record and labels</h4>
+                        <Button onClick={printReturnRecord} innerText={'Print return record'} />
+                        <form onSubmit={printLabel}>
+                            <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
+                        </form>
                     </div>
                 </div>
 
-                <hr />
-
+                <h3 className={styles.section_heading}>Sensors</h3>
                 <div className={styles.sensor_container}>
                     {sensorList.map((sensor, index) => (
-                        <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.status_dot_green : styles.status_dot_red}`}>
+                        <div key={index} className={`${styles.shipping_sensor} ${scannedSensors.includes(sensor.sensor_id) ? styles.soft_good : styles.soft_bad}`}>
                             <SensorLink sensorId={sensor.sensor_id} text={sensor.cable_id ? `${sensor.sensor_id} C: ${sensor.cable_id}` : `${sensor.sensor_id}`} />
                             {certificateList.current.find(c => c.sensor_id === sensor.sensor_id) && <span> | <a className={styles.sensor_link} href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${certificateList.current.find(c => c.sensor_id === sensor.sensor_id).certificate_id}.pdf`} target="_blank" rel="noreferrer">MNT-{certificateList.current.find(c => c.sensor_id === sensor.sensor_id).certificate_id}</a></span>}
-                            <Button innerText={'Generate certificate'} onClick={() => generateCertificate(sensor.sensor_id)} />
+                            <Button className={`${styles.default_button} ${styles.small_button}`} innerText={'Generate certificate'} onClick={() => generateCertificate(sensor.sensor_id)} />
                         </div>
                     ))}
                 </div>
 
-                <br />
-
-                <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>
+                <div className={`${styles.row} ${styles.row_end}`}>
+                    <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>
+                </div>
             </div>
         </>
     );

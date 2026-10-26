@@ -21,7 +21,8 @@ function Metrics() {
 	const [datasets, setDataSets] = useState([]);
 	const [totalDataSets, setTotalDataSets] = useState([]);
 	const [activeSensors, setActiveSensors] = useState(0);
-	const [nextOrderDue, setNextOrderDue] = useState(<></>);
+	const [nextOrderDue, setNextOrderDue] = useState({});
+	const [nextOrderDueClass, setNextOrderDueClass] = useState('');
 	const [bestMonth, setBestMonth] = useState('');
 	const [bestMonthTotal, setBestMonthTotal] = useState(0);
 	const [sensorsInReceiving, setSensorsInReceiving] = useState(0);
@@ -74,20 +75,14 @@ function Metrics() {
 					}
 					let spanClass;
 					if (addWorkDays(today, 0) > dueDate) {
-						spanClass = styles.red;
+						spanClass = styles.soft_bad;
 					} else if (addWorkDays(new Date(), 3) < dueDate) {
-						spanClass = styles.green;
+						spanClass = styles.soft_good;
 					} else {
-						spanClass = styles.yellow;
+						spanClass = styles.soft_warn;
 					}
-					setNextOrderDue(
-						<>
-							<span className={`${spanClass}`}>
-								{dueDate.getMonth() + 1}/{dueDate.getDate()}/{dueDate.getFullYear()}
-							</span>
-							({orderDue})
-						</>
-					);
+					setNextOrderDue({ date: `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`, order: orderDue });
+					setNextOrderDueClass(spanClass);
 					setSensorsInReceiving(sensorsToTest);
 					setSensorsInShipping(sensorsToShip);
 				})
@@ -209,8 +204,6 @@ function Metrics() {
 	if (totalDataSets.length === 0) {
 		return (
 			<>
-				<br />
-				<br />
 				<h1 className={styles.title}>Loading...</h1>
 			</>
 		)
@@ -221,50 +214,20 @@ function Metrics() {
 			<script src="chartjs-plugin-datalabels.js"></script>
 			<div className={styles.graph_grid}>
 				<div className={styles.metrics_header}>
-					<div className={styles.metrics_text_grid}>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Best month:</div>
-								<div className={styles.float_right}>{bestMonth} ({bestMonthTotal})</div>
+					<div className={styles.kpi_grid}>
+						{[
+							['Best month', `${bestMonth} (${bestMonthTotal})`],
+							[nextOrderDue.order ? `Next order due (${nextOrderDue.order})` : 'Next order due', nextOrderDue.date, nextOrderDueClass],
+							['Sensors in lab', activeSensors],
+							['Ready to calibrate', sensorsInReceiving],
+							['In progress', activeSensors - sensorsInReceiving - sensorsInShipping || 0],
+							['Ready to ship', sensorsInShipping],
+						].map(([label, value, statusClass = '']) => (
+							<div className={`${styles.kpi_tile} ${statusClass}`} key={label}>
+								<div className={styles.kpi_label}>{label}</div>
+								<div className={styles.kpi_value}>{value}</div>
 							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Next order due:</div>
-								<div className={styles.float_right}>{nextOrderDue}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors in lab:</div>
-								<div className={styles.float_right}>{activeSensors}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors ready to calibrate:</div>
-								<div className={styles.float_right}>{sensorsInReceiving}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors in progress:</div>
-								<div className={styles.float_right}>{activeSensors - sensorsInReceiving - sensorsInShipping || 0}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors ready to ship:</div>
-								<div className={styles.float_right}>{sensorsInShipping}</div>
-							</div>
-						</h3>
-
+						))}
 					</div>
 				</div>
 				<div className={styles.graph_tile}>
