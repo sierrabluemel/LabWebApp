@@ -9,6 +9,9 @@ import { parseIntNullable } from "../utils/common";
 import monnitFetch from "../utils/monnit";
 const sillyConfig = require('../../config.json');
 
+// department is interpolated into SQL column names, so it must be one of these
+const DEPARTMENTS = ['receiving', 'testing', 'shipping'];
+
 const batchRoutes = {
     getBatchById: (req: Request, res: Response) => {
         const batchId = parseInt(req.query.batch_id as string ?? "");
@@ -52,7 +55,7 @@ const batchRoutes = {
             });
     },
     getBatchesByActiveState: (req: Request, res: Response) => {
-        const active = eval(req.query.active as string);
+        const active = req.query.active === 'true';
 
         batch.getBatchesByActiveState(active)
             .then((result) => {
@@ -82,7 +85,7 @@ const batchRoutes = {
     },
     setBatchActiveState: (req: Request, res: Response) => {
         const batchId = parseInt(req.query.batch_id as string ?? "");
-        const activeState = eval(req.query.active_state as string);
+        const activeState = req.query.active_state === 'true';
 
         if (isNaN(batchId)) {
             res.status(400).json({ error: `Invalid batch id` });
@@ -139,10 +142,14 @@ const batchRoutes = {
             })
     },
     logBatchInteraction: (req: Request, res: Response) => {
-        const department = req.query.department;
-        const start = eval(req.query.start as string);
+        const department = req.query.department as string;
+        const start = req.query.start === 'true';
         const technicianId = req.query.technician_id;
         const batchId = parseInt(req.query.batch_id as string ?? "");
+
+        if (!DEPARTMENTS.includes(department)) {
+            return res.status(400).json({ error: `Invalid department` });
+        }
 
         const timestamp = new Date().toISOString();
         const status = (start === true) ? 'start' : 'end';
@@ -173,9 +180,13 @@ const batchRoutes = {
             })
     },
     updateBatchTechnician: (req: Request, res: Response) => {
-        let department = req.query.department;
+        let department = req.query.department as string;
         let technicianId = req.query.technician_id;
         let batchId = req.query.batch_id;
+
+        if (!DEPARTMENTS.includes(department)) {
+            return res.status(400).json({ error: `Invalid department` });
+        }
 
         const query = `UPDATE api_batch SET ${department}_technician_id = $1 WHERE batch_id = $2 RETURNING *`
 
@@ -190,7 +201,7 @@ const batchRoutes = {
     },
     generateWorkOrder: (req: Request, res: Response) => {
         const batchId = parseInt(req.query.batch_id as string ?? "");
-        const print = eval(req.query.print as string);
+        const print = req.query.print === 'true';
         const today = new Date()
         const hours = String(today.getHours()).padStart(2, '0');
         const minutes = String(today.getMinutes()).padStart(2, '0');

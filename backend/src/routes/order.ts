@@ -10,12 +10,12 @@ const orderRoutes = {
         let timestamp = req.query.received_timestamp as string ?? new Date();
         let customerOrderNumber = req.query.customer_order_number as string ?? "";
         let customerId = parseInt(req.query.customer_id as string ?? "");
-        let expedited = eval(req.query.expedited as string);
+        let expedited = req.query.expedited === 'true';
 
         if (
             !timestamp ||
             isNaN(customerId) ||
-            (expedited != true && expedited != false) ||
+            !['true', 'false'].includes(req.query.expedited as string) ||
             !customerOrderNumber) {
             res.status(500).json({ error: "Missing arguments" });
             return;
@@ -76,7 +76,7 @@ const orderRoutes = {
     },
     setOrderActiveState: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
-        const activeState = eval(req.query.active_state as string);
+        const activeState = req.query.active_state === 'true';
 
         if (isNaN(orderId)) {
             res.status(500).json({ error: `No order ID present.` });
@@ -94,7 +94,7 @@ const orderRoutes = {
     // @TODO does this work????
     generateReturnRecord: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
-        const print = eval(req.query.print as string);
+        const print = req.query.print === 'true';
 
         if (isNaN(orderId)) {
             res.status(500).json({ error: `No order ID present.` });

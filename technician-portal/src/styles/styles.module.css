@@ -47,7 +47,7 @@
     --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.2);
     --top-offset: 0px;
     --header-h: 70px;
-    --sidebar-w: 225px;
+    --sidebar-w: 240px;
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;
@@ -979,7 +979,36 @@ mark {
 }
 
 .equipment_control_menu {
-    margin: 10px;
+    margin: 6px 8px;
+}
+
+/* compact sidebar: keeps the whole list on a 1366x768 screen without scrolling */
+.equipment_container .generator_control {
+    width: 100%;
+    margin: 0 0 6px;
+    padding: 6px 8px;
+    font-size: 0.9rem;
+}
+
+.equipment_container .generator_control .title {
+    font-size: 1rem;
+}
+
+.equipment_container .generator_control .default_text_box {
+    height: 26px;
+    margin: 2px 0;
+    font-size: 0.9rem;
+}
+
+.equipment_container .generator_grid {
+    align-items: center;
+}
+
+.equipment_container .switch_container {
+    transform: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .test_menu {
@@ -1090,21 +1119,31 @@ mark {
     text-align: center;
     background-color: var(--surface-alt);
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
+    /* column so the reading cards can stretch to fill a tall screen */
+    display: flex;
+    flex-direction: column;
+}
+
+.equipment_container > * {
+    flex-shrink: 0;
 }
 
 .equipment {
     transition-duration: .2s;
     background-color: var(--surface);
     font-family: inherit;
-    font-size: 1.05rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
     color: var(--text);
     border-radius: var(--radius);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
-    margin: 10px 10px 0;
-    padding: 6px;
-    width: calc(var(--sidebar-w) - 25px);
+    margin: 6px 8px 0;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    width: calc(100% - 16px);
+    flex-grow: 1;
     z-index: 1;
 }
 
@@ -1117,7 +1156,7 @@ mark {
 .equipment_popup {
     color: var(--text);
     background-color: var(--surface);
-    width: calc(var(--sidebar-w) - 25px);
+    width: calc(100% - 26px);
     transition-duration: 0.75s;
     overflow: hidden;
     max-height: 0;
@@ -1135,9 +1174,10 @@ mark {
     text-align: center;
     background-color: var(--sidebar);
     color: var(--sidebar-text);
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     width: 100%;
-    padding: 10px 5px;
+    box-sizing: border-box;
+    padding: 6px 5px;
 }
 
 /* ---------------- Tables ---------------- */
@@ -1681,7 +1721,7 @@ mark {
 /* ---------------- Laptop widths ---------------- */
 @media (max-width: 1400px) {
     :root {
-        --sidebar-w: 190px;
+        --sidebar-w: 205px;
     }
 
     .batches_container {
