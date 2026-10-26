@@ -10,6 +10,7 @@ import EquipmentRow from './EquipmentRow';
 import SetPointRow from './SetPointRow';
 import CreateSetPoint from './CreateSetPoint';
 import CreateNotification from './CreateNotification';
+import EditCertificates from './EditCertificates';
 import CreateHumidityVariance from './CreateHumidityVariance';
 import HumidityVarianceRow from './HumidityVarianceRow';
 
@@ -266,6 +267,7 @@ function Admin() {
                 </div>
             </div>
             <CreateNotification />
+            <EditCertificates />
             <div className={styles.menu}>
                 <div className={styles.toolbar}>
                     <h1 className={styles.title}>Humidity Variances</h1>

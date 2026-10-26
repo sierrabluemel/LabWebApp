@@ -63,8 +63,8 @@ function ManageBatch() {
             .then(response => {
                 if (response.status === 200) {
                     const contentType = response.headers['content-type']
-                    if (contentType !== 'application/json; charset=utf-8') {
-                        console.error(`Expecting work order 'application/json; charset=utf-8' but instead got '${contentType}': ${response}`);
+                    if (!contentType?.startsWith('application/pdf')) {
+                        console.error(`Expecting work order 'application/pdf' but instead got '${contentType}': ${response}`);
                         setPopupMessage(`Failed to generate work order for batch ${batchNumber}: Server responded with the wrong file type`);
                     }
                 } else {

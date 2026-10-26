@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 import { AppWrapper } from './contexts/app';
 
@@ -93,7 +93,7 @@ function App() {
                 <Route path='/shipping' element={<Shipping />} />
                 <Route path='/signIn' element={<SignInMenu />} />
 
-                <Route path='/admin' element={<Admin />} />
+                <Route path='/admin' element={technician.admin ? <Admin /> : <Navigate to='/' replace />} />
 
                 <Route path='/search' element={<SearchResults />} />
 

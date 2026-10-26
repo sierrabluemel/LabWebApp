@@ -62,8 +62,7 @@ test('BatchEntry renders successfully', async () => {
             </AppWrapper>
         )
     })
-    const submitButton = screen.getByText(/submit/i)
-    expect(submitButton).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument()
 })
 
 test('sensorGrid having entries resets to empty list', async () => {
@@ -94,7 +93,7 @@ test('clicking button without technicianId does nothing', async () => {
             </AppWrapper>
         )
     })
-    const batchButton = screen.getByText(/batch: 123/i)
+    const batchButton = screen.getByLabelText('Open batch 123')
     await act(async () => {
         fireEvent.click(batchButton)
     })
@@ -113,7 +112,7 @@ test('clicking button navigates to ManageBatch screen', async () => {
             </AppWrapper>
         )
     })
-    const batchButton = screen.getByText(/batch: 123/i)
+    const batchButton = screen.getByLabelText('Open batch 123')
     expect(mockAxios.get).not.toBeCalledWith("http://127.0.0.1:8000/api/update-batch-technician/", expect.objectContaining({ "params": { "batch_id": 123, "department": "testing", "technician_id": 1 } }))
     await act(async () => {
         fireEvent.click(batchButton)
@@ -232,18 +231,30 @@ const defaultState = () => ({
     setOrder: jest.fn(), setSalesOrder: jest.fn()
 })
 
-test('batches are split into testing and queued by location', async () => {
+test('orders with a batch in testing are active, the rest queued, expedited first', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation((url, config) => url === `http://${ip}/api/get-sensors/` && config.params.batch_id === 125
+        ? Promise.resolve({ data: [] })
+        : url === `http://${ip}/api/get-batches-by-active-state/`
+        ? Promise.resolve({ data: [
+            { batch_id: 123, order_id: 7, customer_order_number: 'TO7', current_location: 'R1', received_timestamp: "2024-08-27T20:11:22.132Z" },
+            { batch_id: 125, order_id: 7, customer_order_number: 'TO7', current_location: 'T1', received_timestamp: "2024-08-27T20:11:22.132Z" },
+            { batch_id: 456, order_id: 8, customer_order_number: 'TO8', current_location: 'T2', expedited: true, received_timestamp: "2024-08-28T20:11:22.132Z" },
+            { batch_id: 789, order_id: 9, customer_order_number: 'TO9', current_location: 'R2', received_timestamp: "2024-08-26T20:11:22.132Z" }
+        ] })
+        : defaultGet(url))
     await act(async () => {
         render(<AppWrapper sharedState={defaultState()}><BatchEntry /></AppWrapper>)
     })
-    const testingHeading = screen.getByText('Testing (T)')
-    const queuedHeading = screen.getByText('Queued (R)')
-    const testingBatch = screen.getByText(/batch: 456/i)
-    const queuedBatch = screen.getByText(/batch: 123/i)
+    expect(screen.getAllByText('TO7')).toHaveLength(1)
+    expect(screen.getByLabelText('Open batch 123')).toHaveTextContent('R1')
+    expect(screen.getByLabelText('Open batch 125')).toHaveTextContent('T1')
+    expect(screen.getByLabelText('Open batch 125')).toHaveTextContent('NONE')
     // DOCUMENT_POSITION_FOLLOWING = 4
-    expect(testingHeading.compareDocumentPosition(testingBatch) & 4).toBeTruthy()
-    expect(testingBatch.compareDocumentPosition(queuedHeading) & 4).toBeTruthy()
-    expect(queuedHeading.compareDocumentPosition(queuedBatch) & 4).toBeTruthy()
+    const follows = (a, b) => expect(a.compareDocumentPosition(b) & 4).toBeTruthy()
+    follows(screen.getByText('TO8'), screen.getByText('TO7'))
+    follows(screen.getByText('TO7'), screen.getByText('Queued orders'))
+    follows(screen.getByText('Queued orders'), screen.getByText('TO9'))
 })
 
 const openEditor = async () => {

@@ -34,15 +34,15 @@ beforeEach(() => {
                 return Promise.resolve({ data: { current_location: 'testLocation' } });
             case `http://${ip}/api/generate-work-order?batch_id=1`:
                 return Promise.resolve({
-                    data: new Blob(['mock file content', 'testing'], { type: 'application/json; charset=utf-8' }),
+                    data: new Blob(['mock file content', 'testing'], { type: 'application/pdf' }),
                     status: 200,
                     statusText: 'OK',
-                    headers: { 'content-type': 'application/json; charset=utf-8' },
+                    headers: { 'content-type': 'application/pdf' },
                 });
             case `http://${ip}/api/generate-work-order?batch_id=2`:
                 return Promise.resolve({
                     status: 400,
-                    headers: { 'content-type': 'application/json; charset=utf-8' },
+                    headers: { 'content-type': 'application/pdf' },
                 });
             case `http://${ip}/api/generate-work-order?batch_id=3`:
                 return Promise.resolve({

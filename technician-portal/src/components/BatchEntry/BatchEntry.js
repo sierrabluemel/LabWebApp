@@ -83,25 +83,27 @@ function BatchEntry() {
             setBatchNumber(event.target.value);
     }
 
-    const renderOrders = (sectionBatches) => {
+    // expedited first, then oldest received
+    const orders = [...new Set((batches ?? []).map(batch => batch.order_id))]
+        .map(orderId => batches.filter(batch => batch.order_id === orderId).sort((a, b) => a.batch_id - b.batch_id))
+        .sort((a, b) => (b[0].expedited ? 1 : 0) - (a[0].expedited ? 1 : 0)
+            || new Date(a[0].received_timestamp) - new Date(b[0].received_timestamp)
+            || a[0].order_id - b[0].order_id);
+    // an order is active once any of its batches is in testing
+    const isActive = order => order.some(batch => batch.current_location?.startsWith('T'));
+
+    const renderOrders = (orders) => {
         if (!batches)
             return <h1 className={styles.title}>Loading...</h1>;
-        if (sectionBatches.length === 0)
+        if (orders.length === 0)
             return <h1 className={styles.title}>No batches found</h1>;
 
-        const orderIds = [...new Set(sectionBatches.map(batch => batch.order_id))].sort((a, b) => a - b);
         return (
             <div className={styles.order_grid}>
-                {orderIds.map(orderId => {
-                    const orderBatches = sectionBatches.filter(batch => batch.order_id === orderId).sort((a, b) => a.batch_id - b.batch_id);
-                    return <OrderCard key={orderId} batches={orderBatches} openBatch={navigateToBatch} editOrder={setEditingOrder} />
-                })}
+                {orders.map(orderBatches => <OrderCard key={orderBatches[0].order_id} batches={orderBatches} openBatch={navigateToBatch} editOrder={setEditingOrder} />)}
             </div>
         )
     }
-
-    const testingBatches = (batches ?? []).filter(batch => batch.current_location?.startsWith('T'));
-    const queuedBatches = (batches ?? []).filter(batch => !batch.current_location?.startsWith('T'));
 
     return (
         <div className={styles.menu} >
@@ -109,17 +111,17 @@ function BatchEntry() {
             <div className={styles.entry_row}>
                 <Receiving />
                 <section>
-                    <h2 className={styles.section_heading}>Open a batch by batch number</h2>
+                    <h2 className={styles.section_heading}>Open a batch</h2>
                     <form onSubmit={handleSubmit} data-testid={'batchForm'} className={styles.inline_form}>
                         <input type='text' value={batchNumber} onChange={handleChange} className={styles.default_text_box} placeholder={'Batch Number'} />
-                        <button type='submit' className={styles.default_button}>Submit</button>
+                        <button type='submit' className={styles.default_button}>Open</button>
                     </form>
                 </section>
             </div>
-            <h2 className={styles.section_heading}>Testing (T)</h2>
-            {renderOrders(testingBatches)}
-            <h2 className={styles.section_heading}>Queued (R)</h2>
-            {renderOrders(queuedBatches)}
+            <h2 className={styles.section_heading}>Active orders</h2>
+            {renderOrders(orders.filter(isActive))}
+            <h2 className={styles.section_heading}>Queued orders</h2>
+            {renderOrders(orders.filter(order => !isActive(order)))}
         </div>
     );
 }
@@ -129,17 +131,27 @@ function OrderCard({ batches, openBatch, editOrder }) {
     const receivedDate = parseDataBaseDate(first.received_timestamp);
 
     return (
-        <div className={styles.order_card}>
-            <div className={styles.order_card_header}>
-                <h3 className={styles.order_group_title}>{`${first.customer_order_number} | Order: ${first.order_id} | ${receivedDate}`}{first.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h3>
-                <button className={styles.icon_button} onClick={() => editOrder(first)} aria-label={`Edit order ${first.order_id}`} title='Add or remove batches'>✎</button>
+        <div className={`${styles.order_card} ${first.expedited ? styles.order_card_expedited : ''}`}>
+            <div>
+                <div className={styles.order_card_header}>
+                    <h3 className={styles.order_group_title}>{first.customer_order_number}{first.expedited ? <> <span className={styles.red_character}>E</span></> : <></>}</h3>
+                    <button className={styles.icon_button} onClick={() => editOrder(first)} aria-label={`Edit order ${first.order_id}`} title='Add or remove batches'>✎</button>
+                </div>
+                <div className={styles.order_subtitle}>{`Order ${first.order_id} · ${receivedDate}`}</div>
             </div>
-            {batches.map(batch => (
-                <button key={batch.batch_id} className={styles.batch_button} onClick={() => openBatch(batch.batch_id)}>
-                    {`Batch: ${batch.batch_id} | Sensors: ${batch.sensors ? batch.sensors.length : 0} | `}
-                    <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>{`CP: ${batch.calibration_procedure_id}`}</span>
-                </button>
-            ))}
+            <div>
+                {batches.map(batch => {
+                    const sensorCount = batch.sensors ? batch.sensors.length : 0;
+                    return (
+                        <button key={batch.batch_id} className={styles.batch_row} onClick={() => openBatch(batch.batch_id)} aria-label={`Open batch ${batch.batch_id}`}>
+                            <span className={styles.batch_row_id}>{batch.batch_id}</span>
+                            <span>{batch.current_location ? <span className={`${styles.stage_badge} ${batch.current_location.startsWith('T') ? styles.stage_testing : ''}`}>{batch.current_location}</span> : <></>}</span>
+                            <span>{sensorCount ? `${sensorCount} sensor${sensorCount === 1 ? '' : 's'}` : <span className={styles.none_chip}>NONE</span>}</span>
+                            <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>{`CP ${batch.calibration_procedure_id}`}</span>
+                        </button>
+                    )
+                })}
+            </div>
         </div>
     )
 }

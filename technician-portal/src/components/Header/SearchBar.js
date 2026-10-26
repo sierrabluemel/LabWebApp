@@ -12,7 +12,9 @@ export default function SearchBar() {
     const [filteredResults, setFilteredResults] = useState([]);
     const [activeIndex, setActiveIndex] = useState(-1);
     const [hoverIndex, setHoverIndex] = useState(-1);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     const isMounted = useRef(false);
+    const containerRef = useRef(null);
 
     const DEBOUNCE_DELAY = 250;
     const MAX_VISIBLE_RESULTS = 50;
@@ -36,6 +38,16 @@ export default function SearchBar() {
             loadSearchData();
         }
     }, [loadSearchData]);
+
+    // Close the dropdown on any click outside the search bar; the typed text is kept for when it reopens on focus
+    useEffect(() => {
+        const handleOutsideClick = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target))
+                setDropdownOpen(false);
+        };
+        document.addEventListener("mousedown", handleOutsideClick);
+        return () => document.removeEventListener("mousedown", handleOutsideClick);
+    }, []);
 
     // Flatten data into searchable entries
     useEffect(() => {
@@ -62,6 +74,7 @@ export default function SearchBar() {
     const handleInputChange = (event) => {
         setSearchString(event.target.value);
         setActiveIndex(-1);
+        setDropdownOpen(true);
     };
 
     // Debounced search
@@ -154,6 +167,10 @@ export default function SearchBar() {
     };
 
     const handleKeyDown = (e) => {
+        if (e.key === "Escape") {
+            setDropdownOpen(false);
+            return;
+        }
         const flatResults = filteredResults.flatMap((g) => g.values);
         if (!flatResults.length) return;
 
@@ -192,18 +209,18 @@ export default function SearchBar() {
     }, [activeIndex, filteredResults]);
 
     return (
-        <div className={styles.search_bar_header_container}>
+        <div className={styles.search_bar_header_container} ref={containerRef}>
             <input
                 type="text"
                 value={searchString}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                onFocus={loadSearchData}
+                onFocus={() => { loadSearchData(); setDropdownOpen(true); }}
                 className={styles.search_bar_input}
                 placeholder="Search"
                 aria-label="Search"
             />
-            {filteredResults.length > 0 && (
+            {dropdownOpen && filteredResults.length > 0 && (
                 <div
                     className={styles.search_results_dropdown}
                     ref={dropdownRef}

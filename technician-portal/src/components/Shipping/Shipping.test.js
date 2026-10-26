@@ -15,6 +15,8 @@ jest.mock('react-router-dom', () => ({
     useNavigate: () => mockedUseNavigate,
 }))
 
+const pdfResponse = { status: 200, headers: { get: () => 'application/pdf' }, data: new Blob() }
+
 beforeEach(() => {
     jest.clearAllMocks();
 
@@ -154,8 +156,17 @@ beforeEach(() => {
                         },
                     ]
                 })
+            case `http://${ip}/api/get-sensor-list/`:
+                return Promise.resolve({ data: [] })
+            case `http://${ip}/api/update-batch-technician/`:
+            case `http://${ip}/api/set-batch-active-state/`:
+            case `http://${ip}/api/create-certificates/`:
+                return Promise.resolve({ data: [] })
+            case `http://${ip}/api/generate-order-certificates/`:
+            case `http://${ip}/api/generate-return-record/`:
+                return Promise.resolve(pdfResponse)
             default:
-                return Promise.reject();
+                return Promise.reject({ response: { status: 500 } });
         }
     });
 })
@@ -186,36 +197,14 @@ test('generating certificates doesn\'t generate errors', async () => {
             </AppWrapper>
         )
     })
-    const generateCertificatesButton = screen.getByText(/create certificates/i)
+    const generateCertificatesButton = screen.getByText(/generate certificates/i)
     await act(async () => {
         fireEvent.click(generateCertificatesButton)
     })
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/update-batch-technician/`, { "params": { "batch_id": 1, "department": "shipping", "technician_id": 1 } })
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/set-batch-active-state/`, { "params": { "batch_id": 1, "active_state": false } })
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/update-batch-technician/`, expect.objectContaining({ "params": { "batch_id": 1, "department": "shipping", "technician_id": 1 } }))
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/set-batch-active-state/`, expect.objectContaining({ "params": { "batch_id": 1, "active_state": false } }))
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/create-certificates/`, expect.objectContaining({ "params": { "order_id": 1 } }))
 })
-
-for (let i = 1; i <= 6; i++) {
-    test(`calibration procedure ${i} gets triggered`, async () => {
-        await act(async () => {
-            render(
-                <AppWrapper sharedState={{
-                    setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                    orderNumber: i, batches: [], setBatches: jest.fn()
-                }}>
-                    <Shipping />
-                </AppWrapper>
-            )
-        })
-        const generateCertificatesButton = screen.getByText(/create certificates/i)
-        expect(generateCertificatesButton).toBeInTheDocument()
-        const orderLabel = screen.getByText(RegExp(`Order: ${i}`))
-        expect(orderLabel).toBeInTheDocument()
-        await act(async () => {
-            fireEvent.click(generateCertificatesButton)
-        })
-        expect(mockAxios.get).toBeCalledWith('http://127.0.0.1:8000/api/create-certificate/', expect.anything())
-    })
-}
 
 test('confirming references makes correct api calls', async () => {
     const batches = [
@@ -255,12 +244,12 @@ test('downloading return record calls api', async () => {
         )
     })
 
-    const downloadReturnRecordButton = screen.getByText(/download return record/i)
-    expect(downloadReturnRecordButton).toBeInTheDocument();
+    const downloadReturnRecordButton = screen.getByLabelText(/download return record/i)
     await act(async () => {
         fireEvent.click(downloadReturnRecordButton)
     })
-    expect(fetch).toBeCalledWith('https://127.0.0.1:8000/api/generate-return-record/?order_id=2')
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/generate-return-record/`, expect.objectContaining({ params: { order_id: 2 } }))
+    expect(URL.createObjectURL).toHaveBeenCalled()
 })
 
 test('downloading certificates calls api', async () => {
@@ -275,10 +264,33 @@ test('downloading certificates calls api', async () => {
         )
     })
 
-    const downloadCertificatesButton = screen.getByText(/download certificates/i)
-    expect(downloadCertificatesButton).toBeInTheDocument();
+    const downloadCertificatesButton = screen.getByLabelText(/download certificates/i)
     await act(async () => {
         fireEvent.click(downloadCertificatesButton)
     })
-    expect(fetch).toBeCalledWith('https://127.0.0.1:8000/api/generate-order-certificates?order_id=2')
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/generate-order-certificates/`, expect.objectContaining({ params: { order_id: 2 } }))
+    expect(URL.createObjectURL).toHaveBeenCalled()
+})
+
+test('a failed certificate download shows a popup instead of crashing', async () => {
+    const setPopupMessage = jest.fn()
+    const defaultMock = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation(url => url === `http://${ip}/api/generate-order-certificates/`
+        ? Promise.reject({ response: { status: 500 } })
+        : defaultMock(url))
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{
+                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage,
+                orderNumber: 2, batches: [], setBatches: jest.fn()
+            }}>
+                <Shipping />
+            </AppWrapper>
+        )
+    })
+
+    await act(async () => {
+        fireEvent.click(screen.getByLabelText(/download certificates/i))
+    })
+    expect(setPopupMessage).toHaveBeenCalledWith('Failed to download certificates for order 2')
 })
