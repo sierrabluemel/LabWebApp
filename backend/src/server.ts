@@ -3,6 +3,7 @@ import express from 'express';
 
 // Middleware
 import auth from './middleware/auth'
+import isAdmin from './middleware/isAdmin'
 
 // Routes
 import authRoutes from './routes/auth'
@@ -71,6 +72,7 @@ app.get('/api/get-orders-to-ship', auth, orderRoutes.getOrdersToShip);
 app.get('/api/set-order-shipped', auth, orderRoutes.setOrderShipped);
 app.get('/api/create-order', auth, orderRoutes.createOrder);
 app.get('/api/set-order-active-state', auth, orderRoutes.setOrderActiveState);
+app.get('/api/delete-order', auth, orderRoutes.deleteOrder);
 app.get('/api/generate-return-record', auth, orderRoutes.generateReturnRecord);
 app.get('/api/remove-sensors-from-network', auth, orderRoutes.removeSensorsFromNetwork);
 
@@ -123,7 +125,7 @@ app.get('/api/create-generator-command', auth, rollingDataRoutes.createGenerator
 
 // Equipment routes
 app.get('/api/get-equipment', auth, equipmentRoutes.getEquipment);
-app.get('/api/set-generator', auth, equipmentRoutes.setGenerator);
+app.get('/api/set-generator', auth, isAdmin, equipmentRoutes.setGenerator);
 app.get('/api/verify-equipment-in-testing', auth, equipmentRoutes.verifyEquipmentInTesting);
 app.get('/api/verify-equipment-in-shipping', auth, equipmentRoutes.verifyEquipmentInShipping);
 
@@ -132,7 +134,8 @@ app.get('/api/get-calibrations-by-month', auth, certificateRoutes.getCalibration
 app.get('/api/get-certificates-by-order-id', auth, certificateRoutes.getCertificatesByOrderId);
 app.get('/api/print-certificate-labels', auth, certificateRoutes.printCertificateLabels);
 app.get('/api/create-certificates', auth, certificateRoutes.createCertificates);
-app.get('/api/update-certificate-json', auth, certificateRoutes.updateCertificateJson);
+app.get('/api/update-certificate-json', auth, isAdmin, certificateRoutes.updateCertificateJson);
+app.get('/api/update-certificates-json', auth, isAdmin, certificateRoutes.updateCertificatesJson);
 app.get('/api/generate-order-certificates', auth, certificateRoutes.generateOrderCertificates);
 
 // Misc routes
@@ -143,13 +146,13 @@ app.get('/api/get-calibration-procedures', auth, miscRoutes.getCalibrationProced
 app.get('/api/get-variances', auth, miscRoutes.getVariances);
 app.get('/api/get-humidity-variances', auth, miscRoutes.getHumidityVariances);
 app.get('/api/get-variances-by-calibration-procedure', auth, miscRoutes.getVariancesByCalibrationProcedure);
-app.get('/api/create-set-point', auth, miscRoutes.createSetPoint);
-app.get('/api/create-humidity-variance', auth, miscRoutes.createHumidityVariance);
-app.get('/api/change-set-point-active-state', auth, miscRoutes.changeSetPointActiveState);
-app.get('/api/change-humidity-variance-active-state', auth, miscRoutes.changeHumidityVarianceActiveState);
-app.get('/api/create-set-point-link', auth, miscRoutes.createSetPointLink);
+app.get('/api/create-set-point', auth, isAdmin, miscRoutes.createSetPoint);
+app.get('/api/create-humidity-variance', auth, isAdmin, miscRoutes.createHumidityVariance);
+app.get('/api/change-set-point-active-state', auth, isAdmin, miscRoutes.changeSetPointActiveState);
+app.get('/api/change-humidity-variance-active-state', auth, isAdmin, miscRoutes.changeHumidityVarianceActiveState);
+app.get('/api/create-set-point-link', auth, isAdmin, miscRoutes.createSetPointLink);
 app.get('/api/lookup-technician', auth, miscRoutes.lookupTechnician);
 app.get('/api/get-notifications', auth, miscRoutes.getNotifications);
-app.get('/api/create-notification', auth, miscRoutes.createNotification);
+app.get('/api/create-notification', auth, isAdmin, miscRoutes.createNotification);
 app.get('/api/dismiss-notification', auth, miscRoutes.dismissNotification);
 app.get('/api/get-technicians', auth, miscRoutes.getTechnicians);

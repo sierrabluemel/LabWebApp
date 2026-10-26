@@ -2,6 +2,7 @@ import fs from 'fs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import qrcode from 'qrcode'
 import { BlobServiceClient } from '@azure/storage-blob';
+const sillyConfig = require('../../config.json');
 
 const pdf = {
     fillForm: async (template: string, fields: string[]) => {
@@ -23,9 +24,9 @@ const pdf = {
         const form = pdfDoc.getForm();
 
         const page = pdfDoc.getPage(0);
-        let technicianSignature = fs.readFileSync(`templates/signatures/Ross Signature.png`) as any;
+        let technicianSignature = fs.readFileSync(`templates/signatures/${sillyConfig.certificateSignatures.technician.signature}`) as any;
         technicianSignature = await pdfDoc.embedPng(technicianSignature);
-        let authorizorSignature = fs.readFileSync(`templates/signatures/Kelly Signature.png`) as any;
+        let authorizorSignature = fs.readFileSync(`templates/signatures/${sillyConfig.certificateSignatures.authorizer.signature}`) as any;
         authorizorSignature = await pdfDoc.embedPng(authorizorSignature);
         let qrCode = await qrcode.toBuffer(`https://sensorcalibrations.blob.core.windows.net/public-certificates/${fields.CertNumber}.pdf`) as any;
         qrCode = await pdfDoc.embedPng(qrCode);

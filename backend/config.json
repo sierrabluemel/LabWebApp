@@ -2,5 +2,9 @@
     "gatewayMaximumHeartbeatsPerSecond": 3,
     "stagingNetworks": [94464],
     "anyFrequencyNetworks": [123905, 123906, 123907],
-    "commonFrequencyOnlyNetworks": [123908, 125024, 125025]
+    "commonFrequencyOnlyNetworks": [123908, 125024, 125025],
+    "certificateSignatures": {
+        "technician": { "name": "Ross Schow", "signature": "Ross Signature.png" },
+        "authorizer": { "name": "Kelly S Lewis", "signature": "Kelly Signature.png" }
+    }
 }

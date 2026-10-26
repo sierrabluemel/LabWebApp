@@ -53,16 +53,17 @@ const certificate = {
                 CERTIFICATE_ID = $1
         `, [certificateId]);
     },
-    updateCertificateJson: (certificateId: number, certificateJson: any) => {
+    updateCertificateJson: (certificateId: number, certificateJson: any, pass: boolean) => {
         return executeQuerySingleReturn(pool, `
             UPDATE API_CERTIFICATE
             SET
-                GENERATE_CERTIFICATE_JSON = $1
+                GENERATE_CERTIFICATE_JSON = $1,
+                PASS = $3
             WHERE
                 CERTIFICATE_ID = $2
             RETURNING
                 *
-        `, [certificateJson, certificateId]);
+        `, [certificateJson, certificateId, pass]);
     },
     invoiceReport: (startDate: Date, endDate: Date) => {
         return executeQuery(pool, `

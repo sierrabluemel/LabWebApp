@@ -3,7 +3,6 @@ import { removeDuplicateCertificates } from "../methods/common";
 import monnitFetch from "../utils/monnit";
 import pdf from "../utils/pdf";
 import PDFMerger from "pdf-merger-js";
-import fs from 'fs';
 import certificate from "../models/certificate";
 import sensor from "../models/sensor";
 import misc from "../models/misc";
@@ -13,6 +12,7 @@ import reading from "../models/reading";
 import equipment from "../models/equipment";
 import { parseDataBaseDate } from "../utils/db";
 import calibrationProcedures from "../utils/calibrationprocedures";
+const sillyConfig = require('../../config.json');
 
 function filterReadings(readings: any[], setPoints: any[]) {
     let finalReadings = setPoints.map((setPoint) => {
@@ -27,6 +27,39 @@ function filterReadings(readings: any[], setPoints: any[]) {
         return { temperatureReading }
     })
     return finalReadings
+}
+
+function renderCertificate(cert: any) {
+    const certificateJson = { 'CertNumber': `MNT-${cert.certificate_id}`, ...cert.generate_certificate_json };
+    return pdf.fillCertificate(cert.template, certificateJson, cert.pass)
+        .then((blob) => blob.arrayBuffer());
+}
+
+// Every created or edited certificate goes through here so the public PDF (and its QR code link) stays current
+async function publishCertificate(cert: any) {
+    const bytes = await renderCertificate(cert);
+    // Dev certificate ids overlap prod ones, so uploading from dev would overwrite customer PDFs
+    if (process.env.STATUS !== 'production') {
+        console.log(`Skipping Azure upload of MNT-${cert.certificate_id}.pdf outside production`);
+        return;
+    }
+    await pdf.uploadPdfToAzure(bytes, `MNT-${cert.certificate_id}.pdf`);
+}
+
+function syncImonnit(sensorId: number, cableId: number | null, calibrationDate: Date, dueDate: Date, certificateId: number) {
+    const parameters = {
+        'SensorID': sensorId,
+        'DateCertified': calibrationDate.toISOString(),
+        'CertificationExpirationDate': dueDate.toISOString(),
+        'CalibrationFacilityID': 5,
+        'CalibrationNumber': `MNT-${certificateId}`,
+        'CableID': cableId
+    } as any;
+    const params = new URLSearchParams();
+    for (const parameter in parameters) {
+        params.append(parameter, parameters[parameter]);
+    };
+    return monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateCreate/?${params.toString()}`);
 }
 
 const certificateRoutes = {
@@ -82,34 +115,81 @@ const certificateRoutes = {
     },
     updateCertificateJson: (req: Request, res: Response) => {
         let certificateId = parseInt(req.query.certificate_id as string ?? "");
-        let certificateJson = req.query.certificate_json;
+        let certificateJson: any;
+        try {
+            certificateJson = JSON.parse(req.query.certificate_json as string ?? "");
+        } catch {
+            res.status(400).json({ error: `certificate_json is not valid JSON` });
+            return;
+        }
 
-        certificate.updateCertificateJson(certificateId, certificateJson)
-            .then((certificate) => {
-                res.json(certificate);
+        certificate.updateCertificateJson(certificateId, certificateJson, certificateJson.CS5 === 'PASS')
+            .then(async (updated) => {
+                await publishCertificate(updated);
+                res.json(updated);
             })
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: `Error updating certficate` });
             });
     },
-    generateCertificate: (req: Request, res: Response) => {
-        let certificateId = parseInt(req.query.certificate_id as string ?? "");
+    updateCertificatesJson: async (req: Request, res: Response) => {
+        const orderId = parseInt(req.query.order_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
 
-        certificate.getCertficateById(certificateId)
-            .then(async (certificate) => {
-                const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
+        let edits: any;
+        try {
+            edits = JSON.parse(req.query.certificate_json as string ?? "");
+        } catch {
+            res.status(400).json({ error: `Certificate changes are not valid JSON` });
+            return;
+        }
+        if (!orderId) {
+            res.status(400).json({ error: `Order number is required` });
+            return;
+        }
+        if (!edits || typeof edits !== 'object' || Array.isArray(edits) || Object.values(edits).some((v) => typeof v !== 'string')) {
+            res.status(400).json({ error: `Certificate changes must be an object of text values` });
+            return;
+        }
+        for (const dateKey of ['CS1', 'CS2']) {
+            if (dateKey in edits && isNaN(new Date(edits[dateKey]).getTime())) {
+                res.status(400).json({ error: `${dateKey} must be a date like 1/31/2026` });
+                return;
+            }
+        }
 
-                const bytes = await (await pdf.fillCertificate(certificate.template, certificateJson)).arrayBuffer();
-                res.setHeader("Content-Disposition", `attachment; filename=MNT-${certificateId}.pdf`);
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(Buffer.from(bytes));
-            })
-            .catch((err) => {
-                console.error(err);
-                res.status(500).json({ error: "An error occurred while processing the PDF." });
-            })
+        try {
+            let targets = await certificate.getCertificatesByOrderId(orderId);
+            if (batchId)
+                targets = targets.filter((c) => c.batch_id === batchId);
+            if (targets.length === 0) {
+                res.status(400).json({ error: `No certificates found for order ${orderId}${batchId ? ` batch ${batchId}` : ''}` });
+                return;
+            }
 
+            // Only existing fields: a key the PDF template lacks makes fillCertificate throw
+            const unknownKeys = Object.keys(edits).filter((key) => targets.some((c) => !(key in c.generate_certificate_json)));
+            if (unknownKeys.length > 0) {
+                res.status(400).json({ error: `Unknown certificate fields: ${unknownKeys.join(', ')}` });
+                return;
+            }
+
+            const datesChanged = 'CS1' in edits || 'CS2' in edits;
+            // shortcut: per-row updates with no transaction, a mid-loop failure leaves earlier certificates edited; add a transaction if orders get large
+            const updated = await Promise.all(targets.map(async (target) => {
+                const merged = { ...target.generate_certificate_json, ...edits };
+                const cert = await certificate.updateCertificateJson(target.certificate_id, merged, merged.CS5 === 'PASS');
+                await publishCertificate(cert);
+                if (datesChanged)
+                    await syncImonnit(target.sensor_id, target.cable_id, new Date(merged.CS1), new Date(merged.CS2), cert.certificate_id);
+                return cert;
+            }));
+            res.json(updated);
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: `Error updating certificates` });
+        }
     },
     generateOrderCertificates: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
@@ -125,19 +205,7 @@ const certificateRoutes = {
 
                 let merger = new PDFMerger()
                 for (const certificate of certificates) {
-                    const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
-                    const bytes = await pdf.fillCertificate(certificate.template, certificateJson, certificate.pass);
-
-                    if (process.env.STATUS === 'production') {
-                        pdf.uploadPdfToAzure(await bytes.arrayBuffer(), `MNT-${certificate.certificate_id}.pdf`)
-                            .catch((err: any) => {
-                                console.error("Error uploading PDF:", err);
-                                throw Error("Error uploading PDF: " + err)
-                            });
-                    }
-
-                    fs.writeFileSync('fileOutputs/certificate.pdf', await bytes.bytes());
-                    await merger.add('fileOutputs/certificate.pdf');
+                    await merger.add(await renderCertificate(certificate));
                 }
                 const finalCertificates = await merger.saveAsBuffer();
 
@@ -146,7 +214,7 @@ const certificateRoutes = {
                         pdf.printPdf(finalCertificates);
                     }
                     res.setHeader("Content-Disposition", `attachment; filename=${certificates[0].customer_order_number}Certificates.pdf`);
-                    res.setHeader("Content-Type", "application/json; charset=utf-8");
+                    res.setHeader("Content-Type", "application/pdf");
                     res.end(Buffer.from(finalCertificates));
                 } catch (error) {
                     console.error("Error occurred:", error);
@@ -173,7 +241,8 @@ const certificateRoutes = {
             let calibrationProcedureObjects = await misc.getCalibrationProcedures()
             const equip = await equipment.getEquipment(true)
 
-            let certificates = await Promise.all(sensors.map((s) => {
+            // Pass 1 builds every payload, so a sensor without readings fails before anything is saved or sent to iMonnit
+            const payloads = await Promise.all(sensors.map((s) => {
                 return reading.getReadingsBySensorId(s.sensor_id, s.batch_id)
                     .then(async (readings) => {
                         if (readings.length === 0) {
@@ -207,8 +276,8 @@ const certificateRoutes = {
                             'CS1': parseDataBaseDate(calibrationDate),
                             'CS3': JSON.stringify(batch.calibration_procedure_id),
                             'CS4': `${temperatureReadings[0].lab_rh}% RH @ ${temperatureReadings[0].lab_temperature}°C`,
-                            'TechName': 'Ross Schow',
-                            'AuthName': 'Kelly S Lewis',
+                            'TechName': sillyConfig.certificateSignatures.technician.name,
+                            'AuthName': sillyConfig.certificateSignatures.authorizer.name,
                             'Date': date,
                         }
 
@@ -249,34 +318,19 @@ const certificateRoutes = {
                         }
 
 
-                        let sensorId = s.sensor_id;
-
-
                         let { dueDate } = { ...cpJson };
                         const pass = cpJson.CS5 === 'PASS'
 
                         delete cpJson.dueDate;
-                        let cert = await certificate.createCertificate({ ...certificateJson, ...cpJson }, template, sensorId, pass, s.batch_id)
-
-
-                        let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;
-                        const parameters = {
-                            'SensorID': sensorId,
-                            'DateCertified': calibrationDate.toISOString(),
-                            'CertificationExpirationDate': dueDate.toISOString(),
-                            'CalibrationFacilityID': 5,
-                            'CalibrationNumber': `MNT-${cert.certificate_id}`,
-                            'CableID': s.cable_id
-                        } as any;
-                        const params = new URLSearchParams();
-                        for (const parameter in parameters) {
-                            params.append(parameter, parameters[parameter]);
-                        };
-                        return monnitFetch(`${url}?${params.toString()}`)
-                            .then(() => {
-                                return cert
-                            })
+                        return { s, certificateJson: { ...certificateJson, ...cpJson }, template, pass, calibrationDate, dueDate }
                     })
+            }))
+
+            const certificates = await Promise.all(payloads.map(async (p) => {
+                const cert = await certificate.createCertificate(p.certificateJson, p.template, p.s.sensor_id, p.pass, p.s.batch_id)
+                await publishCertificate(cert)
+                await syncImonnit(p.s.sensor_id, p.s.cable_id, p.calibrationDate, p.dueDate, cert.certificate_id)
+                return cert
             }))
             res.status(200).json(certificates);
 
@@ -287,8 +341,6 @@ const certificateRoutes = {
                 res.status(500).json({ error: `Not enough readings to generate certificate` })
             else
                 res.status(500).json({ error: `Error creating sensor certificates` })
-
-            return Promise.reject({ error: `Error creating sensor certificates` })
         }
     },
 };

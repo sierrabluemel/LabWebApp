@@ -251,8 +251,12 @@ const batchRoutes = {
                     pdf.printPdf(new Blob([finishedPdf]));
                 }
                 res.setHeader("Content-Disposition", `attachment; filename=workOrder${batchId}.pdf`);
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.setHeader("Content-Type", "application/pdf");
                 res.end(Buffer.from(finishedPdf));
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Error generating work order` });
             })
     },
     deleteBatch: (req: Request, res: Response) => {
