@@ -25,6 +25,8 @@ beforeEach(() => {
                 return Promise.resolve({ data: { online_sensors: [], order_sensors: [] } })
             case api('get-sensors'):
                 return Promise.resolve({ data: [{ sensor_id: 111, check_digit: 'ABC', cable_id: null }] })
+            case api('get-locations'):
+                return Promise.resolve({ data: ['R-A1', 'T-B2'] })
             case api('get-batch-by-id'):
                 return Promise.resolve({ data: { batch_id: 3000, current_location: 'R1' } })
             case api('remove-sensor-from-batch'):
@@ -61,12 +63,13 @@ const inputSensor = async (mockSensor = '12345:ABCDE') => {
 }
 
 const inputLocation = async (location) => {
-    const locationBox = screen.getByPlaceholderText(/location/i)
-    expect(locationBox).toHaveValue('')
+    fireEvent.click(screen.getByLabelText('Location'))
+    fireEvent.click(screen.getByText('New location...'))
+    const locationBox = screen.getByPlaceholderText(/new location/i)
     fireEvent.change(locationBox, { target: { value: location } })
     expect(locationBox).toHaveValue(location.toUpperCase())
     await act(async () => {
-        fireEvent.submit(screen.getByTestId('setLocationForm'))
+        fireEvent.submit(screen.getByTestId('locationForm'))
     })
 }
 
@@ -95,7 +98,7 @@ test('invalid scan shows the parse error and does not call api', async () => {
     await inputSensor('12345')
     expect(state.setPopupMessage).toBeCalledWith('"12345": No check digit found')
     expect(screen.getByPlaceholderText(/scan sensor/i)).toHaveValue('')
-    expect(mockAxios.get).not.toBeCalled()
+    expect(mockAxios.get).not.toBeCalledWith(api('create-sensor'), expect.anything())
 })
 
 test('adding valid sensor twice adds only 1', async () => {
@@ -106,11 +109,11 @@ test('adding valid sensor twice adds only 1', async () => {
     expect(screen.getByText(/total sensors: 1/i)).toBeInTheDocument()
     expect(state.setPopupMessage).toBeCalledWith('Sensor "12345" is already in this batch')
     calledWithParams('create-sensor', { batch_id: 3000, check_digit: 'ABCDE', sensor_id: 12345 })
-    expect(mockAxios.get).toBeCalledTimes(1)
+    expect(mockAxios.get.mock.calls.filter(([url]) => url === api('create-sensor'))).toHaveLength(1)
 })
 
 test('sensor rejected by api is removed from the list', async () => {
-    mockAxios.get.mockImplementation(() => Promise.resolve({ data: { sensor_id: null } }))
+    mockAxios.get.mockImplementation(url => Promise.resolve({ data: url === api('get-locations') ? [] : { sensor_id: null } }))
     const state = renderMenu()
     await inputSensor()
     calledWithParams('create-sensor', { batch_id: 3000, check_digit: 'ABCDE', sensor_id: 12345 })
@@ -121,7 +124,7 @@ test('sensor rejected by api is removed from the list', async () => {
 test('submitting empty location doesn\'t call api', async () => {
     renderMenu()
     await inputLocation('')
-    expect(mockAxios.get).toBeCalledTimes(0)
+    expect(mockAxios.get).not.toBeCalledWith(api('create-location-log'), expect.anything())
 })
 
 test('submitting location starting with "R" creates location log and ends receiving', async () => {
@@ -141,7 +144,7 @@ test('submitting location starting with "T" creates location log and starts test
 test('invalid location shows popup and does not create log', async () => {
     const state = renderMenu()
     await inputLocation('my test')
-    expect(mockAxios.get).not.toBeCalled()
+    expect(mockAxios.get).not.toBeCalledWith(api('create-location-log'), expect.anything())
     expect(state.setPopupMessage).toBeCalledWith('The batch was not moved successfully')
 })
 

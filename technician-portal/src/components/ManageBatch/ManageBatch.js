@@ -9,8 +9,15 @@ import backArrow from "../../media/arrow.png";
 
 import styles from "../../styles/styles.module.css";
 import parseSensorString from "../../utils/parseSensorString";
-import setBatchLocation from "../../utils/setBatchLocation";
+import LocationPicker from "../LocationPicker/LocationPicker";
 import Button from "../Button/Button";
+
+// Heartbeats the batch can be set to, in minutes
+const HEARTBEATS = [
+    { label: '3 seconds', minutes: 0.05 },
+    { label: '2 minutes', minutes: 2 },
+    { label: '2 hours', minutes: 120 },
+];
 
 function ManageBatch() {
     const navigate = useNavigate();
@@ -21,7 +28,6 @@ function ManageBatch() {
     } = useAppContext()
 
     const [heartbeat, setHeartBeat] = useState('');
-    const [location, setLocation] = useState('');
     const [currentLocation, setCurrentLocation] = useState('');
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
@@ -101,19 +107,16 @@ function ManageBatch() {
             })
     }
 
-    const handleHeartBeatChange = (event) => {
-        setHeartBeat(event.target.value);
-    }
-
-    const handleHeartBeatSubmit = async (event) => {
-        if (!heartbeat) {
+    // A select doesn't submit its form on Enter, so apply the picked heartbeat here
+    const handleHeartBeatKeyDown = (event) => {
+        if (event.key !== 'Enter' || !heartbeat)
             return;
-        }
         event.preventDefault();
+        const label = HEARTBEATS.find(option => String(option.minutes) === heartbeat).label;
         callApi('change-batch-heartbeats', { batch_id: batchNumber, heartbeat: heartbeat })
             .then((response) => {
                 if (response.Result === 'Success') {
-                    setPopupMessage(`Heartbeat changed to ${heartbeat} minutes`);
+                    setPopupMessage(`Heartbeat changed to ${label}`);
                     setHeartBeat('');
                 }
             })
@@ -121,29 +124,6 @@ function ManageBatch() {
                 setPopupMessage('Heartbeats not changed successfully');
                 console.error(err)
             });
-    }
-
-    const handleLocationChange = (event) => {
-        setLocation(event.target.value.toUpperCase());
-    }
-
-    const handleLocationSubmit = (event) => {
-        event.preventDefault();
-        setPopupMessage(`Moving batch ${batchNumber} to ${location}...`);
-        setBatchLocation(location, technicianId, batchNumber)
-            .then(error => {
-                if (!error) {
-                    setPopupMessage(`Batch ${batchNumber} moved to ${location}`);
-                    setCurrentLocation(location);
-                    setLocation('');
-                } else {
-                    throw new Error(error)
-                }
-            })
-            .catch((err) => {
-                setPopupMessage('The batch was not moved successfully');
-                console.error(err)
-            })
     }
 
     const handleSensorChange = (event) => {
@@ -220,12 +200,12 @@ function ManageBatch() {
                     </div>
                 </div>
                 <div className={styles.triple_grid_menu}>
-                    <form onSubmit={handleLocationSubmit} data-testid={'locationForm'}>
-                        <input type='text' value={location} onChange={handleLocationChange} className={styles.default_text_box} placeholder={'Location'} />
-                    </form>
-                    <form onSubmit={handleHeartBeatSubmit} data-testid={'heartbeatForm'}>
-                        <input type='text' value={heartbeat} onChange={handleHeartBeatChange} className={styles.default_text_box} placeholder={'Heartbeat (minutes)'} />
-                    </form>
+                    <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
+                    <select className={styles.dropdown} aria-label={'Heartbeat'} value={heartbeat} onChange={event => setHeartBeat(event.target.value)} onKeyDown={handleHeartBeatKeyDown}>
+                        {/* Shown in the closed box only; hidden from the list */}
+                        <option value='' disabled hidden>Change heartbeat...</option>
+                        {HEARTBEATS.map(option => <option key={option.minutes} value={option.minutes}>{option.label}</option>)}
+                    </select>
                     <form onSubmit={handleSensorSubmit}>
                         <input type='text' value={sensor} onChange={handleSensorChange} className={styles.default_text_box} placeholder={'Add/remove sensor'} />
                     </form>

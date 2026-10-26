@@ -21,6 +21,13 @@ export default function EditCertificates() {
             const values = new Set(selected.map(c => c.generate_certificate_json[key]));
             return { key, value: values.size === 1 ? [...values][0] : null };
         });
+    // One row per certificate table line: CD11..CD18 -> "CD1", C1..C3 -> "C"; keys without a trailing digit stand alone
+    const rows = [];
+    for (const field of fields) {
+        const name = field.key.match(/^([A-Za-z]+\d?)\d$/)?.[1] ?? field.key;
+        const row = rows.find(r => r.name === name);
+        row ? row.fields.push(field) : rows.push({ name, fields: [field] });
+    }
 
     const loadCertificates = () => {
         return callApi('get-certificates-by-order-id', { order_id: orderId })
@@ -63,7 +70,7 @@ export default function EditCertificates() {
     return (
         <div className={styles.menu}>
             <h1 className={styles.title}>Edit Certificates</h1>
-            <div className={styles.toolbar}>
+            <form className={`${styles.toolbar} ${styles.center_toolbar}`}onSubmit={event => { event.preventDefault(); loadCertificates(); }}>
                 <input className={styles.default_text_box} value={orderId} onChange={event => setOrderId(event.target.value)} placeholder={'Order number'} aria-label='Order number' />
                 <Button onClick={loadCertificates} innerText={'Load'} />
                 {certificates.length > 0 &&
@@ -75,24 +82,20 @@ export default function EditCertificates() {
                         <span>{selected.length} certificate{selected.length === 1 ? '' : 's'}</span>
                     </>
                 }
-            </div>
+            </form>
             {fields.length > 0 &&
                 <>
-                    <table className={styles.equipment_table}>
-                        <thead className={styles.equipment_table_head}>
-                            <tr>
-                                <th className={styles.equipment_table_data}>Field</th>
-                                <th className={styles.equipment_table_data}>Value</th>
-                            </tr>
-                        </thead>
-                        <tbody className={styles.equipment_table_body}>
-                            {fields.map(field => (
-                                <tr key={field.key}>
-                                    <td className={styles.equipment_table_data}>{field.key}</td>
-                                    <td className={styles.equipment_table_data}>
+                    <div className={styles.field_rows}>
+                        {rows.map(row => (
+                            <div key={row.name} className={styles.field_row}>
+                                <span className={styles.field_row_label}>{row.name}</span>
+                                <div className={styles.field_row_fields}>
+                                    {row.fields.map(field => (
                                         <input
-                                            className={styles.default_text_box}
+                                            key={field.key}
+                                            className={field.key in edits ? `${styles.default_text_box} ${styles.cert_field_edited}` : styles.default_text_box}
                                             aria-label={field.key}
+                                            title={field.key}
                                             value={edits[field.key] ?? field.value ?? ''}
                                             placeholder={field.value === null ? '(varies)' : ''}
                                             onChange={event => {
@@ -101,11 +104,11 @@ export default function EditCertificates() {
                                                 setEdits(event.target.value === (field.value ?? '') ? rest : { ...rest, [field.key]: event.target.value });
                                             }}
                                         />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                     <Button onClick={handleSave} innerText={'Save changes'} />
                     <Button onClick={() => saveCertificates({})} innerText={'Republish PDFs'} />
                 </>

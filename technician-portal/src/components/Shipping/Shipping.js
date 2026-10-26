@@ -383,6 +383,9 @@ function Shipping() {
             })
     }
 
+    // green only once every sensor on the order has a certificate
+    const certifiedCount = sensorList ? sensorList.filter(s => certificateList.current.some(c => c.sensor_id === s.sensor_id)).length : 0;
+
     return (
         <>
             <div className={styles.menu}>
@@ -412,7 +415,9 @@ function Shipping() {
                 <div className={styles.action_cards}>
                     <div className={styles.action_card}>
                         <h4>Certificates</h4>
-                        <span className={`${styles.status_pill} ${certificateList.current.length > 0 ? styles.soft_good : styles.soft_bad}`}>{certificateMessage}</span>
+                        <span className={`${styles.status_pill} ${certifiedCount === 0 ? styles.soft_bad : certifiedCount < sensorList.length ? styles.soft_warn : styles.soft_good}`}>
+                            {certifiedCount > 0 && certifiedCount < sensorList.length ? `${certifiedCount} of ${sensorList.length} sensors have certificates` : certificateMessage}
+                        </span>
                         <Button onClick={generateCertificates} innerText={'Generate certificates'} />
                         <div className={styles.button_with_icon}>
                             <Button onClick={printCertificates} innerText={'Print certificates'} />

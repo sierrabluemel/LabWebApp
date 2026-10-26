@@ -93,6 +93,19 @@ const batch = {
                 *
         `, [location, timestamp, batchId]);
     },
+    getLocations: () => {
+        // Every location used before, minus typos and pre-dash formats from history
+        return executeQuery(pool, `
+            SELECT DISTINCT
+                LOCATION
+            FROM
+                API_LOCATION_LOG
+            WHERE
+                LOCATION ~ '^[RTS]-[A-Z0-9]+$'
+            ORDER BY
+                LOCATION
+        `, []);
+    },
     getCalibrationInfo: (batchId: number) => {
         return executeQuerySingleReturn(pool, `
             SELECT

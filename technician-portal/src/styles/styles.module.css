@@ -610,6 +610,111 @@ mark {
     height: 18px;
 }
 
+.admin_tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-3);
+}
+
+.admin_tab {
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text-muted);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+}
+
+.admin_tab:hover {
+    background-color: var(--primary-soft);
+}
+
+.admin_tab[aria-pressed="true"] {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.field_rows {
+    margin-bottom: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.field_row {
+    display: grid;
+    grid-template-columns: 6rem 1fr;
+    align-items: center;
+    gap: var(--space-2);
+    padding-right: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    background-color: var(--surface-alt);
+}
+
+.field_row:last-child {
+    border-bottom: none;
+}
+
+.field_row_label {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding-left: var(--space-3);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary);
+    background-color: var(--primary-soft);
+    border-right: 1px solid var(--primary-soft-border);
+}
+
+/* unsaved edits stand out so it's clear what Save will change */
+.cert_field_edited.default_text_box {
+    background-color: var(--highlight);
+    border-color: var(--highlight-strong);
+}
+
+/* one line per row so columns line up like the certificate tables */
+.field_row_fields {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.field_row_fields .default_text_box {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.field_select {
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 5px 0;
+    text-align: left;
+}
+
+.field_row_fields .notification_text {
+    height: 80px;
+    margin: 5px 0;
+}
+
+.center_toolbar {
+    justify-content: center;
+}
+
+.center_toolbar .default_text_box,
+.center_toolbar .default_button {
+    width: 14rem;
+}
+
+/* fixed gaps instead of .menu's 2% of page width */
+.admin_page .menu {
+    width: 100%;
+    margin: 0 0 var(--space-3);
+}
+
 .admin_grid {
     display: grid;
     grid-template-rows: max-content;
@@ -622,11 +727,6 @@ mark {
     grid-gap: 10px;
 }
 
-.invoice_grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-gap: 10px;
-}
 
 .add_set_point_container {
     transition-duration: 2s;
@@ -638,11 +738,6 @@ mark {
     margin: 20px;
 }
 
-.create_notification_grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-gap: 10px;
-}
 
 .generator_grid {
     display: grid;
@@ -1112,14 +1207,6 @@ mark {
     font-size: 1.1rem;
 }
 
-.date_picker {
-    font-family: inherit;
-    font-size: 1rem;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius);
-    padding: 4px;
-    text-align: center;
-}
 
 /* the box is absolutely positioned and pulled left by its own width, so pad for it */
 .check_box_container {
@@ -1369,13 +1456,12 @@ mark {
     color: var(--text-inverse);
 }
 
-.sensor_pending .shipping_sensor_status,
-.sensor_on_network .shipping_sensor_status {
+.sensor_pending .shipping_sensor_status {
     color: var(--text);
 }
 
 .sensor_on_network {
-    --sensor-status: var(--warning);
+    --sensor-status: var(--danger);
 }
 
 .sensor_ready {
@@ -1672,6 +1758,106 @@ mark {
     cursor: pointer;
     font-size: 1rem;
     transition: background-color 0.2s, color 0.2s;
+}
+
+/* ---------------- Location picker ---------------- */
+.location_picker {
+    position: relative;
+}
+
+.location_panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    width: max-content;
+    max-width: min(480px, 90vw);
+    padding: var(--space-2);
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+}
+
+.location_stage {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin: var(--space-1) 0;
+    padding: var(--space-1) var(--space-2);
+    border-left: 4px solid var(--stage, transparent);
+    border-radius: var(--radius);
+    background-color: var(--stage-tint, transparent);
+}
+
+/* Stage colors: receiving amber, testing green (matches the testing badge), shipping blue */
+.location_stage_R {
+    --stage: var(--warning);
+    --stage-soft: var(--warning-soft);
+    --stage-tint: #fffaf0;
+    --stage-selected-text: var(--text);
+}
+
+.location_stage_T {
+    --stage: var(--success);
+    --stage-soft: var(--success-soft);
+    --stage-tint: #f4fbf6;
+    --stage-selected-text: var(--text-inverse);
+}
+
+.location_stage_S {
+    --stage: var(--primary);
+    --stage-soft: var(--primary-soft);
+    --stage-tint: #f6f9fc;
+    --stage-selected-text: var(--text-inverse);
+}
+
+.location_stage_label {
+    flex: 0 0 5.5rem;
+    padding-top: var(--space-1);
+    font-weight: 600;
+    text-align: left;
+    color: var(--stage, var(--text));
+}
+
+.location_bins {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.location_shelf {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.location_bin {
+    min-width: 3rem;
+    padding: var(--space-1) var(--space-2);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    background-color: var(--stage-soft, var(--surface));
+    border: 1px solid var(--stage-soft, var(--border-strong));
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.location_bin:hover {
+    border-color: var(--stage, var(--primary));
+    box-shadow: var(--shadow-sm);
+}
+
+.location_bin_selected,
+.location_bin_selected:hover {
+    background-color: var(--stage, var(--primary));
+    border-color: var(--stage, var(--primary));
+    color: var(--stage-selected-text, var(--text-inverse));
+    font-weight: 600;
 }
 
 /* Keyboard-highlighted result */
@@ -2066,6 +2252,11 @@ mark {
 .collapsed {
     transition-duration: 1s;
     max-height: 0;
+}
+
+/* a closed add form shouldn't leave its margin behind */
+.add_set_point_container.collapsed {
+    margin: 0;
 }
 
 /* ---------------- Laptop widths ---------------- */

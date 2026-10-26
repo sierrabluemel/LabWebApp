@@ -7,17 +7,16 @@ import ScannedSensors from "../ScannedSensors/ScannedSensors";
 
 
 import styles from "../../styles/styles.module.css";
-import setBatchLocation from "../../utils/setBatchLocation";
+import LocationPicker from "../LocationPicker/LocationPicker";
 import Button from "../Button/Button";
 
 function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId, preload = false, hideCancel = false }) {
-    const { setPopupMessage, technicianId } = useAppContext();
+    const { setPopupMessage } = useAppContext();
 
     const [addedSensors, setAddedSensors] = useState([]);
     const [sensors, setSensors] = useState([]);
     const [sensorString, setSensorString] = useState('');
     const [displayed, setDisplayed] = useState(true);
-    const [locationString, setLocationString] = useState('');
     const [currentLocation, setCurrentLocation] = useState('No location set');
     const [cancelling, setCancelling] = useState(false);
 
@@ -65,25 +64,6 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
                 }
             })
         setSensors([...sensors, sensorObject]);
-    }
-
-    const handleSetLocation = (event) => {
-        event.preventDefault();
-        setPopupMessage(`Moving batch ${batchNumber} to ${locationString}...`);
-        setBatchLocation(locationString, technicianId, batchNumber)
-            .then(error => {
-                if (!error) {
-                    setPopupMessage(`Batch ${batchNumber} moved to ${locationString}`);
-                    setCurrentLocation(locationString);
-                    setLocationString('');
-                } else {
-                    throw new Error(error)
-                }
-            })
-            .catch(err => {
-                setPopupMessage('The batch was not moved successfully');
-                console.error(err)
-            })
     }
 
     const getAllLeads = async () => {
@@ -171,9 +151,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
                 <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
                     <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={'Scan Sensor'} />
                 </form>
-                <form onSubmit={handleSetLocation} data-testid={'setLocationForm'} >
-                    <input type='text' value={locationString} onChange={event => setLocationString(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
-                </form>
+                <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
                 <Button onClick={printWorkOrder} innerText={'Print work order'} />
                 <Button onClick={getAllLeads} innerText={'Get all leads'} />
             </div>

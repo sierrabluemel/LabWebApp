@@ -21,20 +21,17 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
     const [loadingMessage, setLoadingMessage] = useState('Loading...');
     const refreshed = useRef(false);
-    const selectedSensor = useRef(null);
+    const selectedSensors = useRef([]);
     const refreshing = useRef(false);
 
+    // clicking a selected sensor again deselects it, others add to the selection
     const selectSensor = async (sensorId) => {
-        if (selectedSensor.current === sensorId) {
-            selectedSensor.current = null;
-            await refresh(null)
-        } else {
-            selectedSensor.current = sensorId;
-            await refresh(sensorId)
-        }
+        const selected = selectedSensors.current;
+        selectedSensors.current = selected.includes(sensorId) ? selected.filter(id => id !== sensorId) : [...selected, sensorId];
+        await refresh()
     }
 
-    const updateSensors = async (recentReadings, selectedSensor, savedReadings) => {
+    const updateSensors = async (recentReadings, selectedSensors, savedReadings) => {
         callApi('get-sensor-heartbeats', { sensor_ids: sensorList.map(s => s.sensor_id) })
             .then(heartbeats => {
                 let tempReferenceReadings = {};
@@ -84,7 +81,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     const sensorReadingStrings = [];
                     let style = '';
 
-                    if (sensor.sensor_id === selectedSensor)
+                    if (selectedSensors.includes(sensor.sensor_id))
                         style = styles.selected_sensor;
 
                     setPoints.forEach((setPoint, index) => {
@@ -206,7 +203,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
             }))
     }
 
-    const refresh = async (updatedSensor = selectedSensor.current) => {
+    const refresh = async () => {
         const sensorIds = sensorList.map(sensor => sensor.sensor_id);
         if (refreshing.current)
             return;
@@ -221,7 +218,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                             updateStableTimes()
                                 .then(refreshing.current = false)
                             if (recentReadings) {
-                                updateSensors(recentReadings, updatedSensor, savedReadings)
+                                updateSensors(recentReadings, selectedSensors.current, savedReadings)
                             }
                         })
             })
@@ -309,7 +306,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         const setPointObject = setPoints[setPointIndex];
         const referenceObject = equipment.current[setPointObject.reference];
         const sensorResolution = setPointObject.reference === 'rotronic' ? 0.01 : 0.1;
-        const sensorIds = selectedSensor.current ? [selectedSensor.current] : sensorList.map(s => s.sensor_id);
+        const sensorIds = selectedSensors.current.length ? selectedSensors.current : sensorList.map(s => s.sensor_id);
 
         getReadings(stableTime, referenceObject.asset_tag, sensorResolution, readingTypes, sensorIds)
             .then(readings => {
@@ -334,10 +331,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                             sensor_and_reference_difference: sensorReadings[`${readingType}_reading_difference_data`]
                         };
 
-                        if (selectedSensor.current && sensorId !== parseInt(selectedSensor.current))
-                            continue;
-
-                        else if (!readings || isNaN(sensorAverage))
+                        if (!readings || isNaN(sensorAverage))
                             return setPopupMessage(`Could not get stable data for sensor ${sensorId}`);
 
                         else {

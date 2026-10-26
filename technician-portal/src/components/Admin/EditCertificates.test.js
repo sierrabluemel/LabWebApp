@@ -76,3 +76,24 @@ test('a rejected save shows the backend error', async () => {
     })
     expect(state.setPopupMessage).toHaveBeenCalledWith('Admin access required')
 })
+
+test('pressing enter in the order number loads certificates', async () => {
+    render(
+        <AppWrapper sharedState={{ setPopupMessage: jest.fn() }}>
+            <EditCertificates />
+        </AppWrapper>
+    )
+    const orderInput = screen.getByLabelText('Order number')
+    fireEvent.change(orderInput, { target: { value: '5' } })
+    await act(async () => {
+        fireEvent.submit(orderInput.closest('form'))
+    })
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { order_id: '5' } }))
+    expect(screen.getByLabelText('TechName')).toHaveValue('Ross')
+})
+
+test('numbered fields share a row per certificate line', async () => {
+    await renderAndLoad()
+    expect(screen.getByText('D')).toBeInTheDocument()
+    expect(screen.getByText('TechName')).toBeInTheDocument()
+})

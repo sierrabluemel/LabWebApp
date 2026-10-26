@@ -14,6 +14,13 @@ import EditCertificates from './EditCertificates';
 import CreateHumidityVariance from './CreateHumidityVariance';
 import HumidityVarianceRow from './HumidityVarianceRow';
 
+const tabs = [
+    { key: 'equipment', label: 'Equipment' },
+    { key: 'variances', label: 'Variances' },
+    { key: 'certificates', label: 'Certificates' },
+    { key: 'notifications', label: 'Notifications & Invoices' }
+];
+
 function Admin() {
     const [reference1, setReference1] = useState({});
     const [reference2, setReference2] = useState({});
@@ -26,6 +33,7 @@ function Admin() {
     const [addingHumidityVariance, setAddingHumidityVariance] = useState(false);
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [equipmentListFiltered, setEquipmentListFiltered] = useState(true);
+    const [tab, setTab] = useState('equipment');
     const referenceList = [reference1, reference2, reference3, reference4];
     const refreshed = useRef(false);
 
@@ -205,9 +213,15 @@ function Admin() {
     }
 
     return !refreshed.current ? <h1 className={styles.title}>Loading...</h1> : (
-        <>
-            <SensorInvoiceGenerator />
-            <div className={styles.menu}>
+        <div className={styles.admin_page}>
+            <div className={styles.admin_tabs} role='group' aria-label='Admin sections'>
+                {tabs.map(t => <button key={t.key} className={styles.admin_tab} aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</button>)}
+            </div>
+            {/* hidden instead of unmounting so half-typed forms survive a tab switch */}
+            <div hidden={tab !== 'notifications'}>
+                <SensorInvoiceGenerator />
+            </div>
+            <div className={styles.menu} hidden={tab !== 'equipment'}>
                 {
                     confirmationArray.length > 0 ?
                         <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={handleConfirm} /> :
@@ -266,9 +280,13 @@ function Admin() {
                     <button className={styles.default_button} onClick={handleSubmit}>Save</button>
                 </div>
             </div>
-            <CreateNotification />
-            <EditCertificates />
-            <div className={styles.menu}>
+            <div hidden={tab !== 'notifications'}>
+                <CreateNotification />
+            </div>
+            <div hidden={tab !== 'certificates'}>
+                <EditCertificates />
+            </div>
+            <div className={styles.menu} hidden={tab !== 'variances'}>
                 <div className={styles.toolbar}>
                     <h1 className={styles.title}>Humidity Variances</h1>
                     <button className={styles.plus_button} title='Add humidity variance' onClick={() => setAddingHumidityVariance(!addingHumidityVariance)}></button>
@@ -309,7 +327,7 @@ function Admin() {
                     </tbody>
                 </table>
             </div>
-            <div className={styles.menu}>
+            <div className={styles.menu} hidden={tab !== 'variances'}>
                 <div className={styles.toolbar}>
                     <h1 className={styles.title}>Set Points</h1>
                     <button className={styles.plus_button} title='Add set point' onClick={() => setAddingVariance(!addingVariance)}></button>
@@ -347,7 +365,7 @@ function Admin() {
                     </tbody>
                 </table>
             </div>
-            <div className={styles.menu}>
+            <div className={styles.menu} hidden={tab !== 'equipment'}>
                 <div className={styles.toolbar}>
                     <h1 className={styles.title}>Lab Equipment</h1>
                     <label className={styles.check_box_container}>
@@ -383,7 +401,7 @@ function Admin() {
                     </tbody>
                 </table>
             </div>
-        </>
+        </div>
     )
 }
 

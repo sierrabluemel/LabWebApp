@@ -100,6 +100,7 @@ app.get('/api/create-batch', auth, batchRoutes.createBatch);
 app.get('/api/set-batch-active-state', auth, batchRoutes.setBatchActiveState);
 app.get('/api/remove-batch-location', auth, batchRoutes.removeBatchLocation);
 app.get('/api/create-location-log', auth, batchRoutes.createLocationLog);
+app.get('/api/get-locations', auth, batchRoutes.getLocations);
 app.get('/api/log-batch-interaction', auth, batchRoutes.logBatchInteraction);
 app.get('/api/update-batch-technician', auth, batchRoutes.updateBatchTechnician);
 app.get('/api/generate-work-order', auth, batchRoutes.generateWorkOrder);

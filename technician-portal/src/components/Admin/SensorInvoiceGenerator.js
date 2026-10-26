@@ -10,7 +10,7 @@ function SensorInvoiceGenerator() {
     const [startDate, setStartDate] = useState(new Date())
     const [endDate, setEndDate] = useState(new Date())
 
-    const { setPopupMessage } = useAppContext;
+    const { setPopupMessage } = useAppContext();
 
     function generateReport(event) {
         const urlProtocol = process.env.REACT_APP_STATUS === 'production' ? 'https' : 'http';
@@ -41,15 +41,11 @@ function SensorInvoiceGenerator() {
     return (
         <div className={styles.menu}>
             <h1 className={styles.title}>Sensor Invoices</h1>
-            <div className={styles.invoice_grid}>
-                <div>
-                    <label htmlFor="startDate">Start Date: </label>
-                    <DatePicker id="startDate" className={styles.date_picker} selected={startDate} onChange={date => setStartDate(date)} />
-                </div>
-                <div>
-                    <label htmlFor="endDate">End Date: </label>
-                    <DatePicker id="endDate" className={styles.date_picker} selected={endDate} onChange={date => setEndDate(date)} />
-                </div>
+            <div className={`${styles.toolbar} ${styles.center_toolbar}`}>
+                <label htmlFor="startDate">Start</label>
+                <DatePicker id="startDate" className={styles.default_text_box} selected={startDate} onChange={date => setStartDate(date)} />
+                <label htmlFor="endDate">End</label>
+                <DatePicker id="endDate" className={styles.default_text_box} selected={endDate} onChange={date => setEndDate(date)} />
                 <Button innerText={'Generate report'} onClick={generateReport} />
             </div>
         </div>

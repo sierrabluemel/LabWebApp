@@ -141,6 +141,16 @@ const batchRoutes = {
                 res.status(500).json({ error: `Unable to create location log` });
             })
     },
+    getLocations: (req: Request, res: Response) => {
+        batch.getLocations()
+            .then((rows) => {
+                res.json(rows.map((row: { location: string }) => row.location));
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to get locations` });
+            })
+    },
     logBatchInteraction: (req: Request, res: Response) => {
         const department = req.query.department as string;
         const start = req.query.start === 'true';
