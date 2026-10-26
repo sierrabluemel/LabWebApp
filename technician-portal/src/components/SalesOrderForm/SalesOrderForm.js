@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAppContext } from "../../contexts/app";
 
@@ -10,16 +10,22 @@ import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 import styles from "../../styles/styles.module.css";
 import addWorkDays from "../../utils/addWorkDays";
+import useOpenBatch from "../../utils/useOpenBatch";
+import backArrow from "../../media/arrow.png";
 
 function SalesOrderForm() {
     const navigate = useNavigate();
+    const openBatch = useOpenBatch();
+    // 'add' and 'edit' reuse this page for an order that already exists; no mode is a new order
+    const { mode, batch: editingBatch, customerOrderNumber } = useLocation().state ?? {};
     const {
         salesOrder, setSalesOrder, technicianId,
         setPopupMessage, order, setOrder, expedited
     } = useAppContext()
 
-    const [batches, setBatches] = useState([]);
+    const [batches, setBatches] = useState(editingBatch ? [editingBatch] : []);
     const [doneMessage, setDoneMessage] = useState([]);
+    const [removeConfirmation, setRemoveConfirmation] = useState([]);
     const [calibrationProcedures, setCalibrationProcedures] = useState([])
     const [selectedOption, setSelectedOption] = useState('');
     const [batchDisplay, setBatchDisplay] = useState(null);
@@ -38,20 +44,29 @@ function SalesOrderForm() {
             setBatchDisplay(null);
             return;
         }
-        setBatchDisplay(batches.map((batch, index) => (
+        setBatchDisplay(batches.map(batch => (
             <AddBatchMenu
-                key={index}
+                key={batch.batch_id}
                 calibrationProcedureId={batch.calibration_procedure_id}
                 batchNumber={batch.batch_id}
-                batches={batches}
                 setBatches={setBatches}
                 orderId={order}
+                preload={mode === 'edit'}
+                hideCancel={mode === 'edit'}
             />
         )))
     }, [salesOrder, order, batches, technicianId, setPopupMessage, expedited]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
+        if (mode === 'edit') {
+            setOrder(null);
+            return batches.length === 1 ? openBatch(batches[0].batch_id) : navigate('/batchEntry');
+        }
+        if (mode === 'add' && batches.length === 0) {
+            setPopupMessage('Add a calibration procedure first');
+            return;
+        }
         for (const batch of batches) {
             if (!batch.batch_id)
                 continue;
@@ -65,7 +80,28 @@ function SalesOrderForm() {
                     console.error(error);
                 })
         }
+        if (mode === 'add') {
+            setOrder(null);
+            return batches.length === 1 ? openBatch(batches[0].batch_id) : navigate('/batchEntry');
+        }
         setDoneMessage([`Order ${order} (${salesOrder}) created`]);
+    }
+
+    // Edit mode removes from the bottom row instead of inside the batch card
+    const removeEditingBatch = () => {
+        const batchId = batches[0].batch_id;
+        callApi('get-sensors', { batch_id: batchId })
+            .then(sensors => Promise.all(sensors.map(sensor => callApi('remove-sensor-from-batch', { sensor_id: sensor.sensor_id }))))
+            .then(() => callApi('delete-batch', { batch_id: batchId }))
+            .then(() => {
+                setPopupMessage(`Batch ${batchId} removed`);
+                setOrder(null);
+                navigate('/batchEntry');
+            })
+            .catch(err => {
+                setPopupMessage(`Could not remove batch ${batchId}`);
+                console.error(err);
+            })
     }
 
     const finish = (focusNewOrder) => {
@@ -76,14 +112,14 @@ function SalesOrderForm() {
 
     if (!order) {
         return (
-            <div className={styles.menu}>
+            <div className={`${styles.menu} ${styles.narrow_menu}`}>
                 <h1 className={styles.title}>Loading...</h1>
             </div>
         )
     }
 
     return (
-        <div className={styles.menu}>
+        <div className={`${styles.menu} ${styles.narrow_menu}`}>
             <ConfirmationPopup
                 confirmationArray={doneMessage}
                 setConfirmationArray={setDoneMessage}
@@ -92,17 +128,33 @@ function SalesOrderForm() {
                 confirmText={'Go to testing'}
                 dismissText={'Add another order'}
             />
-            <h1 className={styles.title}>{salesOrder} | Order due: {dueDate.current ? dueDate.current : 'Loading...'}</h1>
-            <DropDown
+            <ConfirmationPopup
+                confirmationArray={removeConfirmation}
+                setConfirmationArray={setRemoveConfirmation}
+                handleConfirm={removeEditingBatch}
+                confirmText={'Remove'}
+            />
+            {mode ?
+                <div className={styles.toolbar}>
+                    <img className={styles.back_arrow_image} onClick={() => { setOrder(null); navigate('/batchEntry') }} src={backArrow} alt="Back button" />
+                    <h1 className={styles.title}>{`${customerOrderNumber} | Order: ${order}`}</h1>
+                </div> :
+                <h1 className={styles.title}>{`${salesOrder} | Order due: ${dueDate.current ? dueDate.current : 'Loading...'}`}</h1>}
+            {mode === 'edit' ? <></> : <DropDown
                 options={calibrationProcedures}
                 selectedOption={selectedOption}
                 setSelectedOption={setSelectedOption}
                 batches={batches}
                 setBatches={setBatches}
-            />
+            />}
             <div className={styles.stack}>
                 {batchDisplay}
-                <button onClick={handleSubmit} className={styles.default_button}>Complete Sales Order</button>
+                {mode === 'edit' && batches.length > 0 ?
+                    <div className={styles.row}>
+                        <button onClick={handleSubmit} className={`${styles.default_button} ${styles.grow}`}>Edit Batch</button>
+                        <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => setRemoveConfirmation([`Remove batch ${batches[0].batch_id}?`, 'Its sensors will be unassigned'])}>Remove batch</button>
+                    </div> :
+                    <button onClick={handleSubmit} className={styles.default_button}>{{ add: 'Add Batch', edit: 'Edit Batch' }[mode] ?? 'Complete Sales Order'}</button>}
             </div>
         </div>
     );

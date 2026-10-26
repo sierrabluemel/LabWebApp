@@ -12,7 +12,7 @@ const certificate = {
                 API_ORDER
                 INNER JOIN API_BATCH ON API_ORDER.ORDER_ID = API_BATCH.ORDER_ID
                 INNER JOIN API_SENSOR ON API_BATCH.BATCH_ID = API_SENSOR.BATCH_ID
-                INNER JOIN API_CERTIFICATE ON API_SENSOR.SENSOR_ID = API_CERTIFICATE.SENSOR_ID
+                INNER JOIN API_CERTIFICATE ON API_SENSOR.SENSOR_ID = API_CERTIFICATE.SENSOR_ID AND API_SENSOR.BATCH_ID = API_CERTIFICATE.BATCH_ID
             WHERE
                 TIMESTAMP > $1
                 AND TIMESTAMP < $2
@@ -25,7 +25,7 @@ const certificate = {
                 DISTINCT ON (API_SENSOR.SENSOR_ID) *
             FROM
                 API_SENSOR
-                INNER JOIN API_CERTIFICATE ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID
+                INNER JOIN API_CERTIFICATE ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID AND API_CERTIFICATE.BATCH_ID = API_SENSOR.BATCH_ID
                 INNER JOIN API_BATCH ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
                 INNER JOIN API_ORDER ON API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
             WHERE
@@ -33,15 +33,15 @@ const certificate = {
             ORDER BY API_SENSOR.SENSOR_ID, API_CERTIFICATE.CERTIFICATE_ID DESC;
         `, [orderId]);
     },
-    createCertificate: (certificateJson: any, template: string, sensorId: number, pass: boolean) => {
+    createCertificate: (certificateJson: any, template: string, sensorId: number, pass: boolean, batchId: number) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
-                API_CERTIFICATE (GENERATE_CERTIFICATE_JSON, TEMPLATE, SENSOR_ID, PASS)
+                API_CERTIFICATE (GENERATE_CERTIFICATE_JSON, TEMPLATE, SENSOR_ID, PASS, BATCH_ID)
             VALUES
-                ($1, $2, $3, $4)
+                ($1, $2, $3, $4, $5)
             RETURNING
                 *
-        `, [certificateJson, template, sensorId, pass]);
+        `, [certificateJson, template, sensorId, pass, batchId]);
     },
     getCertficateById: (certificateId: number) => {
         return executeQuerySingleReturn(pool, `
@@ -76,7 +76,7 @@ const certificate = {
                 CUSTOMER_ORDER_NUMBER
             FROM
                 API_CERTIFICATE
-                INNER JOIN API_SENSOR ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID
+                INNER JOIN API_SENSOR ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID AND API_CERTIFICATE.BATCH_ID = API_SENSOR.BATCH_ID
                 INNER JOIN API_BATCH ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
                 INNER JOIN API_ORDER ON API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
             WHERE

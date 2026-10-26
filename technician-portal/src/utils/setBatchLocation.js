@@ -1,8 +1,17 @@
 import callApi from "./api/callApi";
 
-export default async function setBatchLocation(location, technicianId, batchNumber) {
+// What moving a batch to a location starting with each letter does. R = receiving (queued), T = testing, S = shipping
+const LOCATION_ACTIONS = {
+    R: { department: 'receiving', start: false, active: true, networkGroup: 'staging', heartbeat: 2 },
+    T: { department: 'testing', start: true, active: true, networkGroup: 'testing', heartbeat: 0.05 },
+    S: { department: 'testing', start: false, active: false, networkGroup: 'staging', heartbeat: 120 },
+};
 
-    if (!isValidLocation(location)) {
+// Resolves to nothing on success, or an error to show on failure
+export default async function setBatchLocation(location, technicianId, batchNumber) {
+    const action = location ? LOCATION_ACTIONS[location[0]] : undefined;
+
+    if (!action) {
         return `Location "${location}" is invalid`;
     }
 
@@ -10,95 +19,27 @@ export default async function setBatchLocation(location, technicianId, batchNumb
         'location': location,
         'batch_id': batchNumber
     })
-        .then(() => {
-            if (location.startsWith('R')) {
-                callApi('log-batch-interaction', {
-                    department: 'receiving',
-                    start: false,
-                    technician_id: technicianId,
-                    batch_id: batchNumber
-                })
-                    .then(() => {
-                        callApi('set-batch-active-state', {
-                            batch_id: batchNumber,
-                            active_state: true
-                        })
-                    })
-                    .then(() => {
-                        callApi('move-batch-to-network-group', {
-                            batch_id: batchNumber,
-                            network_group: 'staging'
-                        })
-                            .then(() => {
-                                callApi('change-batch-heartbeats', {
-                                    batch_id: batchNumber,
-                                    heartbeat: 2
-                                })
-                            })
-                    })
-
-            } else if (location.startsWith('T')) {
-                callApi('log-batch-interaction', {
-                    department: 'testing',
-                    start: true,
-                    technician_id: technicianId,
-                    batch_id: batchNumber
-                })
-                    .then(() => {
-                        callApi('set-batch-active-state', {
-                            batch_id: batchNumber,
-                            active_state: true
-                        })
-                    })
-                    .then(() => {
-                        callApi('move-batch-to-network-group', {
-                            batch_id: batchNumber,
-                            network_group: 'testing'
-                        })
-                            .then(() => {
-                                callApi('change-batch-heartbeats', {
-                                    batch_id: batchNumber,
-                                    heartbeat: 0.05
-                                })
-                            })
-                    })
-
-            } else if (location.startsWith('S')) {
-                callApi('log-batch-interaction', {
-                    department: 'testing',
-                    start: false,
-                    technician_id: technicianId,
-                    batch_id: batchNumber
-                })
-                    .then(() => {
-                        callApi('set-batch-active-state', {
-                            batch_id: batchNumber,
-                            active_state: false
-                        })
-                    })
-                    .then(() => {
-                        callApi('move-batch-to-network-group', {
-                            batch_id: batchNumber,
-                            network_group: 'staging'
-                        })
-                            .then(() => {
-                                callApi('change-batch-heartbeats', {
-                                    batch_id: batchNumber,
-                                    heartbeat: 120
-                                })
-                            })
-                    })
-            }
-        })
+        .then(() => callApi('log-batch-interaction', {
+            department: action.department,
+            start: action.start,
+            technician_id: technicianId,
+            batch_id: batchNumber
+        }))
+        .then(() => callApi('set-batch-active-state', {
+            batch_id: batchNumber,
+            active_state: action.active
+        }))
+        .then(() => callApi('move-batch-to-network-group', {
+            batch_id: batchNumber,
+            network_group: action.networkGroup,
+            heartbeat: action.heartbeat
+        }))
+        .then(() => callApi('change-batch-heartbeats', {
+            batch_id: batchNumber,
+            heartbeat: action.heartbeat
+        }))
+        .then(() => undefined)
         .catch(error => {
-            return error;
+            return error ?? 'Unknown error';
         })
-}
-
-function isValidLocation(location) {
-    if (!location) return false;
-    const validFirstLetters = ['R', 'T', 'S'];
-    const firstLetter = location[0];
-
-    return validFirstLetters.includes(firstLetter);
 }

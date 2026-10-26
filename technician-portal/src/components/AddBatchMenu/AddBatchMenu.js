@@ -4,14 +4,13 @@ import addSensor from "../../utils/addSensor";
 import parseSensorString from "../../utils/parseSensorString";
 import callApi from "../../utils/api/callApi";
 import ScannedSensors from "../ScannedSensors/ScannedSensors";
-import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 
 import styles from "../../styles/styles.module.css";
 import setBatchLocation from "../../utils/setBatchLocation";
 import Button from "../Button/Button";
 
-function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches, orderId }) {
+function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId, preload = false, hideCancel = false }) {
     const { setPopupMessage, technicianId } = useAppContext();
 
     const [addedSensors, setAddedSensors] = useState([]);
@@ -20,7 +19,22 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     const [displayed, setDisplayed] = useState(true);
     const [locationString, setLocationString] = useState('');
     const [currentLocation, setCurrentLocation] = useState('No location set');
-    const [confirmationArray, setConfirmationArray] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+
+    // Editing an existing batch: show the sensors and location it already has
+    useEffect(() => {
+        if (!preload)
+            return;
+        callApi('get-sensors', { batch_id: batchNumber })
+            .then(existing => {
+                setSensors(existing.map(s => ({ sensor: `${s.sensor_id}:${s.check_digit}`, online: false, cable_id: s.cable_id })));
+                setAddedSensors(existing.map(s => s.sensor_id));
+            })
+            .catch(err => console.error(err))
+        callApi('get-batch-by-id', { batch_id: batchNumber })
+            .then(batch => setCurrentLocation(batch?.current_location ?? 'No location set'))
+            .catch(err => console.error(err))
+    }, [preload, batchNumber]);
 
     const handleAddSensor = (event) => {
         event.preventDefault();
@@ -55,6 +69,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
 
     const handleSetLocation = (event) => {
         event.preventDefault();
+        setPopupMessage(`Moving batch ${batchNumber} to ${locationString}...`);
         setBatchLocation(locationString, technicianId, batchNumber)
             .then(error => {
                 if (!error) {
@@ -124,12 +139,15 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     })
 
     const removeBatch = () => {
-        callApi('delete-batch', { batch_id: batchNumber })
-            .then(() => { })
+        setCancelling(true);
+        Promise.all(addedSensors.map(sensorId => callApi('remove-sensor-from-batch', { sensor_id: sensorId, batch_id: batchNumber })))
+            .then(() => callApi('delete-batch', { batch_id: batchNumber }))
+            .then(() => setBatches(current => current.filter(batch => batch.batch_id !== batchNumber)))
             .catch(error => {
+                setCancelling(false);
+                setPopupMessage(`Could not remove batch ${batchNumber}`);
                 console.error(error)
             })
-        setBatches(batches.length > 1 ? batches.filter(batch => batch.batch_id !== batchNumber) : []);
     }
 
     const printWorkOrder = () => {
@@ -145,13 +163,9 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
 
     return (
         <section className={`${styles.subsection} ${styles.stack}`}>
-            {confirmationArray.length > 0 ? <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={removeBatch} /> : <></>}
             <button className={styles.default_button} onClick={() => setDisplayed(false)}>{`Hide (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
 
-            <div className={styles.row}>
-                <div className={`${styles.current_location_text} ${styles.grow}`}>{`Current location: ${currentLocation}`}</div>
-                <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
-            </div>
+            <div className={styles.current_location_text}>{`Current location: ${currentLocation}`}</div>
 
             <div className={styles.grid_menu}>
                 <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
@@ -165,6 +179,11 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
             </div>
 
             <ScannedSensors sensorList={sensors} />
+
+            {hideCancel ? <></> :
+                <div className={styles.card_actions}>
+                    <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={removeBatch} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel'}</button>
+                </div>}
         </section>
     )
 }

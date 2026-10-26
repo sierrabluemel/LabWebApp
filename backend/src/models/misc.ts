@@ -21,7 +21,7 @@ const misc = {
             FROM API_ORDER o
             LEFT JOIN API_BATCH b ON b.order_id = o.order_id
             LEFT JOIN API_SENSOR s ON s.batch_id = b.batch_id
-            LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id
+            LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id AND c.batch_id = s.batch_id
             WHERE ${column} = $1
         )
         SELECT
@@ -44,7 +44,7 @@ const misc = {
         INNER JOIN API_ORDER o ON o.order_id = mo.order_id
         LEFT JOIN API_BATCH b ON b.order_id = o.order_id
         LEFT JOIN API_SENSOR s ON s.batch_id = b.batch_id
-        LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id
+        LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id AND c.batch_id = s.batch_id
         LEFT JOIN API_INTERACTION_LOG il ON il.batch_id = b.batch_id
         ORDER BY
             o.order_id,

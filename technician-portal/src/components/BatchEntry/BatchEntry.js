@@ -7,15 +7,18 @@ import callApi from "../../utils/api/callApi";
 import styles from "../../styles/styles.module.css";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
 import Receiving from "../Receiving/Receiving";
+import useOpenBatch from "../../utils/useOpenBatch";
+import trashCan from "../../media/trash_can.png";
 
 function BatchEntry() {
     const navigate = useNavigate();
+    const navigateToBatch = useOpenBatch();
     const {
-        batchNumber, setBatchNumber, setSensorList, setProcedureId,
-        technicianId, sensorGrid, setSensorGrid, setCustomerOrderNumber, setPopupMessage
+        batchNumber, setBatchNumber, sensorGrid, setSensorGrid, setPopupMessage, setOrder
     } = useAppContext()
 
-    const [batches, setBatches] = useState([<h1 className={styles.title} key={'fillerKey'}>Loading...</h1>]);
+    const [batches, setBatches] = useState(null);
+    const [editingOrder, setEditingOrder] = useState(null);
 
     async function getBatchSensors(batches) {
 
@@ -28,35 +31,37 @@ function BatchEntry() {
         return allSensors
     }
 
-    const navigateToBatch = useCallback((batch_id) => {
-        if (!technicianId) {
-            setPopupMessage('Please sign in');
-            return;
-        }
-        if (isNaN(batch_id)) {
-            setPopupMessage('Enter a batch number');
-            return;
-        }
-        callApi('get-batch-by-id', { 'batch_id': batch_id })
-            .then(batch => {
-                if (!batch) {
-                    setPopupMessage(`Batch ${batch_id} not found`);
-                    return;
-                }
-                setBatchNumber(batch.batch_id);
-                setCustomerOrderNumber(batch.customer_order_number);
-
-                callApi('update-batch-technician', { 'department': 'testing', 'technician_id': technicianId, 'batch_id': batch.batch_id })
-
-                setProcedureId(batch.calibration_procedure_id);
-
-                callApi('get-sensors', { 'batch_id': batch.batch_id })
-                    .then(data => {
-                        setSensorList(data);
-                        navigate('/manageBatch');
-                    })
+    const loadBatches = useCallback(() => {
+        return callApi('get-batches-by-active-state', { active: true })
+            .then(getBatchSensors)
+            .then(setBatches)
+            .catch((err) => {
+                setBatches([]);
+                console.error(err)
             })
-    }, [navigate, setBatchNumber, setCustomerOrderNumber, setProcedureId, setSensorList, setPopupMessage, technicianId])
+    }, [])
+
+    // Adding or editing a batch reuses the sales order page for this existing order.
+    // The TO goes in route state, not salesOrder, which is the New Sales Order box's value
+    const openOrderPage = (order, batch = null) => {
+        setOrder(order.order_id);
+        const customerOrderNumber = order.customer_order_number;
+        navigate('/createSalesOrder', { state: batch ? { mode: 'edit', batch, customerOrderNumber } : { mode: 'add', customerOrderNumber } });
+    }
+
+    const removeBatch = (batch, sensors) => {
+        return Promise.all(sensors.map(sensor => callApi('remove-sensor-from-batch', { sensor_id: sensor.sensor_id, batch_id: batch.batch_id })))
+            .then(() => callApi('delete-batch', { batch_id: batch.batch_id }))
+            .then(() => {
+                setPopupMessage(`Batch ${batch.batch_id} removed`);
+                loadBatches();
+            })
+            .catch(err => {
+                setPopupMessage(`Could not remove batch ${batch.batch_id}`);
+                console.error(err);
+                return Promise.reject(err);
+            })
+    }
 
     const handleSubmit = (event) => {
         event.preventDefault()
@@ -64,80 +69,149 @@ function BatchEntry() {
     }
 
     useEffect(() => {
-        let isMounted = true;
-
         if (sensorGrid.length > 0) {
             setSensorGrid([]);
         }
-        if (batches.length === 1 && isMounted) {
-            callApi('get-batches-by-active-state', { active: true })
-                .then(response => {
-                    if (response.length === 0) {
-                        setBatches([<h1 className={styles.title} key={'fillerKey'}>No batches found</h1>]);
-                        return;
-                    }
-                    return getBatchSensors(response)
-                })
-                .then(response => {
-                    if (!response) {
-                        return;
-                    }
-                    const batchList = []
-                    const orders = response.filter((batch, index, self) => index === self.findIndex(b => b.order_id === batch.order_id)).sort((a, b) => a.order_id - b.order_id)
+    }, [setSensorGrid, sensorGrid.length]);
 
-                    for (const order of orders) {
-                        const batches = [...new Set(response.filter(batch => batch.order_id === order.order_id))].sort((a, b) => a.batch_id - b.batch_id);
-                        const receivedDate = parseDataBaseDate(batches[0].received_timestamp);
-                        batchList.push(
-                            <div key={orders.indexOf(order)} className={styles.order_card}>
-                                <h3 className={styles.order_group_title}>{`TO: ${batches[0].customer_order_number} | Order: ${order.order_id} | ${receivedDate}`}{order.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h3>
-                                {batches.map((batch, index) => {
-                                    return <BatchDisplay batch={batch} handleButtonClick={() => navigateToBatch(batch.batch_id)} key={index} />
-                                })}
-                            </div>
-                        )
-                    }
-
-                    if (isMounted) {
-                        setBatches(<div className={styles.order_grid} key={'orderGrid'}>{batchList}</div>);
-                    }
-                })
-                .catch((err) => {
-                    console.error(err)
-                })
-        }
-
-        return () => {
-            isMounted = false;
-        };
-    }, [setSensorGrid, batches.length, navigateToBatch, sensorGrid.length]);
+    useEffect(() => {
+        loadBatches();
+    }, [loadBatches]);
 
     const handleChange = (event) => {
         if ((!isNaN(event.target.value) && !isNaN(parseFloat(event.target.value))) || event.target.value === '')
             setBatchNumber(event.target.value);
     }
 
+    const renderOrders = (sectionBatches) => {
+        if (!batches)
+            return <h1 className={styles.title}>Loading...</h1>;
+        if (sectionBatches.length === 0)
+            return <h1 className={styles.title}>No batches found</h1>;
+
+        const orderIds = [...new Set(sectionBatches.map(batch => batch.order_id))].sort((a, b) => a - b);
+        return (
+            <div className={styles.order_grid}>
+                {orderIds.map(orderId => {
+                    const orderBatches = sectionBatches.filter(batch => batch.order_id === orderId).sort((a, b) => a.batch_id - b.batch_id);
+                    return <OrderCard key={orderId} batches={orderBatches} openBatch={navigateToBatch} editOrder={setEditingOrder} />
+                })}
+            </div>
+        )
+    }
+
+    const testingBatches = (batches ?? []).filter(batch => batch.current_location?.startsWith('T'));
+    const queuedBatches = (batches ?? []).filter(batch => !batch.current_location?.startsWith('T'));
+
     return (
         <div className={styles.menu} >
-            <Receiving />
-            <h2 className={styles.section_heading}>Open a batch by batch number</h2>
-            <form onSubmit={handleSubmit} data-testid={'batchForm'} className={styles.inline_form}>
-                <input type='text' value={batchNumber} onChange={handleChange} className={styles.default_text_box} placeholder={'Batch Number'} />
-                <button type='submit' className={styles.default_button}>Submit</button>
-            </form>
-            <h2 className={styles.section_heading}>Active batches</h2>
-            {batches}
+            {editingOrder ? <EditOrderPopup order={editingOrder} openOrderPage={openOrderPage} removeBatch={removeBatch} close={() => setEditingOrder(null)} /> : <></>}
+            <div className={styles.entry_row}>
+                <Receiving />
+                <section>
+                    <h2 className={styles.section_heading}>Open a batch by batch number</h2>
+                    <form onSubmit={handleSubmit} data-testid={'batchForm'} className={styles.inline_form}>
+                        <input type='text' value={batchNumber} onChange={handleChange} className={styles.default_text_box} placeholder={'Batch Number'} />
+                        <button type='submit' className={styles.default_button}>Submit</button>
+                    </form>
+                </section>
+            </div>
+            <h2 className={styles.section_heading}>Testing (T)</h2>
+            {renderOrders(testingBatches)}
+            <h2 className={styles.section_heading}>Queued (R)</h2>
+            {renderOrders(queuedBatches)}
         </div>
     );
 }
 
-function BatchDisplay({ batch, handleButtonClick }) {
+function OrderCard({ batches, openBatch, editOrder }) {
+    const first = batches[0];
+    const receivedDate = parseDataBaseDate(first.received_timestamp);
+
+    return (
+        <div className={styles.order_card}>
+            <div className={styles.order_card_header}>
+                <h3 className={styles.order_group_title}>{`${first.customer_order_number} | Order: ${first.order_id} | ${receivedDate}`}{first.expedited ? <> | <span className={styles.red_character}>E</span></> : <></>}</h3>
+                <button className={styles.icon_button} onClick={() => editOrder(first)} aria-label={`Edit order ${first.order_id}`} title='Add or remove batches'>✎</button>
+            </div>
+            {batches.map(batch => (
+                <button key={batch.batch_id} className={styles.batch_button} onClick={() => openBatch(batch.batch_id)}>
+                    {`Batch: ${batch.batch_id} | Sensors: ${batch.sensors ? batch.sensors.length : 0} | `}
+                    <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>{`CP: ${batch.calibration_procedure_id}`}</span>
+                </button>
+            ))}
+        </div>
+    )
+}
+
+// Lists every batch on the order (not just the active ones on this page) so batches can be added or removed
+function EditOrderPopup({ order, openOrderPage, removeBatch, close }) {
+    const [batches, setBatches] = useState(null);
+    const [sensors, setSensors] = useState([]);
+    const [pendingRemoval, setPendingRemoval] = useState(null);
+
+    const load = useCallback(() => {
+        Promise.all([
+            callApi('get-batches-by-order-id', { order_id: order.order_id }),
+            callApi('get-sensors-by-order-id', { order_id: order.order_id })
+        ])
+            .then(([batches, sensors]) => {
+                setBatches(batches.sort((a, b) => a.batch_id - b.batch_id));
+                setSensors(sensors);
+            })
+            .catch(err => {
+                setBatches([]);
+                console.error(err);
+            })
+    }, [order.order_id])
+
+    useEffect(load, [load]);
+
+    const confirmRemoval = (batch, batchSensors) => {
+        removeBatch(batch, batchSensors)
+            .then(close)
+            .catch(() => setPendingRemoval(null))
+    }
+
     return (
         <>
-            <button key={batch.batch_id} className={styles.batch_button} onClick={handleButtonClick}>
-                {`Batch: ${batch.batch_id} | Sensors: ${batch.sensors ? batch.sensors.length : 0} | `}
-                <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>{`CP: ${batch.calibration_procedure_id}`}</span>
-            </button>
+            <div className={styles.popup_background} onClick={close}></div>
+            <div className={`${styles.notification_popup_container} ${styles.modal}`} role='dialog' aria-label={`Edit order ${order.order_id}`}>
+                <h2 className={styles.popup_header}>{`TO: ${order.customer_order_number} | Order: ${order.order_id}`}</h2>
+                <div className={styles.modal_body}>
+                    {!batches ? <p>Loading...</p> : batches.map(batch => {
+                        const batchSensors = sensors.filter(sensor => sensor.batch_id === batch.batch_id);
+                        const shipped = batch.current_location?.startsWith('S');
+
+                        if (pendingRemoval === batch.batch_id) {
+                            return (
+                                <div className={`${styles.modal_row} ${styles.modal_row_warning}`} key={batch.batch_id}>
+                                    <span className={styles.grow}>{`Remove batch ${batch.batch_id}?${batchSensors.length ? ` ${batchSensors.length} sensor(s) will be unassigned.` : ''}`}</span>
+                                    <button className={styles.default_button} onClick={() => setPendingRemoval(null)}>Cancel</button>
+                                    <button className={`${styles.default_button} ${styles.red}`} onClick={() => confirmRemoval(batch, batchSensors)}>Remove</button>
+                                </div>
+                            )
+                        }
+                        return (
+                            <div className={styles.modal_row} key={batch.batch_id}>
+                                <span className={styles.grow}>
+                                    {`Batch ${batch.batch_id} | `}
+                                    <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>{`CP: ${batch.calibration_procedure_id}`}</span>
+                                    {` | ${batchSensors.length} sensor(s) | ${batch.current_location ?? 'No location'}`}
+                                </span>
+                                <button className={styles.icon_button} onClick={() => openOrderPage(order, batch)} aria-label={`Edit batch ${batch.batch_id}`} title='Edit batch'>✎</button>
+                                <button className={styles.icon_button} onClick={() => setPendingRemoval(batch.batch_id)} disabled={shipped} aria-label={`Remove batch ${batch.batch_id}`} title={shipped ? 'Shipped batches cannot be removed' : 'Remove batch'}>
+                                    <img src={trashCan} alt='' className={styles.edit_order_trash} />
+                                </button>
+                            </div>
+                        )
+                    })}
+                </div>
+                <div className={styles.modal_footer}>
+                    <button className={styles.default_button} onClick={close}>Close</button>
+                    <button className={`${styles.default_button} ${styles.green}`} onClick={() => openOrderPage(order)}>Add batch</button>
+                </div>
+            </div>
         </>
     )
 }

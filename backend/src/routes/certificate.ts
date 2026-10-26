@@ -163,11 +163,9 @@ const certificateRoutes = {
         const sensorId = parseInt(req.query.sensor_id as string ?? "")
 
         try {
-            let sensors;
-            if (!sensorId)
-                sensors = await sensor.getSensorByOrderId(orderId);
-            else
-                sensors = await sensor.getSensorById(sensorId);
+            let sensors = await sensor.getSensorByOrderId(orderId);
+            if (sensorId)
+                sensors = sensors.filter((s) => s.sensor_id === sensorId);
 
             let thisOrder = await order.getOrderById(orderId);
             let customer = await misc.getCustomerById(thisOrder.customer_id);
@@ -176,7 +174,7 @@ const certificateRoutes = {
             const equip = await equipment.getEquipment(true)
 
             let certificates = await Promise.all(sensors.map((s) => {
-                return reading.getReadingsBySensorId(s.sensor_id)
+                return reading.getReadingsBySensorId(s.sensor_id, s.batch_id)
                     .then(async (readings) => {
                         if (readings.length === 0) {
                             throw new Error(`Could not find readings for sensor ${s.sensor_id}`)
@@ -258,7 +256,7 @@ const certificateRoutes = {
                         const pass = cpJson.CS5 === 'PASS'
 
                         delete cpJson.dueDate;
-                        let cert = await certificate.createCertificate({ ...certificateJson, ...cpJson }, template, sensorId, pass)
+                        let cert = await certificate.createCertificate({ ...certificateJson, ...cpJson }, template, sensorId, pass, s.batch_id)
 
 
                         let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;

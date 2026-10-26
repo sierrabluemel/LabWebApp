@@ -182,6 +182,28 @@ mark {
     margin: 0;
 }
 
+/* new order and open-a-batch side by side, stacking when narrow */
+.entry_row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+    gap: var(--space-3);
+}
+
+/* same card look as .order_card */
+.entry_row > section {
+    min-width: 0;
+    box-sizing: border-box;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg);
+}
+
+/* the page padding already spaces this row from the top */
+.entry_row .section_heading {
+    margin-top: 0;
+}
+
 .section_heading {
     font-size: 0.85rem;
     text-transform: uppercase;
@@ -245,6 +267,15 @@ mark {
 
 .testing_grid {
     display: grid;
+}
+
+/* stable times and reference sit in their own panel, apart from the sensor table */
+.testing_summary {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--surface);
+    padding: var(--space-2) var(--space-2) 0;
+    margin-bottom: var(--space-4);
 }
 
 /* set point buttons stay visible while scrolling long batches; .App is the scroller, under the fixed header */
@@ -366,6 +397,135 @@ mark {
 .order_group_title {
     font-size: 0.95rem;
     margin: 0;
+}
+
+.order_card_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.icon_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.icon_button:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    border-color: var(--border);
+    color: var(--primary);
+}
+
+.icon_button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.icon_button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* doubled class so it wins over .notification_popup_container, which comes later in this file */
+.notification_popup_container.modal {
+    width: min(640px, 92vw);
+    height: auto;
+    max-height: 76vh;
+    left: 50%;
+    top: 12vh;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    text-align: left;
+}
+
+/* app-wide message popup always sits above any other open popup */
+.popup_background.message_popup {
+    z-index: 1010;
+}
+
+.notification_popup_container.message_popup {
+    z-index: 1011;
+    top: 20vh;
+    width: min(480px, 92vw);
+}
+
+.message_popup_text {
+    white-space: pre-line;
+}
+
+.modal_footer {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4) var(--space-3);
+    border-top: 1px solid var(--border);
+}
+
+.modal_footer > .default_button {
+    width: auto;
+    min-width: 110px;
+    margin: 0;
+}
+
+.modal_footer > .default_button:only-child {
+    margin-left: auto;
+}
+
+.modal > .popup_header {
+    margin: 0;
+    font-size: 1.05rem;
+    text-align: center;
+}
+
+.modal_body {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+}
+
+.modal_row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg);
+}
+
+.modal_row > .default_button {
+    width: auto;
+    margin: 0;
+}
+
+.modal_row > .dropdown {
+    margin: 0;
+}
+
+.modal_row_warning {
+    background-color: var(--danger-soft);
+    border-color: var(--danger);
+}
+
+.edit_order_trash {
+    width: 18px;
+    height: 18px;
 }
 
 .admin_grid {
@@ -967,6 +1127,36 @@ mark {
     padding: var(--space-4);
 }
 
+/* single-column form pages read better narrow */
+.narrow_menu {
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+}
+
+/* card footer buttons, right aligned */
+.card_actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+.card_actions > .default_button {
+    width: auto;
+    min-width: 110px;
+    margin: 0;
+}
+
+.empty_state {
+    padding: var(--space-3);
+    text-align: center;
+    color: var(--text-muted);
+    background-color: var(--surface-alt);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+}
+
 .subsection {
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -1238,32 +1428,10 @@ mark {
     overflow: hidden;
 }
 
-.confirmation_popup {
-    width: 50%;
-    height: 30%;
-    left: 25vw;
-}
-
 .popup_header {
     background-color: var(--sidebar);
     padding: 12px;
     color: var(--text-inverse);
-}
-
-#popup_close {
-    position: absolute;
-    left: 12px;
-    bottom: 8px;
-    width: auto;
-    min-width: 110px;
-}
-
-#popup_confirm {
-    position: absolute;
-    right: 12px;
-    bottom: 8px;
-    width: auto;
-    min-width: 110px;
 }
 
 .repeat_text {

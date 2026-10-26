@@ -161,24 +161,13 @@ const sensorRoutes = {
                 res.json(result);
             })
             .catch((err) => {
-                if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
-                    sensor.setBatchId(sensorId, batchId)
-                        .then((result) => {
-                            res.json(result);
-                        })
-                        .catch((err) => {
-                            console.error(err);
-                            res.status(500).json({ error: `Error creating sensor` });
-                        })
-                } else {
-                    console.error(err);
-                    res.json({ error: `Error creating sensor` });
-                }
+                console.error(err);
+                res.status(500).json({ error: `Could not add sensor ${sensorId} in iMonnit` });
             });
     },
     changeSensorHeartbeat: (req: Request, res: Response) => {
         let sensorId = req.query.sensor_id;
-        let reportInterval = parseInt(req.query.heartbeat as string ?? "");
+        let reportInterval = parseFloat(req.query.heartbeat as string ?? "");
         if (isNaN(reportInterval)) {
             res.json({ Result: 'Heartbeat must be a number' })
             return
@@ -224,8 +213,13 @@ const sensorRoutes = {
     },
     removeSensorFromBatch: (req: Request, res: Response) => {
         const sensorId = parseInt(req.query.sensor_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
 
-        sensor.removeFromBatch(sensorId)
+        if (isNaN(sensorId) || isNaN(batchId)) {
+            return res.status(400).json({ error: "Sensor id and batch id are required." });
+        }
+
+        sensor.removeFromBatch(sensorId, batchId)
             .then(() => {
                 res.json({ Result: 'Sensor successfully removed from batch' });
             })

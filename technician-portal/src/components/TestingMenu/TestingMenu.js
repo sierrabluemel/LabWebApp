@@ -17,6 +17,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
 
     const [stableTimeStrings, setStableTimeStrings] = useState(setPoints.map(() => 'Loading...'));
     const [stableTimes, setStableTimes] = useState([]);
+    const [referenceReadings, setReferenceReadings] = useState([]);
 
     const [loadingMessage, setLoadingMessage] = useState('Loading...');
     const refreshed = useRef(false);
@@ -176,13 +177,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         </div>
                     );
                 })
-                newSensorGrid.unshift(
-                    <div className={elementClass} key={'50'}>
-                        <div className={`${styles.grid_entry} ${styles.double_span}`}>Reference</div>
-                        {setPoints.map((setPoint, index) => {
-                            return <div className={styles.grid_entry} key={index}>{tempReferenceReadings[`setPoint${index}`]}</div>
-                        })}
-                    </div>)
+                setReferenceReadings(setPoints.map((setPoint, index) => tempReferenceReadings[`setPoint${index}`]));
                 setSensorGrid(newSensorGrid);
             })
     };
@@ -443,18 +438,30 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
         };
 
         menu = (
-            <div className={styles.testing_grid}>
-                <div className={gridRowStyle}>
-                    <Button className={`${styles.default_button} ${styles.red}`} onClick={selectSensor} innerText='Clear selection' />
-                    <div className={styles.grid_entry}>Current reading</div>
-                    {setPointButtons}
-                    <div className={`${styles.grid_entry} ${styles.double_span}`}>Stable times</div>
-                    {stableTimeStrings.map((stableTime, index) => {
-                        return <StableTimeDisplay stableTime={stableTime} key={index} />;
-                    })}
+            <>
+                <div className={styles.testing_summary}>
+                    <div className={gridRowStyle}>
+                        <div className={`${styles.grid_entry} ${styles.double_span}`}>Stable times</div>
+                        {stableTimeStrings.map((stableTime, index) => {
+                            return <StableTimeDisplay stableTime={stableTime} key={index} />;
+                        })}
+                    </div>
+                    <div className={gridRowStyle}>
+                        <div className={`${styles.grid_entry} ${styles.double_span}`}>Reference</div>
+                        {setPoints.map((setPoint, index) => {
+                            return <div className={styles.grid_entry} key={index}>{referenceReadings[index] || 'None found'}</div>
+                        })}
+                    </div>
                 </div>
-                {sensorGrid}
-            </div>
+                <div className={styles.testing_grid}>
+                    <div className={gridRowStyle}>
+                        <div className={styles.grid_entry}>Sensor ID</div>
+                        <div className={styles.grid_entry}>Current reading</div>
+                        {setPointButtons}
+                    </div>
+                    {sensorGrid}
+                </div>
+            </>
         )
     }
 

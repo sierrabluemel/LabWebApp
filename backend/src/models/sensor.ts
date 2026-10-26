@@ -9,16 +9,6 @@ const sensor = {
                 API_SENSOR
         `, []);
     },
-    getSensorById: (sensorId: number) => {
-        return executeQuery(pool, `
-            SELECT
-                *
-            FROM
-                api_sensor
-            WHERE
-                sensor_id = $1
-        `, [sensorId]);
-    },
     getActiveSensors: () => {
         return executeQuery(pool, `
             SELECT
@@ -43,22 +33,12 @@ const sensor = {
                 )
             VALUES
                 ($1, $2, $3, $4, $5)
+            -- A sensor gets one row per batch; re-adding it to the same batch returns the existing row
+            ON CONFLICT (sensor_id, batch_id) DO UPDATE SET
+                batch_id = EXCLUDED.batch_id
             RETURNING
                 *
         `, [sensorId, checkDigit, manufacturer, sku, batchId])
-    },
-    setBatchId: (sensorId: number, batchId: number) => {
-        return executeQuerySingleReturn(pool, `
-            UPDATE api_sensor
-            SET
-                batch_id = $1,
-                cable_id = NULL,
-                cable_sku = NULL
-            WHERE
-                sensor_id = $2
-            RETURNING
-                *
-        `, [batchId, sensorId]);
     },
     getSensorsByBatchId: (batchId: number) => {
         return executeQuery(pool, `
@@ -81,23 +61,25 @@ const sensor = {
                 API_BATCH.ORDER_ID = $1;
         `, [orderId]);
     },
-    removeFromBatch: (sensorId: number) => {
+    removeFromBatch: (sensorId: number, batchId: number) => {
         return executeNonQuery(pool, `
             UPDATE API_SENSOR
             SET
                 BATCH_ID = NULL
             WHERE
-                SENSOR_ID = $1;
-        `, [sensorId])
+                SENSOR_ID = $1
+                AND BATCH_ID = $2;
+        `, [sensorId, batchId])
     },
     addCableToSensor: (sensorId: number, cableId: number, cableSku: string) => {
+        // shortcut: cables are scanned while the sensor is in its newest batch, so the latest row is updated; pass batch_id if cables get edited on older batches
         return executeNonQuery(pool, `
             UPDATE api_sensor
             SET
                 cable_id = $1,
                 cable_sku = $2
             WHERE
-                sensor_id = $3;
+                id = (SELECT MAX(id) FROM api_sensor WHERE sensor_id = $3);
         `, [cableId, cableSku, sensorId])
     },
 };

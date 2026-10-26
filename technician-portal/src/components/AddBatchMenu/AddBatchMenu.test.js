@@ -23,6 +23,11 @@ beforeEach(() => {
                 return Promise.resolve({ data: { Result: 'success' } })
             case api('get-online-sensors'):
                 return Promise.resolve({ data: { online_sensors: [], order_sensors: [] } })
+            case api('get-sensors'):
+                return Promise.resolve({ data: [{ sensor_id: 111, check_digit: 'ABC', cable_id: null }] })
+            case api('get-batch-by-id'):
+                return Promise.resolve({ data: { batch_id: 3000, current_location: 'R1' } })
+            case api('remove-sensor-from-batch'):
             case api('delete-batch'):
             case api('log-batch-interaction'):
             case api('set-batch-active-state'):
@@ -39,7 +44,7 @@ const renderMenu = (sharedState = {}, props = {}) => {
     const state = { setPopupMessage: jest.fn(), technicianId: 1, ...sharedState }
     render(
         <AppWrapper sharedState={state} >
-            <AddBatchMenu batchNumber={3000} orderId={7} batches={[]} setBatches={jest.fn()} {...props} />
+            <AddBatchMenu batchNumber={3000} orderId={7} setBatches={jest.fn()} {...props} />
         </AppWrapper>
     )
     return state
@@ -169,15 +174,37 @@ test('get all leads reports sensors without a cable', async () => {
     expect(state.setPopupMessage).toBeCalledWith('Leads added for 0 of 1 sensors. No cable on: 12345')
 })
 
-test('removing batch creates popup and removes batch', async () => {
+test('cancel removes the batch right away and drops only its card', async () => {
     const setBatches = jest.fn()
     renderMenu({}, { setBatches })
     await act(async () => {
-        fireEvent.click(screen.getByText(/remove batch/i))
-    })
-    await act(async () => {
-        fireEvent.click(screen.getByText(/confirm/i))
+        fireEvent.click(screen.getByText('Cancel'))
     })
     calledWithParams('delete-batch', { batch_id: 3000 })
-    expect(setBatches).toBeCalledWith([])
+    const update = setBatches.mock.calls[0][0]
+    expect(update([{ batch_id: 3000 }, { batch_id: 3001 }])).toEqual([{ batch_id: 3001 }])
+})
+
+test('preload shows the sensors and location the batch already has', async () => {
+    await act(async () => {
+        renderMenu({}, { preload: true })
+    })
+    calledWithParams('get-sensors', { batch_id: 3000 })
+    expect(screen.getByText('111')).toBeInTheDocument()
+    expect(screen.getByText('Current location: R1')).toBeInTheDocument()
+})
+
+test('without preload nothing is fetched up front', async () => {
+    await act(async () => {
+        renderMenu()
+    })
+    expect(mockAxios.get).not.toBeCalledWith(api('get-sensors'), expect.anything())
+    expect(screen.getByText('Current location: No location set')).toBeInTheDocument()
+})
+
+test('hideCancel leaves the cancel button out of the card', async () => {
+    await act(async () => {
+        renderMenu({}, { hideCancel: true })
+    })
+    expect(screen.queryByText('Cancel')).toBeNull()
 })

@@ -13,11 +13,13 @@ function ErrorMessage() {
 
   return (
     <>
-      <div className={styles.popup_background} onClick={() => setPopupMessage('')}>
+      <div className={`${styles.popup_background} ${styles.message_popup}`} onClick={() => setPopupMessage('')}>
       </div>
-      <div className={styles.notification_popup_container}>
-        <h1 className={styles.title}>{popupMessage}</h1>
-        <button className={styles.default_button} id={styles.popup_confirm} onClick={() => setPopupMessage('')}>Close</button>
+      <div className={`${styles.notification_popup_container} ${styles.modal} ${styles.message_popup}`} role='alertdialog' aria-label={popupMessage}>
+        <h2 className={`${styles.popup_header} ${styles.message_popup_text}`}>{popupMessage}</h2>
+        <div className={styles.modal_footer}>
+          <button className={styles.default_button} onClick={() => setPopupMessage('')}>Close</button>
+        </div>
       </div>
     </>
   )

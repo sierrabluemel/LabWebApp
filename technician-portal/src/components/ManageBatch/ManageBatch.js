@@ -30,6 +30,8 @@ function ManageBatch() {
     const [referencesToVerify, setReferencesToVerify] = useState([]);
     const referenceStrings = useRef([])
     const [calibrationProcedureDescription, setCalibrationProcedureDescription] = useState('');
+    const [removeConfirmation, setRemoveConfirmation] = useState([]);
+    const sensorToRemove = useRef(null);
 
     useEffect(() => {
         if (!isMounted.current) {
@@ -127,6 +129,7 @@ function ManageBatch() {
 
     const handleLocationSubmit = (event) => {
         event.preventDefault();
+        setPopupMessage(`Moving batch ${batchNumber} to ${location}...`);
         setBatchLocation(location, technicianId, batchNumber)
             .then(error => {
                 if (!error) {
@@ -147,37 +150,54 @@ function ManageBatch() {
         setSensor(event.target.value.toUpperCase());
     }
 
+    const removeSensor = () => {
+        const [sensorId, checkDigit] = sensorToRemove.current;
+        callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
+            .then(() => callApi('remove-sensor-from-batch', { sensor_id: sensorId, batch_id: batchNumber }))
+            .then(response => {
+                setPopupMessage(response.Result);
+                setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
+            })
+            .catch(err => {
+                setPopupMessage(`Could not remove sensor ${sensorId} from iMonnit`)
+                console.error(err)
+            })
+    }
+
     const handleSensorSubmit = (event) => {
         event.preventDefault()
-        const [sensorId, checkDigit] = parseSensorString(sensor);
-        if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
-            callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
-                .then(() => {
-                    callApi('remove-sensor-from-batch', { sensor_id: sensorId })
-                        .then(response => {
-                            setPopupMessage(response.Result);
-                            setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
-                        })
-                })
-                .catch(err => {
-                    setPopupMessage(`Could not remove sensor ${sensorId} from iMonnit`)
-                    console.error(err)
-                })
-        } else {
-            callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })
-                .then(response => {
-                    if (response.sensor_id !== sensorId) {
-                        setPopupMessage(response.Result);
-                        return;
-                    }
-                    return callApi('get-sensors', { 'batch_id': batchNumber })
-                })
-                .then(data => {
-                    setSensorList(data);
-                    setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
-                })
-        }
         setSensor('')
+        let sensorId, checkDigit;
+        try {
+            [sensorId, checkDigit] = parseSensorString(sensor);
+        } catch (error) {
+            setPopupMessage(`"${sensor}": ${error.message}`);
+            return;
+        }
+        if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
+            // Scanning a sensor already in the batch removes it, so confirm in case it was a double scan
+            sensorToRemove.current = [sensorId, checkDigit];
+            setRemoveConfirmation([`Sensor ${sensorId} is already in this batch. Remove it?`]);
+            return;
+        }
+        callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })
+            .then(response => {
+                if (response.sensor_id !== sensorId)
+                    return Promise.reject(new Error(response.error));
+                // A sensor added mid-test has to join the testing networks and heartbeat like the rest of the batch
+                if (currentLocation?.startsWith('T'))
+                    return callApi('move-batch-to-network-group', { batch_id: batchNumber, network_group: 'testing', heartbeat: 0.05 })
+                        .then(() => callApi('change-sensor-heartbeat', { sensor_id: sensorId, heartbeat: 0.05 }))
+            })
+            .then(() => callApi('get-sensors', { 'batch_id': batchNumber }))
+            .then(data => {
+                setSensorList(data);
+                setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
+            })
+            .catch(err => {
+                setPopupMessage(err.response?.data?.error ?? err.message ?? `Could not add sensor ${sensorId}`);
+                console.error(err)
+            })
     }
 
     const printWorkOrder = () => {
@@ -189,6 +209,7 @@ function ManageBatch() {
         <>
             <div className={styles.menu}>
                 <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />
+                <ConfirmationPopup confirmationArray={removeConfirmation} setConfirmationArray={setRemoveConfirmation} handleConfirm={removeSensor} confirmText={'Remove'} />
                 <div className={styles.toolbar}>
                     <img className={styles.back_arrow_image} onClick={() => navigate('/batchEntry')} src={backArrow} alt="Back button" />
                     <h1 className={styles.title}>{`${customerOrderNumber} | Batch: ${batchNumber} | ${currentLocation ? `Current location: ${currentLocation}` : `No location set`}`}</h1>

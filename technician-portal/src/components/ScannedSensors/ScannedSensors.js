@@ -62,11 +62,7 @@ const ScannedSensors = ({ sensorList }) => {
         );
     } else {
         return (
-            <div>
-                <div className={styles.grid_menu}>
-                    <div className={`${styles.offline_sensor} ${styles.double_span}`}>No sensors scanned</div>
-                </div>
-            </div>
+            <div className={styles.empty_state}>No sensors scanned</div>
         );
     }
 };
