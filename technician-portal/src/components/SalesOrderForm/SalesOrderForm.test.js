@@ -27,9 +27,12 @@ beforeEach(() => {
             case `http://${ip}/api/create-order/`:
                 return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test' }] })
             case `http://${ip}/api/get-active-sensors/`:
+            case `http://${ip}/api/get-calibration-procedures/`:
                 return Promise.resolve({ data: [] })
+            case `http://${ip}/api/log-batch-interaction/`:
+                return Promise.resolve({ data: {} })
             default:
-                return Promise.reject();
+                return Promise.reject({ response: { status: 500 } });
         }
     });
 })
@@ -38,7 +41,7 @@ test('Receiving renders successfully', async () => {
     await act(async () => {
         render(
             <AppWrapper sharedState={{
-                salesOrder: 1, technicianId: 1, setConfirmationMessage: jest.fn(),
+                salesOrder: 1, technicianId: 1, setSalesOrder: jest.fn(), setOrder: jest.fn(),
                 setPopupMessage: jest.fn(), order: 1
             }}>
                 <SalesOrderForm />
@@ -53,7 +56,7 @@ test('Receiving renders loading when no order is present', async () => {
     await act(async () => {
         render(
             <AppWrapper sharedState={{
-                salesOrder: 1, technicianId: 1, setConfirmationMessage: jest.fn(),
+                salesOrder: 1, technicianId: 1, setSalesOrder: jest.fn(), setOrder: jest.fn(),
                 setPopupMessage: jest.fn(), order: null
             }}>
                 <SalesOrderForm />
@@ -64,20 +67,46 @@ test('Receiving renders loading when no order is present', async () => {
     expect(loading).toBeInTheDocument()
 })
 
-test('submitting order creates log', async () => {
+const completeOrder = async () => {
+    const sharedState = {
+        salesOrder: 'SO1', setSalesOrder: jest.fn(), technicianId: 1,
+        setPopupMessage: jest.fn(), order: 1, setOrder: jest.fn()
+    }
     await act(async () => {
         render(
-            <AppWrapper sharedState={{
-                salesOrder: 1, technicianId: 1, setConfirmationMessage: jest.fn(),
-                setPopupMessage: jest.fn(), order: 1
-            }}>
+            <AppWrapper sharedState={sharedState}>
                 <SalesOrderForm />
             </AppWrapper>
         )
     })
-    const submitButton = screen.getByText(/complete sales order/i)
     await act(async () => {
-        fireEvent.click(submitButton)
+        fireEvent.click(screen.getByText(/complete sales order/i))
     })
-    expect(mockedUseNavigate).toBeCalledWith('/confirmation')
+    return sharedState
+}
+
+test('completing order shows popup instead of navigating', async () => {
+    await completeOrder()
+    expect(screen.getByText(/order 1 \(SO1\) created/i)).toBeInTheDocument()
+    expect(mockedUseNavigate).not.toBeCalled()
+})
+
+test('"Go to testing" clears the order and navigates to batch list', async () => {
+    const state = await completeOrder()
+    await act(async () => {
+        fireEvent.click(screen.getByText(/go to testing/i))
+    })
+    expect(state.setOrder).toBeCalledWith(null)
+    expect(state.setSalesOrder).toBeCalledWith('')
+    expect(mockedUseNavigate).toBeCalledWith('/batchEntry', { state: { focusNewOrder: false } })
+})
+
+test('"Add another order" clears the order and focuses the new order box', async () => {
+    const state = await completeOrder()
+    await act(async () => {
+        fireEvent.click(screen.getByText(/add another order/i))
+    })
+    expect(state.setOrder).toBeCalledWith(null)
+    expect(state.setSalesOrder).toBeCalledWith('')
+    expect(mockedUseNavigate).toBeCalledWith('/batchEntry', { state: { focusNewOrder: true } })
 })

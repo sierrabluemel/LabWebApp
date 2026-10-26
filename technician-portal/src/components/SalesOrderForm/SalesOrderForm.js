@@ -6,6 +6,7 @@ import { useAppContext } from "../../contexts/app";
 import callApi from "../../utils/api/callApi";
 import AddBatchMenu from "../AddBatchMenu/AddBatchMenu";
 import DropDown from "../DropDown/DropDown";
+import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 import styles from "../../styles/styles.module.css";
 import addWorkDays from "../../utils/addWorkDays";
@@ -13,11 +14,12 @@ import addWorkDays from "../../utils/addWorkDays";
 function SalesOrderForm() {
     const navigate = useNavigate();
     const {
-        salesOrder, technicianId, setConfirmationMessage,
-        setPopupMessage, order, expedited
+        salesOrder, setSalesOrder, technicianId,
+        setPopupMessage, order, setOrder, expedited
     } = useAppContext()
 
     const [batches, setBatches] = useState([]);
+    const [doneMessage, setDoneMessage] = useState([]);
     const [calibrationProcedures, setCalibrationProcedures] = useState([])
     const [selectedOption, setSelectedOption] = useState('');
     const [batchDisplay, setBatchDisplay] = useState(null);
@@ -63,8 +65,13 @@ function SalesOrderForm() {
                     console.error(error);
                 })
         }
-        setConfirmationMessage(`Order: ${order} was created successfully`);
-        navigate('/confirmation');
+        setDoneMessage([`Order ${order} (${salesOrder}) created`]);
+    }
+
+    const finish = (focusNewOrder) => {
+        setOrder(null);
+        setSalesOrder('');
+        navigate('/batchEntry', { state: { focusNewOrder } });
     }
 
     if (!order) {
@@ -75,6 +82,14 @@ function SalesOrderForm() {
 
     return (
         <div className={styles.menu}>
+                <ConfirmationPopup
+                    confirmationArray={doneMessage}
+                    setConfirmationArray={setDoneMessage}
+                    handleConfirm={() => finish(false)}
+                    handleDismiss={() => finish(true)}
+                    confirmText={'Go to testing'}
+                    dismissText={'Add another order'}
+                />
                 <h1 className={styles.title}>{salesOrder} | Order due: {dueDate.current ? dueDate.current : 'Loading...'}</h1>
                 <DropDown
                     options={calibrationProcedures}

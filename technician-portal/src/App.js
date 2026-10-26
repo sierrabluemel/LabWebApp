@@ -14,7 +14,6 @@ import Metrics from './components/Metrics/Metrics';
 import NavigationMenu from './components/NavigationMenu.js/NavigationMenu.js';
 import OrderEntry from './components/OrderEntry/OrderEntry';
 import PageNotFound from './components/PageNotFound/PageNotFound';
-import Receiving from './components/Receiving/Receiving';
 import SalesOrderForm from './components/SalesOrderForm/SalesOrderForm';
 import Shipping from './components/Shipping/Shipping';
 import SignInMenu from './components/SignInMenu/SignInMenu';
@@ -91,7 +90,6 @@ function App() {
                 <Route path='/metrics' element={<Metrics />} />
                 <Route path='/orderEntry' element={<OrderEntry />} />
 
-                <Route path='/receiving' element={<Receiving />} />
                 <Route path='/shipping' element={<Shipping />} />
                 <Route path='/signIn' element={<SignInMenu />} />
 

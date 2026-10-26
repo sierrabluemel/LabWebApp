@@ -8,75 +8,72 @@ import ip from '../../utils/ip/ip';
 jest.mock('axios')
 jest.spyOn(global.console, 'error').mockImplementation(() => { });
 
+const api = (endPoint) => `http://${ip}/api/${endPoint}/`
+const calledWithParams = (endPoint, params) =>
+    expect(mockAxios.get).toBeCalledWith(api(endPoint), expect.objectContaining({ params }))
+
 beforeEach(() => {
     jest.clearAllMocks()
 
     mockAxios.get.mockImplementation(url => {
         switch (url) {
-            case `http://${ip}/api/create-sensor/`:
-                return Promise.resolve({ data: [{ sensor_id: 1 }] })
-            case `http://${ip}/api/create-location-log/`:
+            case api('create-sensor'):
+                return Promise.resolve({ data: { sensor_id: 12345 } })
+            case api('create-location-log'):
                 return Promise.resolve({ data: { Result: 'success' } })
-            case `http://${ip}/api/get-online-sensors/`:
-                return Promise.resolve({ data: [12345] })
-            case `http://${ip}/api/delete-batch/`:
-                return Promise.resolve({ data: [12345] })
+            case api('get-online-sensors'):
+                return Promise.resolve({ data: { online_sensors: [], order_sensors: [] } })
+            case api('delete-batch'):
+            case api('log-batch-interaction'):
+            case api('set-batch-active-state'):
+            case api('move-batch-to-network-group'):
+            case api('change-batch-heartbeats'):
+                return Promise.resolve({ data: {} })
             default:
-                return Promise.reject()
+                return Promise.reject({ response: { status: 500 } })
         }
     });
 })
 
-const inputSensor = async () => {
-    const mockSensor = '12345:ABCDE'
-    const addSensorBox = screen.getByPlaceholderText(/sensor id:check digit/i)
-    const addSensorForm = screen.getByTestId('addSensorForm')
-    expect(addSensorBox).toBeInTheDocument()
-    expect(addSensorForm).toBeInTheDocument()
+const renderMenu = (sharedState = {}, props = {}) => {
+    const state = { setPopupMessage: jest.fn(), technicianId: 1, ...sharedState }
+    render(
+        <AppWrapper sharedState={state} >
+            <AddBatchMenu batchNumber={3000} orderId={7} batches={[]} setBatches={jest.fn()} {...props} />
+        </AppWrapper>
+    )
+    return state
+}
+
+const inputSensor = async (mockSensor = '12345:ABCDE') => {
+    const addSensorBox = screen.getByPlaceholderText(/scan sensor/i)
     expect(addSensorBox).toHaveValue('')
     fireEvent.change(addSensorBox, { target: { value: mockSensor } })
     expect(addSensorBox).toHaveValue(mockSensor)
-    const form = screen.getByTestId('addSensorForm')
     await act(async () => {
-        fireEvent.submit(form)
+        fireEvent.submit(screen.getByTestId('addSensorForm'))
     })
 }
 
 const inputLocation = async (location) => {
     const locationBox = screen.getByPlaceholderText(/location/i)
-    const locationForm = screen.getByTestId('setLocationForm')
-    expect(locationBox).toBeInTheDocument()
-    expect(locationForm).toBeInTheDocument()
     expect(locationBox).toHaveValue('')
     fireEvent.change(locationBox, { target: { value: location } })
     expect(locationBox).toHaveValue(location.toUpperCase())
-    const form = screen.getByTestId('setLocationForm')
     await act(async () => {
-        fireEvent.submit(form)
+        fireEvent.submit(screen.getByTestId('setLocationForm'))
     })
 }
 
 test('AddBatchMenu renders successfully', () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu />
-        </AppWrapper>
-    )
-
-    const currentLocation = screen.getByText(/current location/i)
-    expect(currentLocation).toBeInTheDocument()
+    renderMenu()
+    expect(screen.getByText(/current location/i)).toBeInTheDocument()
 })
 
 it('should toggle menu on button click', () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu />
-        </AppWrapper>
-    )
-
+    renderMenu()
     const hideButton = screen.getByText(/calibration procedure:/i)
     let currentLocation = screen.getByText(/current location/i)
-    expect(hideButton).toBeInTheDocument()
 
     fireEvent.click(hideButton)
     const showButton = screen.getByText(/calibration procedure:/i)
@@ -85,115 +82,102 @@ it('should toggle menu on button click', () => {
 
     fireEvent.click(showButton)
     expect(showButton).not.toBeInTheDocument()
-    currentLocation = screen.getByText(/current location/i)
-    expect(currentLocation).toBeInTheDocument()
+    expect(screen.getByText(/current location/i)).toBeInTheDocument()
 })
 
-test('adding sensor without technicianId causes error', async () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: null }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
-    await inputSensor()
+test('invalid scan shows the parse error and does not call api', async () => {
+    const state = renderMenu()
+    await inputSensor('12345')
+    expect(state.setPopupMessage).toBeCalledWith('"12345": No check digit found')
+    expect(screen.getByPlaceholderText(/scan sensor/i)).toHaveValue('')
+    expect(mockAxios.get).not.toBeCalled()
 })
 
-test('adding valid sensor twice with technicianId adds only 1', async () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
+test('adding valid sensor twice adds only 1', async () => {
+    const state = renderMenu()
     await inputSensor()
     await inputSensor()
-    const sensorListItem = screen.getByText('12345:ABCDE')
-    expect(sensorListItem).toBeInTheDocument()
+    expect(screen.getByText('12345')).toBeInTheDocument()
+    expect(screen.getByText(/total sensors: 1/i)).toBeInTheDocument()
+    expect(state.setPopupMessage).toBeCalledWith('Sensor "12345" is already in this batch')
+    calledWithParams('create-sensor', { batch_id: 3000, check_digit: 'ABCDE', sensor_id: 12345 })
     expect(mockAxios.get).toBeCalledTimes(1)
 })
 
-test('adding invalid sensor gets rejected', async () => {
-    mockAxios.get.mockImplementation(Promise.resolve({ data: [{ sensor_id: null }] }))
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
+test('sensor rejected by api is removed from the list', async () => {
+    mockAxios.get.mockImplementation(() => Promise.resolve({ data: { sensor_id: null } }))
+    const state = renderMenu()
     await inputSensor()
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/create-sensor/", { "params": { "batch_id": 3000, "check_digit": "ABCDE", "sensor_id": "12345" } })
+    calledWithParams('create-sensor', { batch_id: 3000, check_digit: 'ABCDE', sensor_id: 12345 })
+    expect(state.setPopupMessage).toBeCalledWith('Sensor "12345" could not be added')
+    expect(screen.getByText(/no sensors scanned/i)).toBeInTheDocument()
 })
 
-test('submitting location without location doesn\'t call api', async () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
+test('submitting empty location doesn\'t call api', async () => {
+    renderMenu()
     await inputLocation('')
     expect(mockAxios.get).toBeCalledTimes(0)
 })
 
-test('submitting location starting with "R" creates location log and logs receving', async () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
+test('submitting location starting with "R" creates location log and ends receiving', async () => {
+    renderMenu()
     await inputLocation('R-STD')
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/create-location-log/", { "params": { "batch_id": 3000, "location": "R-STD" } })
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/log-batch-interaction/", { "params": { "department": "receiving", "start": false, "technician_id": 1, "batch_id": 3000 } })
+    calledWithParams('create-location-log', { batch_id: 3000, location: 'R-STD' })
+    calledWithParams('log-batch-interaction', { department: 'receiving', start: false, technician_id: 1, batch_id: 3000 })
 })
 
-test('submitting location starting with "T" creates location log and logs testing', async () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
+test('submitting location starting with "T" creates location log and starts testing', async () => {
+    renderMenu()
     await inputLocation('T-STD')
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/create-location-log/", { "params": { "batch_id": 3000, "location": "T-STD" } })
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/log-batch-interaction/", { "params": { "department": "testing", "start": true, "technician_id": 1, "batch_id": 3000 } })
+    calledWithParams('create-location-log', { batch_id: 3000, location: 'T-STD' })
+    calledWithParams('log-batch-interaction', { department: 'testing', start: true, technician_id: 1, batch_id: 3000 })
 })
 
-test('invalid location does not create log', async () => {
-    mockAxios.get.mockImplementation(() => Promise.resolve({ data: { error: 'test error' } }))
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
+test('invalid location shows popup and does not create log', async () => {
+    const state = renderMenu()
     await inputLocation('my test')
-    expect(mockAxios.get).toBeCalledTimes(1)
+    expect(mockAxios.get).not.toBeCalled()
+    expect(state.setPopupMessage).toBeCalledWith('The batch was not moved successfully')
 })
 
-test('checkStatus called after 4 seconds', async () => {
+test('checkStatus polls online sensors for the order', async () => {
     jest.useFakeTimers();
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} />
-        </AppWrapper>
-    )
-    await inputSensor()
-    await inputSensor()
+    renderMenu()
     await act(async () => {
         jest.advanceTimersByTime(4000);
     })
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/get-online-sensors/", { "params": undefined })
+    calledWithParams('get-online-sensors', { order_id: 7 })
+    jest.useRealTimers();
+})
+
+test('get all leads reports sensors without a cable', async () => {
+    mockAxios.get.mockImplementation(url => {
+        switch (url) {
+            case api('create-sensor'):
+                return Promise.resolve({ data: { sensor_id: 12345 } })
+            case api('get-sensor-cable-id'):
+                return Promise.reject({ response: { status: 509 } })
+            default:
+                return Promise.reject({ response: { status: 500 } })
+        }
+    });
+    const state = renderMenu()
+    await inputSensor()
+    await act(async () => {
+        fireEvent.click(screen.getByText(/get all leads/i))
+    })
+    expect(state.setPopupMessage).toBeCalledWith('Leads added for 0 of 1 sensors. No cable on: 12345')
 })
 
 test('removing batch creates popup and removes batch', async () => {
-    render(
-        <AppWrapper sharedState={{ setPopupMessage: () => jest.fn(), technicianId: 1 }} >
-            <AddBatchMenu batchNumber={3000} batches={[]} setBatches={jest.fn()} />
-        </AppWrapper>
-    )
-    await inputSensor()
-    const removeButton = screen.getByText(/remove batch/i)
+    const setBatches = jest.fn()
+    renderMenu({}, { setBatches })
     await act(async () => {
-        fireEvent.click(removeButton)
+        fireEvent.click(screen.getByText(/remove batch/i))
     })
-    const confirmButton = screen.getByText(/confirm/i)
     await act(async () => {
-        fireEvent.click(confirmButton)
+        fireEvent.click(screen.getByText(/confirm/i))
     })
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/delete-batch/", { "params": { "batch_id": 3000 } })
+    calledWithParams('delete-batch', { batch_id: 3000 })
+    expect(setBatches).toBeCalledWith([])
 })

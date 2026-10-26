@@ -6,12 +6,13 @@ import callApi from "../../utils/api/callApi";
 
 import styles from "../../styles/styles.module.css";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
+import Receiving from "../Receiving/Receiving";
 
 function BatchEntry() {
     const navigate = useNavigate();
     const {
         batchNumber, setBatchNumber, setSensorList, setProcedureId,
-        technicianId, sensorGrid, setSensorGrid, setCustomerOrderNumber
+        technicianId, sensorGrid, setSensorGrid, setCustomerOrderNumber, setPopupMessage
     } = useAppContext()
 
     const [batches, setBatches] = useState([<h1 className={styles.title} key={'fillerKey'}>Loading...</h1>]);
@@ -28,6 +29,14 @@ function BatchEntry() {
     }
 
     const navigateToBatch = useCallback((batch_id) => {
+        if (!technicianId) {
+            setPopupMessage('Please sign in');
+            return;
+        }
+        if (isNaN(batch_id)) {
+            setPopupMessage('Enter a batch number');
+            return;
+        }
         callApi('get-batch-by-id', { 'batch_id': batch_id })
             .then(batch => {
                 setBatchNumber(batch.batch_id);
@@ -43,7 +52,7 @@ function BatchEntry() {
                         navigate('/manageBatch');
                     })
             })
-    }, [navigate, setBatchNumber, setCustomerOrderNumber, setProcedureId, setSensorList, technicianId])
+    }, [navigate, setBatchNumber, setCustomerOrderNumber, setProcedureId, setSensorList, setPopupMessage, technicianId])
 
     const handleSubmit = (event) => {
         event.preventDefault()
@@ -107,6 +116,8 @@ function BatchEntry() {
 
     return (
         <div className={styles.menu} >
+            <Receiving />
+            <hr />
             <form onSubmit={handleSubmit} data-testid={'batchForm'} >
                 <input type='text' value={batchNumber} onChange={handleChange} className={styles.default_text_box} placeholder={'Batch Number'} />
                 <button type='submit' className={styles.default_button}>Submit</button>

@@ -26,10 +26,16 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
         event.preventDefault();
         if (!sensorString)
             return;
-        const [sensorId, checkDigit] = parseSensorString(sensorString);
+        setSensorString('');
+        let sensorId, checkDigit;
+        try {
+            [sensorId, checkDigit] = parseSensorString(sensorString);
+        } catch (error) {
+            setPopupMessage(`"${sensorString}": ${error.message}`);
+            return;
+        }
         const sensorObject = { sensor: `${sensorId}:${checkDigit}`, online: false }
 
-        setSensorString('');
         if (addedSensors.includes(sensorId)) {
             setPopupMessage(`Sensor "${sensorId}" is already in this batch`);
             return;
@@ -66,16 +72,26 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
     }
 
     const getAllLeads = async () => {
+        const noCable = [], failed = [];
+        let added = 0;
         await Promise.all(sensors.map(sensor => {
-            return callApi('get-sensor-cable-id', { sensor_id: sensor.sensor.split(':')[0] })
+            const sensorId = sensor.sensor.split(':')[0];
+            return callApi('get-sensor-cable-id', { sensor_id: sensorId })
+                .then(() => added++)
                 .catch(err => {
-                    if (err.status !== 509) {
-                        setPopupMessage('Unable to automatically add cable to sensor')
-                        console.error(`Unable to automatically add cable to sensor: ${err}`)
+                    // backend answers 509 when iMonnit has no cable on the sensor
+                    if (err.response?.status === 509)
+                        noCable.push(sensorId);
+                    else {
+                        failed.push(sensorId);
+                        console.error(`Unable to automatically add cable to sensor ${sensorId}: ${err}`)
                     }
                 })
         }))
-        setPopupMessage('Got all leads')
+        const lines = [`Leads added for ${added} of ${sensors.length} sensors`];
+        if (noCable.length) lines.push(`No cable on: ${noCable.join(', ')}`);
+        if (failed.length) lines.push(`Lookup failed: ${failed.join(', ')}`);
+        setPopupMessage(lines.join('. '))
     }
 
     const checkStatus = () => {

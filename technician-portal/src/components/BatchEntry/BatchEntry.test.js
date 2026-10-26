@@ -11,6 +11,7 @@ const mockedUseNavigate = jest.fn()
 jest.mock('react-router-dom', () => ({
     ...(jest.requireActual('react-router-dom')),
     useNavigate: () => mockedUseNavigate,
+    useLocation: () => ({ state: null }),
 }))
 
 jest.mock('axios')
@@ -23,11 +24,14 @@ beforeEach(() => {
             case `http://${ip}/api/get-batches-by-active-state/`:
                 return Promise.resolve({ data: [{ batch_id: 123, received_timestamp : "2024-08-27T20:11:22.132Z" }] })
             case `http://${ip}/api/log-batch-interaction/`:
-                return Promise.resolve()
+            case `http://${ip}/api/update-batch-technician/`:
+                return Promise.resolve({ data: {} })
+            case `http://${ip}/api/get-sensors/`:
+                return Promise.resolve({ data: [] })
             case `http://${ip}/api/get-batch-by-id/`:
-                return Promise.resolve({ data: { batch_id: 123 } })
+                return Promise.resolve({ data: { batch_id: 123, customer_order_number: 'SO1', calibration_procedure_id: 1 } })
             default:
-                return Promise.reject()
+                return Promise.reject({ response: { status: 500 } })
         }
     });
 })
@@ -37,7 +41,8 @@ test('BatchEntry renders successfully', async () => {
         render(
             <AppWrapper sharedState={{
                 batchNumber: 3000, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn()
+                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
@@ -53,7 +58,8 @@ test('sensorGrid having entries resets to empty list', async () => {
         render(
             <AppWrapper sharedState={{
                 batchNumber: 3000, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: ['testing'], setSensorGrid: mockSetSensorGrid
+                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: ['testing'], setSensorGrid: mockSetSensorGrid,
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
@@ -67,7 +73,8 @@ test('clicking button without technicianId does nothing', async () => {
         render(
             <AppWrapper sharedState={{
                 batchNumber: 3000, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: null, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn()
+                technicianId: null, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
@@ -85,18 +92,19 @@ test('clicking button navigates to ManageBatch screen', async () => {
         render(
             <AppWrapper sharedState={{
                 batchNumber: 3000, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn()
+                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
         )
     })
     const batchButton = screen.getByText(/batch: 123/i)
-    expect(mockAxios.get).not.toBeCalledWith("http://127.0.0.1:8000/api/update-batch-technician/", { "params": { "batch_id": 123, "department": "testing", "technician_id": 1 } })
+    expect(mockAxios.get).not.toBeCalledWith("http://127.0.0.1:8000/api/update-batch-technician/", expect.objectContaining({ "params": { "batch_id": 123, "department": "testing", "technician_id": 1 } }))
     await act(async () => {
         fireEvent.click(batchButton)
     })
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/update-batch-technician/", { "params": { "batch_id": 123, "department": "testing", "technician_id": 1 } })
+    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/update-batch-technician/", expect.objectContaining({ "params": { "batch_id": 123, "department": "testing", "technician_id": 1 } }))
     expect(mockedUseNavigate).toBeCalledWith('/manageBatch')
 })
 
@@ -106,7 +114,8 @@ test('empty response has message stating no batches', async () => {
         render(
             <AppWrapper sharedState={{
                 batchNumber: 3000, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn()
+                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
@@ -121,7 +130,8 @@ test('submit batch number with valid number navigates', async () => {
         render(
             <AppWrapper sharedState={{
                 batchNumber: 123, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn()
+                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
@@ -133,8 +143,8 @@ test('submit batch number with valid number navigates', async () => {
     await act(async() => {
         fireEvent.submit(form)
     })
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/get-batches-by-active-state/", {"params": {"active": true}})
-    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/get-batch-by-id/", {"params": {"batch_id": 123}})
+    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/get-batches-by-active-state/", expect.objectContaining({"params": {"active": true}}))
+    expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/get-batch-by-id/", expect.objectContaining({"params": {"batch_id": 123}}))
     expect(mockedUseNavigate).toBeCalledWith('/manageBatch')
 })
 
@@ -143,7 +153,8 @@ test('submit batch number without technicianId doesn\'t continue', async () => {
         render(
             <AppWrapper sharedState={{
                 batchNumber: 123, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: null, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn()
+                technicianId: null, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
@@ -155,7 +166,7 @@ test('submit batch number without technicianId doesn\'t continue', async () => {
     await act(async() => {
         fireEvent.submit(form)
     })
-    expect(mockAxios.get).not.toBeCalledWith("http://127.0.0.1:8000/api/get-batch-by-id/", {"params": {"batch_id": 123}})
+    expect(mockAxios.get).not.toBeCalledWith("http://127.0.0.1:8000/api/get-batch-by-id/", expect.objectContaining({"params": {"batch_id": 123}}))
     expect(mockedUseNavigate).not.toBeCalledWith('/manageBatch')
 })
 
@@ -164,7 +175,8 @@ test('submit batch number without proper batch number doesn\'t continue', async 
         render(
             <AppWrapper sharedState={{
                 batchNumber: 'test', setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),
-                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn()
+                technicianId: 1, setPopupMessage: jest.fn(), sensorGrid: [], setSensorGrid: jest.fn(),
+                salesOrder: "", setSalesOrder: jest.fn(), setOrder: jest.fn(), expedited: false, setExpedited: jest.fn(), setCustomerOrderNumber: jest.fn()
             }}>
                 <BatchEntry />
             </AppWrapper>
