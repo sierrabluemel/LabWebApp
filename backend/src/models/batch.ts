@@ -94,14 +94,20 @@ const batch = {
         `, [location, timestamp, batchId]);
     },
     getLocations: () => {
-        // Every location used before, minus typos and pre-dash formats from history
+        // Every location used before, minus typos and pre-dash formats from history, plus bins not used yet, minus retired bins
         return executeQuery(pool, `
-            SELECT DISTINCT
+            SELECT
                 LOCATION
             FROM
                 API_LOCATION_LOG
             WHERE
                 LOCATION ~ '^[RTS]-[A-Z0-9]+$'
+                AND LOCATION NOT IN ('T-AB', 'S-C12', 'S-BS', 'S-C', 'S-STD')
+            UNION
+            SELECT
+                LOCATION
+            FROM
+                (VALUES ('R-A1'), ('R-A2'), ('R-A3'), ('R-E1'), ('S-A2')) AS ADDED (LOCATION)
             ORDER BY
                 LOCATION
         `, []);

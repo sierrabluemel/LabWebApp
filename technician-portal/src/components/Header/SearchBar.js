@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../../contexts/app";
 import formatKey from "../../utils/formatKey";
 import callApi from "../../utils/api/callApi";
 import styles from "../../styles/styles.module.css";
+
+// Also the order the result groups are shown in
+const SEARCH_KEYS = ["customer_order_number", "order_id", "batch_id", "sensor_id", "cable_id", "certificate_id"];
+const MAX_RESULTS_PER_GROUP = 10;
 
 export default function SearchBar() {
     const [searchData, setSearchData] = useState([]);
@@ -17,7 +21,6 @@ export default function SearchBar() {
     const containerRef = useRef(null);
 
     const DEBOUNCE_DELAY = 250;
-    const MAX_VISIBLE_RESULTS = 50;
     const dropdownRef = useRef(null);
     const navigate = useNavigate();
 
@@ -49,23 +52,18 @@ export default function SearchBar() {
         return () => document.removeEventListener("mousedown", handleOutsideClick);
     }, []);
 
-    // Flatten data into searchable entries
+    // Flatten data into one entry per distinct key/value; search-data is one row per sensor, so order and batch ids repeat a lot
     useEffect(() => {
-        if (!searchData.length) return;
-
+        const seen = new Set();
         const entries = [];
         searchData.forEach((row) => {
-            Object.keys(row).forEach((key) => {
+            SEARCH_KEYS.forEach((key) => {
                 const value = row[key];
-                if (value !== undefined && value !== null && String(value).trim() !== "") {
-                    entries.push({
-                        rowId: row.id ?? Math.random(),
-                        key,
-                        value,
-                        originalRow: row,
-                        searchableText: String(value).toLowerCase(),
-                    });
-                }
+                if (value === undefined || value === null) return;
+                const searchableText = String(value).trim().toLowerCase();
+                if (!searchableText || seen.has(`${key}:${searchableText}`)) return;
+                seen.add(`${key}:${searchableText}`);
+                entries.push({ key, value, searchableText });
             });
         });
         setSearchableEntries(entries);
@@ -79,46 +77,40 @@ export default function SearchBar() {
 
     // Debounced search
     useEffect(() => {
-        const priority = ["customer_order_number", "order_id", "batch_id", "sensor_id", "cable_id"];
         const incrementalSearch = (value) => {
-            if (!value || !searchableEntries.length) {
+            const keywords = value.split(" ").filter((k) => k.length > 0);
+            if (!keywords.length || !searchableEntries.length) {
                 setFilteredResults([]);
                 return;
             }
 
-            const keywords = value
-                .split(" ")
-                .map((k) => k.trim())
-                .filter((k) => k.length > 0);
+            // 0 = exact, 1 = starts with, 2 = contains; best keyword wins
+            const rank = (text) => Math.min(...keywords.map((k) => (text === k ? 0 : text.startsWith(k) ? 1 : 2)));
 
-            const resultsMap = new Map();
-
-            searchableEntries.forEach((entry) => {
-                if (keywords.some((k) => entry.searchableText.includes(k))) {
-                    const mapKey = `${entry.key}:${entry.value}`;
-                    if (!resultsMap.has(mapKey)) {
-                        resultsMap.set(mapKey, {
-                            key: entry.key,
-                            value: entry.value,
-                            highlightedValue: entry.value,
-                        });
-                    }
-                }
-            });
-
-            // Group by key
+            // Every keyword must match, so extra words narrow the results
             const grouped = {};
-            Array.from(resultsMap.values()).forEach((r) => {
-                if (!grouped[r.key]) grouped[r.key] = [];
-                grouped[r.key].push(r);
+            searchableEntries.forEach((entry) => {
+                if (!keywords.every((k) => entry.searchableText.includes(k))) return;
+                if (!grouped[entry.key]) grouped[entry.key] = [];
+                grouped[entry.key].push({ entry, rank: rank(entry.searchableText) });
             });
 
-            // Sort keys by priority
-            const sortedResults = priority
+            // Best matches first, shorter ids before longer ones (1, 10..19, 100..), capped per group
+            const sortedResults = SEARCH_KEYS
                 .filter((k) => grouped[k])
-                .map((k) => ({ key: k, values: grouped[k] }));
+                .map((k) => ({
+                    key: k,
+                    hiddenCount: Math.max(grouped[k].length - MAX_RESULTS_PER_GROUP, 0),
+                    values: grouped[k]
+                        .sort((a, b) =>
+                            a.rank - b.rank
+                            || a.entry.searchableText.length - b.entry.searchableText.length
+                            || a.entry.searchableText.localeCompare(b.entry.searchableText))
+                        .slice(0, MAX_RESULTS_PER_GROUP)
+                        .map(({ entry }) => ({ key: entry.key, value: entry.value, highlightedValue: entry.value })),
+                }));
 
-            setFilteredResults(sortedResults.slice(0, MAX_VISIBLE_RESULTS));
+            setFilteredResults(sortedResults);
         };
         if (!searchString) {
             setFilteredResults([]);
@@ -130,6 +122,8 @@ export default function SearchBar() {
 
         return () => clearTimeout(handler);
     }, [searchString, searchableEntries]);
+
+    const flatResults = useMemo(() => filteredResults.flatMap((g) => g.values), [filteredResults]);
 
     // Compute highlightedValue lazily for visible items
     const getHighlightedValue = (text) => {
@@ -171,7 +165,6 @@ export default function SearchBar() {
             setDropdownOpen(false);
             return;
         }
-        const flatResults = filteredResults.flatMap((g) => g.values);
         if (!flatResults.length) return;
 
         if (e.key === "ArrowDown") {
@@ -188,7 +181,6 @@ export default function SearchBar() {
 
     // Scroll active item into view
     useEffect(() => {
-        const flatResults = filteredResults.flatMap((g) => g.values);
         if (activeIndex < 0 || !dropdownRef.current || !flatResults.length) return;
 
         const dropdown = dropdownRef.current;
@@ -206,7 +198,7 @@ export default function SearchBar() {
         } else if (itemBottom > dropdownBottom) {
             dropdown.scrollTo({ top: itemBottom - dropdown.clientHeight, behavior: "smooth" });
         }
-    }, [activeIndex, filteredResults]);
+    }, [activeIndex, flatResults]);
 
     return (
         <div className={styles.search_bar_header_container} ref={containerRef}>
@@ -228,11 +220,9 @@ export default function SearchBar() {
                 >
                     {filteredResults.map((group) => (
                         <div key={group.key} className={styles.resultGroup}>
-                            <div className={styles.stickyHeader}>{formatKey(group.key)}</div>
-                            {group.values.map((result, idx) => {
-                                const flatIndex = filteredResults
-                                    .flatMap((g) => g.values)
-                                    .indexOf(result);
+                            <div className={styles.stickyHeader}>{group.key === "cable_id" ? "Lead ID" : formatKey(group.key)}</div>
+                            {group.values.map((result) => {
+                                const flatIndex = flatResults.indexOf(result);
                                 const highlightClass =
                                     flatIndex === activeIndex
                                         ? styles.highlighted_result
@@ -256,6 +246,11 @@ export default function SearchBar() {
 
                                 );
                             })}
+                            {group.hiddenCount > 0 && (
+                                <div className={styles.search_results_more}>
+                                    {group.hiddenCount} more, keep typing
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

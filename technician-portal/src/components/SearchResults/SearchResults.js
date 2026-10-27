@@ -3,9 +3,20 @@ import { useAppContext } from "../../contexts/app";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import callApi from "../../utils/api/callApi";
-import Button from "../Button/Button";
 import SensorLink from "../SensorLink/SensorLink";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
+
+const SEARCH_LABELS = {
+    customer_order_number: 'Customer order', order_id: 'Order', batch_id: 'Batch',
+    sensor_id: 'Sensor', cable_id: 'Lead', certificate_id: 'Certificate'
+};
+
+// One row per certificate (or sensor without one); order searches return one summary row per batch instead
+const rowKey = (row) => row.certificate_id
+    ? `cert-${row.certificate_id}`
+    : row.sensor_id
+        ? `sensor-${row.sensor_id}-${row.batch_id}`
+        : `batch-${row.batch_id}`;
 
 export default function SearchResults() {
     const {
@@ -14,40 +25,19 @@ export default function SearchResults() {
         setOrderNumber, setBatches, setCustomerOrderNumber
     } = useAppContext();
 
-    const [resultData, setResultData] = useState([]);
-    const [openOrders, setOpenOrders] = useState({});
-    const [openBatches, setOpenBatches] = useState({});
-    const [openCertificates, setOpenCertificates] = useState({});
+    const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [highlightedSensorId, setHighlightedSensorId] = useState(null);
-    const [highlightedBatchId, setHighlightedBatchId] = useState(null);
+    const [expandedBatches, setExpandedBatches] = useState({});
+    const [batchRows, setBatchRows] = useState({});
 
     const navigate = useNavigate();
-
-    const toggleOrder = (orderId) => {
-        setOpenOrders(prev => ({ ...prev, [orderId]: !(prev[orderId] ?? false) }));
-    };
-
-    const toggleBatch = (orderId, batchId) => {
-        setOpenBatches(prev => ({
-            ...prev,
-            [orderId]: {
-                ...prev[orderId],
-                [batchId]: !prev[orderId]?.[batchId]
-            }
-        }));
-    };
-
-    const toggleCertificates = (sensorId) => {
-        setOpenCertificates(prev => ({ ...prev, [sensorId]: !prev[sensorId] }));
-    };
 
     const goToBatch = (batchId) => {
         setBatchNumber(batchId);
         if (!technicianId) return setPopupMessage('Please sign in');
 
         // same steps as the Open Batch field in BatchEntry
-        callApi('get-batch-by-id', { batch_id: batchId })
+        return callApi('get-batch-by-id', { batch_id: batchId })
             .then(batch => {
                 if (!batch) {
                     setPopupMessage(`Batch ${batchId} not found`);
@@ -70,7 +60,7 @@ export default function SearchResults() {
         if (!technicianId) return setPopupMessage('Please sign in');
 
         // same steps as the order buttons in OrderEntry
-        callApi('get-batches-by-order-id', { order_id: orderId })
+        return callApi('get-batches-by-order-id', { order_id: orderId })
             .then(response => {
                 setBatches(response);
                 navigate('/shipping');
@@ -86,242 +76,162 @@ export default function SearchResults() {
             .catch(() => setPopupMessage(`Unable to get order ${orderId}`));
     };
 
+    // The whole batch is fetched once and shown in place of the matching rows while the batch is open
+    const toggleBatch = (batchId) => {
+        if (batchRows[batchId]) {
+            setExpandedBatches(prev => ({ ...prev, [batchId]: !prev[batchId] }));
+            return;
+        }
+        return callApi('get-search-results', { search_type: 'batch_id', search_value: batchId })
+            .then(res => {
+                setBatchRows(prev => ({ ...prev, [batchId]: res }));
+                setExpandedBatches(prev => ({ ...prev, [batchId]: true }));
+            })
+            .catch(() => setPopupMessage(`Unable to get batch ${batchId}`));
+    };
+
     useEffect(() => {
         if (!searchSelection) return;
 
-        let timeout;
         setLoading(true);
-        setResultData([]);
+        setRows([]);
+        setExpandedBatches({});
+        setBatchRows({});
 
         callApi('get-search-results', {
             search_type: searchSelection.key,
             search_value: searchSelection.value
         })
             .then(res => {
-                if (!res || res.length === 0) {
-                    setPopupMessage(`No results found for ${searchSelection.value}`);
-                    return setResultData([]);
-                }
-
-                setResultData(res);
-
-                if (searchSelection.key === 'sensor_id' || searchSelection.key === 'cable_id') {
-                    let sensorId = String(searchSelection.value);
-                    if (searchSelection.key === 'cable_id')
-                        sensorId = String(res.filter(r => r.cable_id === searchSelection.value)[0].sensor_id)
-                    const sensorRow = res.find(r => String(r.sensor_id) === sensorId);
-
-                    if (sensorRow) {
-                        const orderKey = String(sensorRow.order_id);
-                        const batchKey = String(sensorRow.batch_id);
-
-                        setOpenOrders(prev => ({ ...prev, [orderKey]: true }));
-                        setOpenBatches(prev => ({
-                            ...prev,
-                            [orderKey]: { ...prev[orderKey], [batchKey]: true }
-                        }));
-
-                        setHighlightedSensorId(sensorId);
-
-                        timeout = setTimeout(() => setHighlightedSensorId(null), 3000);
-                    }
-                } else if (searchSelection.key === 'batch_id') {
-                    const batchId = String(searchSelection.value);
-                    const batchRow = res.find(r => String(r.batch_id) === batchId)
-
-                    if (batchRow) {
-                        const orderKey = String(batchRow.order_id);
-
-                        setOpenOrders(prev => ({ ...prev, [orderKey]: true }))
-                        setHighlightedBatchId(batchId)
-
-                        timeout = setTimeout(() => setHighlightedBatchId(null), 3000);
-                    }
-                }
+                if (!res || res.length === 0) setPopupMessage(`No results found for ${searchSelection.value}`);
+                setRows(res || []);
             })
             .catch(err => {
                 console.error(err);
                 setPopupMessage(`Unable to get data for ${searchSelection.value}`);
             })
             .finally(() => setLoading(false));
-
-        return () => clearTimeout(timeout);
     }, [searchSelection, setPopupMessage]);
 
-    const groupResults = (rows) => {
-        const byOrder = {};
+    if (loading) return <div className={styles.menu}><h2 className={styles.title}>Loading...</h2></div>;
+    if (!rows.length) return <div className={styles.menu}><h2 className={styles.title}>No results found.</h2></div>;
 
-        rows.forEach(row => {
-            if (row.order_id == null) return;
-            const orderId = String(row.order_id);
-            const batchId = String(row.batch_id);
-            const sensorId = String(row.sensor_id);
+    const matchKey = searchSelection.key === 'cable_id' ? 'lead_id' : searchSelection.key;
+    const isMatch = (row) => String(row[matchKey]) === String(searchSelection.value);
+    const isOrderSearch = ['order_id', 'customer_order_number'].includes(searchSelection.key);
 
-            if (!byOrder[orderId]) {
-                byOrder[orderId] = {
-                    order_id: orderId,
-                    customer_order_number: row.customer_order_number || "N/A",
-                    received_timestamp: row.received_timestamp || "N/A",
-                    shipped_timestamp: row.shipped_timestamp,
-                    expedited: row.expedited,
-                    batches: {}
-                };
-            }
+    const sorted = [...rows].sort((a, b) =>
+        Number(a.order_id) - Number(b.order_id)
+        || Number(b.batch_id) - Number(a.batch_id)
+        || Number(a.sensor_id ?? 0) - Number(b.sensor_id ?? 0)
+        || Number(b.certificate_id ?? 0) - Number(a.certificate_id ?? 0));
 
-            // orders with no batches yet, and batches with no sensors yet, still show up
-            if (row.batch_id == null) return;
+    // An open batch shows every row the backend has for it instead of just the matches
+    const display = [];
+    const shown = new Set();
+    sorted.forEach(row => {
+        if (!expandedBatches[row.batch_id]) return display.push(row);
+        if (shown.has(row.batch_id)) return;
+        shown.add(row.batch_id);
+        display.push(...batchRows[row.batch_id]);
+    });
 
-            if (!byOrder[orderId].batches[batchId]) {
-                byOrder[orderId].batches[batchId] = {
-                    batch_id: batchId,
-                    calibration_procedure_id: row.calibration_procedure_id || "N/A",
-                    current_location: row.current_location,
-                    sensors: {}
-                };
-            }
-
-            if (row.sensor_id == null) return;
-
-            const sensors = byOrder[orderId].batches[batchId].sensors;
-
-            if (!sensors[sensorId]) {
-                sensors[sensorId] = {
-                    sensor_id: sensorId,
-                    sensor_sku: row.sensor_sku || "N/A",
-                    cable_id: row.cable_id || null,
-                    certificates: []
-                };
-            }
-
-            if (row.certificate_id) {
-                sensors[sensorId].certificates.push({
-                    certificate_id: Number(row.certificate_id),
-                    timestamp: row.certificate_timestamp,
-                    pass: row.certificate_pass
-                });
-            }
-        });
-
-        return Object.values(byOrder)
-            .sort((a, b) => Number(a.order_id) - Number(b.order_id))
-            .map(order => ({
-                ...order,
-                batches: Object.values(order.batches)
-                    .sort((a, b) => Number(a.batch_id) - Number(b.batch_id))
-                    .map(batch => ({
-                        ...batch,
-                        sensors: Object.values(batch.sensors)
-                            .sort((a, b) => Number(a.sensor_id) - Number(b.sensor_id))
-                            .map(sensor => ({
-                                ...sensor,
-                                certificates: sensor.certificates.sort((a, b) => b - a)
-                            }))
-                    }))
-            }));
+    // The summary text itself (or "whole batch" on a matched row) opens and closes the batch
+    const expandToggle = (row, label) => {
+        const open = !!expandedBatches[row.batch_id];
+        return (
+            <button className={styles.search_expand} aria-label={`Show batch ${row.batch_id}`} aria-expanded={open} onClick={() => toggleBatch(row.batch_id)}>
+                {label && <span>{label}</span>}<span className={styles.search_chevron}>{open ? '▴' : '▾'}</span>
+            </button>
+        );
     };
 
-    if (loading) return <div className={styles.menu}><h2 className={styles.title}>Loading...</h2></div>;
-    if (!resultData.length) return <div className={styles.menu}><h2 className={styles.title}>No results found.</h2></div>;
-
-    const grouped = groupResults(resultData);
+    // Order cells print once per order, batch and status cells once per batch
+    let lastOrder = null;
+    let lastBatch = null;
 
     return (
         <div className={styles.menu}>
-            <div className={styles.resultsContainer}>
-                {Object.entries(grouped).map(([index, order]) => {
-                    const isOrderOpen = !!openOrders[order.order_id];
-                    return (
-                        <div key={`order-${order.order_id}`} className={styles.orderSection}>
-                            <div className={styles.resultRow}>
-                                <Button onClick={() => goToOrder(order.order_id)} innerText={`Order ${order.order_id}`} />
-                                <button className={styles.resultHeader} onClick={() => toggleOrder(order.order_id)}>
-                                    {order.customer_order_number}{isOrderOpen ? " ▲" : " ▼"}
+            <h2 className={styles.title}>
+                {SEARCH_LABELS[searchSelection.key]} {searchSelection.value}
+                <span className={styles.search_count}>{rows.length} result{rows.length === 1 ? '' : 's'}</span>
+            </h2>
+            <div className={styles.search_table_wrap}>
+            <table className={styles.search_table}>
+                <colgroup>
+                    {[150, 190, 70, 90, 200, 110, 70, 100, 120].map((width, i) => <col key={i} style={{ width }} />)}
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Batch</th>
+                        <th>Lead</th>
+                        <th>Sensor</th>
+                        <th>SKU</th>
+                        <th>Certificate</th>
+                        <th>Result</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {display.map(row => {
+                        const firstOfOrder = row.order_id !== lastOrder;
+                        const firstOfBatch = firstOfOrder || row.batch_id !== lastBatch;
+                        lastOrder = row.order_id;
+                        lastBatch = row.batch_id;
+                        const batchExpanded = expandedBatches[row.batch_id];
+                        const isSummary = row.sensor_id == null;
+                        const status = row.current_location
+                            ? row.current_location
+                            : row.shipped_timestamp ? <span className={styles.search_badge_red}>SHIPPED</span> : 'No location';
 
-                                    <span className={styles.order_details}>
-                                        <span className={styles.order_details_item}>
-                                            Received: {parseDataBaseDate(order.received_timestamp) + " "}
-                                        </span>
-                                        {order.expedited ? <span className={`${styles.order_details_item} ${styles.grid_entry_red}`}>
-                                            EXPEDITED ORDER
-                                        </span> : <></>}
-                                    </span>
-                                </button>
-                            </div>
-
-                            {isOrderOpen && (
-                                <div className={styles.batchContainer}>
-                                    {Object.entries(order.batches).map(([, batchData]) => {
-                                        const isBatchOpen = !!openBatches[order.order_id]?.[batchData.batch_id];
-                                        return (
-                                            <div key={`batch-${batchData.batch_id}`}
-                                                ref={el => {
-                                                    if (el && highlightedBatchId === batchData.batch_id) {
-                                                        el.scrollIntoView({ behavior: "smooth", block: "center" });
-                                                    }
-                                                }}
-                                                className={`${styles.resultRow} ${highlightedBatchId === batchData.batch_id ? styles.highlightItem : ""}`}
-                                            >
-                                                <Button onClick={() => goToBatch(batchData.batch_id)} innerText={`Batch ${batchData.batch_id}`} />
-                                                <button className={styles.resultHeader} onClick={() => toggleBatch(order.order_id, batchData.batch_id)}>
-                                                    <span className={styles[`calibration_${batchData.calibration_procedure_id}`]}>
-                                                        CP: {batchData.calibration_procedure_id}{isBatchOpen ? " ▲" : " ▼"}
-                                                    </span>
-                                                    <span className={styles.order_details_item}>
-                                                        {batchData.current_location ?
-                                                        `Current location: ${batchData.current_location}`
-                                                        : order.shipped_timestamp ? <span className={styles.grid_entry_red}>SHIPPED</span> : 'No location set'}
-                                                        </span>
-                                                </button>
-
-                                                {isBatchOpen && (
-                                                    <ul className={styles.sensorList}>
-                                                        {batchData.sensors.map(sensor => {
-                                                            const certsOpen = openCertificates[sensor.sensor_id];
-                                                            return (
-                                                                <li
-                                                                    ref={el => {
-                                                                        if (el && highlightedSensorId === sensor.sensor_id) {
-                                                                            el.scrollIntoView({ behavior: "smooth", block: "center" });
-                                                                        }
-                                                                    }}
-                                                                    key={`sensor-${sensor.sensor_id}`}
-                                                                    className={`${styles.sensorItem} ${highlightedSensorId === sensor.sensor_id ? styles.highlightItem : ""}`}
-                                                                >
-                                                                    <SensorLink sensorId={sensor.sensor_id} text={`Sensor ${sensor.cable_id ? `${sensor.sensor_id} (${sensor.cable_id})` : sensor.sensor_id}`} />
-                                                                    {` - ${sensor.sensor_sku}`}
-                                                                    {sensor.certificates.length > 0 && (
-                                                                        <>
-                                                                            <button className={styles.certificateToggle} onClick={() => toggleCertificates(sensor.sensor_id)}>
-                                                                                Certificates {certsOpen ? "▲" : "▼"}
-                                                                            </button>
-                                                                            {certsOpen && (
-                                                                                <ul className={styles.certificateList}>
-                                                                                    {sensor.certificates.sort((a, b) => b.certificate_id - a.certificate_id).map(certificate => (
-                                                                                        <li key={`cert-${certificate.certificate_id}`}>
-                                                                                            <a href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${certificate.certificate_id}.pdf`} target="_blank" rel="noopener noreferrer" className={styles.sensor_link}>
-                                                                                                MNT-{certificate.certificate_id}
-                                                                                            </a>
-                                                                                            {certificate.pass ? <span className={`${styles.green} ${styles.order_details_item}`}>PASS</span> : <span className={`${styles.red} ${styles.order_details_item}`}>FAIL</span>}
-                                                                                            <span className={styles.order_details_item}>{parseDataBaseDate(certificate.timestamp)}</span>
-                                                                                        </li>
-                                                                                    ))}
-                                                                                </ul>
-                                                                            )}
-                                                                        </>
-                                                                    )}
-                                                                </li>
-                                                            );
-                                                        })}
-                                                    </ul>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
+                        return (
+                            <tr key={rowKey(row)} className={`${!isOrderSearch && isMatch(row) ? styles.search_match : ''} ${firstOfBatch ? styles.search_batch_start : ''}`}>
+                                <td>{firstOfOrder && (
+                                    <>
+                                        <button className={styles.search_link} onClick={() => goToOrder(row.order_id)}>Order {row.order_id}</button>
+                                        <div className={styles.search_sub}>
+                                            {row.customer_order_number || 'N/A'} · {row.received_timestamp ? parseDataBaseDate(row.received_timestamp) : 'N/A'}
+                                            {row.expedited ? <span className={styles.search_badge_red}>EXPEDITED</span> : null}
+                                        </div>
+                                    </>
+                                )}</td>
+                                <td>{firstOfBatch && row.batch_id != null && (
+                                    <div className={styles.search_batch_cell}>
+                                        <button className={styles.search_link} onClick={() => goToBatch(row.batch_id)}>Batch {row.batch_id}</button>
+                                        <span className={`${styles.search_sub} ${styles[`calibration_${row.calibration_procedure_id}`]}`}>CP {row.calibration_procedure_id ?? 'N/A'}</span>
+                                        {!isSummary && expandToggle(row, batchExpanded ? '' : 'whole batch')}
+                                    </div>
+                                )}</td>
+                                {isSummary ? (
+                                    <td colSpan={6} className={styles.search_sub}>
+                                        {row.batch_id == null ? 'No batches yet' : expandToggle(row, `${row.sensor_count} sensor${Number(row.sensor_count) === 1 ? '' : 's'} · ${row.certificate_count} certificate${Number(row.certificate_count) === 1 ? '' : 's'}`)}
+                                    </td>
+                                ) : (
+                                    <>
+                                        <td>{row.lead_id ?? ''}</td>
+                                        <td><SensorLink sensorId={row.sensor_id} text={row.sensor_id} /></td>
+                                        <td>{(row.lead_id ? row.lead_sku : row.sensor_sku) || 'N/A'}</td>
+                                        <td>{row.certificate_id ? (
+                                            <a href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${row.certificate_id}.pdf`} target="_blank" rel="noopener noreferrer" className={styles.sensor_link}>
+                                                MNT-{row.certificate_id}
+                                            </a>
+                                        ) : ''}</td>
+                                        <td>{row.certificate_id ? (
+                                            row.certificate_pass
+                                                ? <span className={styles.search_badge_green}>PASS</span>
+                                                : <span className={styles.search_badge_red}>FAIL</span>
+                                        ) : ''}</td>
+                                        <td>{row.certificate_timestamp ? parseDataBaseDate(row.certificate_timestamp) : ''}</td>
+                                    </>
+                                )}
+                                <td>{firstOfBatch && row.batch_id != null && status}</td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
             </div>
         </div>
     );

@@ -33,15 +33,15 @@ const certificate = {
             ORDER BY API_SENSOR.SENSOR_ID, API_CERTIFICATE.CERTIFICATE_ID DESC;
         `, [orderId]);
     },
-    createCertificate: (certificateJson: any, template: string, sensorId: number, pass: boolean, batchId: number) => {
+    createCertificate: (certificateJson: any, template: string, sensorId: number, pass: boolean, batchId: number, cableId: number | null, cableSku: string | null) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
-                API_CERTIFICATE (GENERATE_CERTIFICATE_JSON, TEMPLATE, SENSOR_ID, PASS, BATCH_ID)
+                API_CERTIFICATE (GENERATE_CERTIFICATE_JSON, TEMPLATE, SENSOR_ID, PASS, BATCH_ID, CABLE_ID, CABLE_SKU)
             VALUES
-                ($1, $2, $3, $4, $5)
+                ($1, $2, $3, $4, $5, $6, $7)
             RETURNING
                 *
-        `, [certificateJson, template, sensorId, pass, batchId]);
+        `, [certificateJson, template, sensorId, pass, batchId, cableId, cableSku]);
     },
     getCertficateById: (certificateId: number) => {
         return executeQuerySingleReturn(pool, `

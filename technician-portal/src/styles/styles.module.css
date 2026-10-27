@@ -1760,6 +1760,12 @@ mark {
     transition: background-color 0.2s, color 0.2s;
 }
 
+.search_results_more {
+    padding: 4px 12px 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
 /* ---------------- Location picker ---------------- */
 .location_picker {
     position: relative;
@@ -1886,102 +1892,132 @@ mark {
     z-index: 10;
 }
 
-.resultsContainer {
-    margin-top: 1rem;
+.search_count {
+    margin-left: var(--space-3);
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--text-muted);
 }
 
-.batchContainer {
-    margin-left: 2.5rem;
+.search_table_wrap {
+    overflow-x: auto;
 }
 
-.sensorList {
-    margin-left: 2.5rem;
-    grid-column: span 2;
+/* fixed column widths so opening a batch doesn't reflow the table */
+.search_table {
+    width: 100%;
+    min-width: 1100px;
+    table-layout: fixed;
+    margin-top: var(--space-3);
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.search_table th {
     text-align: left;
+    padding: 6px 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
 }
 
-.sensorItem {
-    list-style: none;
-    background: var(--surface-alt);
-    border-radius: 4px;
-    margin-bottom: 4px;
+.search_table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+/* a thicker rule where a new batch starts, since the order and batch cells are only printed once per batch */
+.search_table tr.search_batch_start td {
+    border-top: 2px solid var(--border);
+}
+
+.search_table tbody tr:hover {
+    background-color: var(--surface-hover);
+}
+
+.search_batch_cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.search_expand {
     padding: 0;
-    transition: padding 0.5s ease-out;
-}
-
-.certificateToggle {
-    margin-left: 0.5rem;
-    padding: 0.2rem 0.6rem;
-    font-family: inherit;
-    font-size: 0.85rem;
-    background: var(--surface-alt);
     border: none;
-    border-radius: 4px;
+    background: none;
+    font: inherit;
+    color: inherit;
     cursor: pointer;
 }
 
-.certificateList {
-    list-style: none;
-    padding-left: 0.75rem;
-    margin-left: 1.5rem;
-    margin-top: 0.25rem;
-    margin-bottom: 0.25rem;
+.search_expand:hover span:first-child {
+    text-decoration: underline;
 }
 
-.certificateList li {
-    padding: 0.2rem 0.4rem;
+.search_chevron {
+    margin-left: var(--space-1);
+    color: var(--text-muted);
+}
+
+.search_match {
+    background-color: var(--highlight);
+    animation: pulseHighlight 1.5s ease-in-out;
+}
+
+.search_match td:first-child {
+    border-left: 4px solid var(--warning);
+}
+
+.search_sub {
     font-size: 0.85rem;
-    background: var(--surface-alt);
-    border-radius: 4px;
-    margin-bottom: 3px;
+    color: var(--text-muted);
 }
 
-.certificateList a,
+.search_link {
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+}
+
+.search_link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.search_badge_green,
+.search_badge_red {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-inverse);
+    margin-left: var(--space-1);
+}
+
+.search_badge_green {
+    background-color: var(--success);
+}
+
+.search_badge_red {
+    background-color: var(--danger);
+}
+
 .sensor_link {
     text-decoration: none;
     color: var(--primary);
 }
 
-.certificateList a:hover,
 .sensor_link:hover {
     color: var(--primary-hover);
     text-decoration: underline;
-}
-
-.resultRow {
-    display: grid;
-    grid-template-columns: auto 5fr;
-    gap: 10px;
-    align-items: center;
-    margin: 0.25rem 0;
-    padding: 0;
-    transition: padding 0.5s ease-out;
-}
-
-.resultHeader {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.6rem 1rem;
-    background: var(--surface-alt);
-    border: none;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.certificateToggle:hover,
-.resultHeader:hover {
-    background: var(--surface-hover);
-}
-
-.highlightItem {
-    background: var(--highlight);
-    border-left: 4px solid var(--warning);
-    animation: pulseHighlight 1.5s ease-in-out;
-    padding: 10px;
 }
 
 /* ---------------- Status colors and badges ---------------- */

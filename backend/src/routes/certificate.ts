@@ -327,7 +327,7 @@ const certificateRoutes = {
             }))
 
             const certificates = await Promise.all(payloads.map(async (p) => {
-                const cert = await certificate.createCertificate(p.certificateJson, p.template, p.s.sensor_id, p.pass, p.s.batch_id)
+                const cert = await certificate.createCertificate(p.certificateJson, p.template, p.s.sensor_id, p.pass, p.s.batch_id, p.s.cable_id ?? null, p.s.cable_sku ?? null)
                 await publishCertificate(cert)
                 await syncImonnit(p.s.sensor_id, p.s.cable_id, p.calibrationDate, p.dueDate, cert.certificate_id)
                 return cert
