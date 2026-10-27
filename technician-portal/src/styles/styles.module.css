@@ -422,10 +422,6 @@ mark {
     gap: var(--space-2);
 }
 
-.order_card_expedited {
-    border-left: 4px solid var(--danger);
-}
-
 .order_subtitle {
     font-size: 0.85rem;
     color: var(--text-muted);
@@ -522,7 +518,7 @@ mark {
 
 /* doubled class so it wins over .notification_popup_container, which comes later in this file */
 .notification_popup_container.modal {
-    width: min(640px, 92vw);
+    width: min(900px, 92vw);
     height: auto;
     max-height: 76vh;
     left: 50%;
@@ -1999,7 +1995,6 @@ mark {
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-inverse);
-    margin-left: var(--space-1);
 }
 
 .search_badge_green {

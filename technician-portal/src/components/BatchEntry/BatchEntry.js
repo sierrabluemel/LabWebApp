@@ -19,6 +19,18 @@ function BatchEntry() {
 
     const [batches, setBatches] = useState(null);
     const [editingOrder, setEditingOrder] = useState(null);
+    const [reforming, setReforming] = useState(false);
+
+    function reformGateways() {
+        setReforming(true);
+        setPopupMessage('Reforming gateways...');
+        callApi('reform-gateways')
+            .then(({ reformed, failed }) => {
+                setPopupMessage(`Reformed ${reformed} gateways${failed.length ? `, ${failed.length} failed` : ''}`);
+            })
+            .catch(() => setPopupMessage('Could not reform gateways'))
+            .finally(() => setReforming(false));
+    }
 
     async function getBatchSensors(batches) {
 
@@ -107,7 +119,7 @@ function BatchEntry() {
 
     return (
         <div className={styles.menu} >
-            {editingOrder ? <EditOrderPopup order={editingOrder} openOrderPage={openOrderPage} removeBatch={removeBatch} close={() => setEditingOrder(null)} /> : <></>}
+            {editingOrder ? <EditOrderPopup order={editingOrder} openOrderPage={openOrderPage} removeBatch={removeBatch} reload={loadBatches} close={() => setEditingOrder(null)} /> : <></>}
             <div className={styles.entry_row}>
                 <Receiving />
                 <section>
@@ -122,6 +134,9 @@ function BatchEntry() {
             {renderOrders(orders.filter(isActive))}
             <h2 className={styles.section_heading}>Queued orders</h2>
             {renderOrders(orders.filter(order => !isActive(order)))}
+            <div className={`${styles.row} ${styles.row_end}`}>
+                <button className={styles.default_button} onClick={reformGateways} disabled={reforming} title='Make every lab gateway rebuild its sensor list'>Reform gateways</button>
+            </div>
         </div>
     );
 }
@@ -131,10 +146,10 @@ function OrderCard({ batches, openBatch, editOrder }) {
     const receivedDate = parseDataBaseDate(first.received_timestamp);
 
     return (
-        <div className={`${styles.order_card} ${first.expedited ? styles.order_card_expedited : ''}`}>
+        <div className={styles.order_card}>
             <div>
                 <div className={styles.order_card_header}>
-                    <h3 className={styles.order_group_title}>{first.customer_order_number}{first.expedited ? <> <span className={styles.red_character}>E</span></> : <></>}</h3>
+                    <h3 className={styles.order_group_title}>{first.customer_order_number}{first.expedited ? <> <span className={styles.red_character}>Expedited</span></> : <></>}</h3>
                     <button className={styles.icon_button} onClick={() => editOrder(first)} aria-label={`Edit order ${first.order_id}`} title='Add or remove batches'>✎</button>
                 </div>
                 <div className={styles.order_subtitle}>{`Order ${first.order_id} · ${receivedDate}`}</div>
@@ -157,19 +172,29 @@ function OrderCard({ batches, openBatch, editOrder }) {
 }
 
 // Lists every batch on the order (not just the active ones on this page) so batches can be added or removed
-function EditOrderPopup({ order, openOrderPage, removeBatch, close }) {
+function EditOrderPopup({ order, openOrderPage, removeBatch, reload, close }) {
+    const { setPopupMessage } = useAppContext();
     const [batches, setBatches] = useState(null);
     const [sensors, setSensors] = useState([]);
+    const [certificates, setCertificates] = useState([]);
+    const [procedures, setProcedures] = useState([]);
+    const [expedited, setExpedited] = useState(Boolean(order.expedited));
     const [pendingRemoval, setPendingRemoval] = useState(null);
+    // { batchId, procedureId } waiting on confirmation because the batch already has certificates
+    const [pendingCpChange, setPendingCpChange] = useState(null);
 
     const load = useCallback(() => {
         Promise.all([
             callApi('get-batches-by-order-id', { order_id: order.order_id }),
-            callApi('get-sensors-by-order-id', { order_id: order.order_id })
+            callApi('get-sensors-by-order-id', { order_id: order.order_id }),
+            callApi('get-certificates-by-order-id', { order_id: order.order_id }),
+            callApi('get-calibration-procedures')
         ])
-            .then(([batches, sensors]) => {
+            .then(([batches, sensors, certificates, procedures]) => {
                 setBatches(batches.sort((a, b) => a.batch_id - b.batch_id));
                 setSensors(sensors);
+                setCertificates(certificates);
+                setProcedures(procedures);
             })
             .catch(err => {
                 setBatches([]);
@@ -185,16 +210,63 @@ function EditOrderPopup({ order, openOrderPage, removeBatch, close }) {
             .catch(() => setPendingRemoval(null))
     }
 
+    const toggleExpedited = (value) => {
+        callApi('set-order-expedited', { order_id: order.order_id, expedited: value })
+            .then(() => {
+                setExpedited(value);
+                setPopupMessage(`Order ${order.order_id} ${value ? 'expedited' : 'no longer expedited'}`);
+                reload();
+            })
+            .catch(err => {
+                setPopupMessage(err.response?.data?.error ?? `Could not change expedite for order ${order.order_id}`);
+                console.error(err);
+            })
+    }
+
+    const changeProcedure = (batch, procedureId) => {
+        setPendingCpChange(null);
+        callApi('update-batch-calibration-procedure', { batch_id: batch.batch_id, calibration_procedure_id: procedureId })
+            .then(() => {
+                setPopupMessage(`Batch ${batch.batch_id} changed to CP ${procedureId}`);
+                load();
+                reload();
+            })
+            .catch(err => {
+                setPopupMessage(err.response?.data?.error ?? `Could not change CP for batch ${batch.batch_id}`);
+                console.error(err);
+            })
+    }
+
+    const handleProcedureChange = (batch, procedureId) => {
+        if (certificates.some(certificate => certificate.batch_id === batch.batch_id))
+            setPendingCpChange({ batchId: batch.batch_id, procedureId });
+        else
+            changeProcedure(batch, procedureId);
+    }
+
     return (
         <>
             <div className={styles.popup_background} onClick={close}></div>
             <div className={`${styles.notification_popup_container} ${styles.modal}`} role='dialog' aria-label={`Edit order ${order.order_id}`}>
                 <h2 className={styles.popup_header}>{`TO: ${order.customer_order_number} | Order: ${order.order_id}`}</h2>
+                <label className={styles.modal_row}>
+                    <input type='checkbox' checked={expedited} onChange={event => toggleExpedited(event.target.checked)} />
+                    Expedited
+                </label>
                 <div className={styles.modal_body}>
                     {!batches ? <p>Loading...</p> : batches.map(batch => {
                         const batchSensors = sensors.filter(sensor => sensor.batch_id === batch.batch_id);
                         const shipped = batch.current_location?.startsWith('S');
 
+                        if (pendingCpChange?.batchId === batch.batch_id) {
+                            return (
+                                <div className={`${styles.modal_row} ${styles.modal_row_warning}`} key={batch.batch_id}>
+                                    <span className={styles.grow}>{`Batch ${batch.batch_id} has certificates generated with CP ${batch.calibration_procedure_id}. They will not match CP ${pendingCpChange.procedureId}. Change anyway?`}</span>
+                                    <button className={styles.default_button} onClick={() => setPendingCpChange(null)}>Cancel</button>
+                                    <button className={`${styles.default_button} ${styles.red}`} onClick={() => changeProcedure(batch, pendingCpChange.procedureId)}>Change</button>
+                                </div>
+                            )
+                        }
                         if (pendingRemoval === batch.batch_id) {
                             return (
                                 <div className={`${styles.modal_row} ${styles.modal_row_warning}`} key={batch.batch_id}>
@@ -207,9 +279,12 @@ function EditOrderPopup({ order, openOrderPage, removeBatch, close }) {
                         return (
                             <div className={styles.modal_row} key={batch.batch_id}>
                                 <span className={styles.grow}>
-                                    {`Batch ${batch.batch_id} | `}
-                                    <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>{`CP: ${batch.calibration_procedure_id}`}</span>
-                                    {` | ${batchSensors.length} sensor(s) | ${batch.current_location ?? 'No location'}`}
+                                    <div>{`Batch ${batch.batch_id} | ${batchSensors.length} sensor(s) | ${batch.current_location ?? 'No location'}`}</div>
+                                    <select className={`${styles.dropdown} ${styles[`calibration_${batch.calibration_procedure_id}`]}`} value={batch.calibration_procedure_id} disabled={shipped}
+                                        aria-label={`Calibration procedure for batch ${batch.batch_id}`} title={shipped ? 'Shipped batches cannot be changed' : 'Change calibration procedure'}
+                                        onChange={event => handleProcedureChange(batch, parseInt(event.target.value))}>
+                                        {procedures.map(procedure => <option key={procedure.calibration_procedure_id} value={procedure.calibration_procedure_id}>{`CP ${procedure.calibration_procedure_id}: ${procedure.calibration_procedure}`}</option>)}
+                                    </select>
                                 </span>
                                 <button className={styles.icon_button} onClick={() => openOrderPage(order, batch)} aria-label={`Edit batch ${batch.batch_id}`} title='Edit batch'>✎</button>
                                 <button className={styles.icon_button} onClick={() => setPendingRemoval(batch.batch_id)} disabled={shipped} aria-label={`Remove batch ${batch.batch_id}`} title={shipped ? 'Shipped batches cannot be removed' : 'Remove batch'}>

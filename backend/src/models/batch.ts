@@ -74,6 +74,15 @@ const batch = {
                 BATCH_ID = $2
         `, [state, batchId]);
     },
+    setCalibrationProcedure: (batchId: number, calibrationProcedureId: number) => {
+        return executeNonQuery(pool, `
+            UPDATE API_BATCH
+            SET
+                CALIBRATION_PROCEDURE_ID = $1
+            WHERE
+                BATCH_ID = $2
+        `, [calibrationProcedureId, batchId]);
+    },
     setLocation: (batchId: number, location: string | null) => {
         return executeNonQuery(pool, `
             UPDATE API_BATCH

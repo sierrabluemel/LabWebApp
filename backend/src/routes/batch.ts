@@ -12,6 +12,28 @@ const sillyConfig = require('../../config.json');
 // department is interpolated into SQL column names, so it must be one of these
 const DEPARTMENTS = ['receiving', 'testing', 'shipping'];
 
+const LAB_NETWORKS: Array<number> = [...sillyConfig.stagingNetworks, ...sillyConfig.anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
+
+// Reform makes a gateway rebuild its sensor list, which is what the techs otherwise do by hand after sensors move.
+// Failures are logged and reported, not thrown: the sensor moves that led here already happened.
+function reformGateways(gateways: any[], networkIds: Iterable<number>) {
+    const networks = new Set(networkIds);
+    const targets = gateways.filter((gateway: any) => networks.has(gateway.NetworkID) && !gateway.GatewayType.startsWith('Wifi'));
+    const failed: number[] = [];
+
+    return Promise.all(targets.map((gateway: any) => {
+        return monnitFetch(`https://www.imonnit.com/json/GatewayReform?gatewayID=${gateway.GatewayID}`)
+            .catch((error) => ({ Result: String(error) }))
+            .then((response) => {
+                if (response.Result !== 'Success') {
+                    console.error(`Unable to reform gateway ${gateway.GatewayID}: `, response);
+                    failed.push(gateway.GatewayID);
+                }
+            })
+    }))
+        .then(() => ({ reformed: targets.length - failed.length, failed }));
+}
+
 const batchRoutes = {
     getBatchById: (req: Request, res: Response) => {
         const batchId = parseInt(req.query.batch_id as string ?? "");
@@ -98,6 +120,24 @@ const batchRoutes = {
             .catch((err) => {
                 console.error(err)
                 res.status(500).json({ error: "Unable to set batch state" })
+            })
+    },
+    updateBatchCalibrationProcedure: (req: Request, res: Response) => {
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const calibrationProcedureId = parseInt(req.query.calibration_procedure_id as string ?? "");
+
+        if (isNaN(batchId) || isNaN(calibrationProcedureId)) {
+            res.status(400).json({ error: `Invalid batch id or calibration procedure id` });
+            return;
+        }
+
+        batch.setCalibrationProcedure(batchId, calibrationProcedureId)
+            .then(() => {
+                res.json({ 'Result': `Batch ${batchId} calibration procedure set to ${calibrationProcedureId}` });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to change calibration procedure` });
             })
     },
     removeBatchLocation: (req: Request, res: Response) => {
@@ -342,7 +382,7 @@ const batchRoutes = {
         const stagingNetworks: Array<number> = sillyConfig.stagingNetworks;
         const anyFrequencyNetworks: Array<number> = sillyConfig.anyFrequencyNetworks;
         const commonFrequencyNetworks: Array<number> = [...anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
-        const allNetworks: Array<number> = [...stagingNetworks, ...commonFrequencyNetworks];
+        const allNetworks: Array<number> = LAB_NETWORKS;
 
         // Network type 9 is the common frequency, which the common-frequency-only networks can also take
         const allowedNetworks = (networkType: number) => {
@@ -404,6 +444,8 @@ const batchRoutes = {
                             }))
                         })
                 }))
+                    // Every gateway that gained or lost a sensor gets a reform so the techs don't have to do it by hand
+                    .then(() => moves.length === 0 ? undefined : reformGateways(gateways, moves.flatMap(m => [m.sensor.CSNetID, m.networkId])))
                     .then(() => moves.length);
             })
             .then((moved) => {
@@ -412,6 +454,18 @@ const batchRoutes = {
             .catch(error => {
                 console.error(`Error moving sensors: ${error}`);
                 res.status(500).json({ error: 'Could not move sensors to new networks' });
+            })
+    },
+
+    reformGateways: (req: Request, res: Response) => {
+        monnitFetch('https://www.imonnit.com/json/GatewayList')
+            .then((response) => reformGateways(response.Result, LAB_NETWORKS))
+            .then(({ reformed, failed }) => {
+                res.json({ Result: 'Success', reformed, failed });
+            })
+            .catch((error) => {
+                console.error(`Error reforming gateways: ${error}`);
+                res.status(500).json({ error: 'Could not reform gateways' });
             })
     },
 

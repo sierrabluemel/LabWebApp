@@ -75,6 +75,24 @@ const orderRoutes = {
                 res.status(500).json({ error: `Error setting order as shipped` });
             });
     },
+    setOrderExpedited: (req: Request, res: Response) => {
+        const orderId = parseInt(req.query.order_id as string ?? "");
+        const expedited = req.query.expedited === 'true';
+
+        if (isNaN(orderId) || !['true', 'false'].includes(req.query.expedited as string)) {
+            res.status(400).json({ error: `Invalid order id or expedited value` });
+            return;
+        }
+
+        order.setOrderExpedited(orderId, expedited)
+            .then(() => {
+                res.json({ 'Result': `Order ${orderId} expedited set to ${expedited}` })
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to change expedited` });
+            });
+    },
     setOrderActiveState: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
         const activeState = req.query.active_state === 'true';

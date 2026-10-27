@@ -70,6 +70,15 @@ const order = {
                 *
         `, [timestamp, courier, orderId]);
     },
+    setOrderExpedited: (orderId: number, expedited: boolean) => {
+        return executeNonQuery(pool, `
+            UPDATE API_ORDER
+            SET
+                EXPEDITED = $1
+            WHERE
+                ORDER_ID = $2
+        `, [expedited, orderId]);
+    },
     setOrderActiveState: (orderId: number, status: boolean) => {
         return executeNonQuery(pool, `
             UPDATE API_ORDER

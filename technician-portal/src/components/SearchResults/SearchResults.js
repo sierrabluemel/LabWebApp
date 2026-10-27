@@ -159,7 +159,7 @@ export default function SearchResults() {
             <div className={styles.search_table_wrap}>
             <table className={styles.search_table}>
                 <colgroup>
-                    {[150, 190, 70, 90, 200, 110, 70, 100, 120].map((width, i) => <col key={i} style={{ width }} />)}
+                    {[150, 230, 70, 90, 180, 110, 70, 100, 100].map((width, i) => <col key={i} style={{ width }} />)}
                 </colgroup>
                 <thead>
                     <tr>
@@ -193,8 +193,8 @@ export default function SearchResults() {
                                         <button className={styles.search_link} onClick={() => goToOrder(row.order_id)}>Order {row.order_id}</button>
                                         <div className={styles.search_sub}>
                                             {row.customer_order_number || 'N/A'} · {row.received_timestamp ? parseDataBaseDate(row.received_timestamp) : 'N/A'}
-                                            {row.expedited ? <span className={styles.search_badge_red}>EXPEDITED</span> : null}
                                         </div>
+                                        {row.expedited ? <div><span className={styles.search_badge_red}>EXPEDITED</span></div> : null}
                                     </>
                                 )}</td>
                                 <td>{firstOfBatch && row.batch_id != null && (

@@ -72,6 +72,7 @@ app.get('/api/get-orders-to-ship', auth, orderRoutes.getOrdersToShip);
 app.get('/api/set-order-shipped', auth, orderRoutes.setOrderShipped);
 app.get('/api/create-order', auth, orderRoutes.createOrder);
 app.get('/api/set-order-active-state', auth, orderRoutes.setOrderActiveState);
+app.get('/api/set-order-expedited', auth, orderRoutes.setOrderExpedited);
 app.get('/api/delete-order', auth, orderRoutes.deleteOrder);
 app.get('/api/generate-return-record', auth, orderRoutes.generateReturnRecord);
 app.get('/api/remove-sensors-from-network', auth, orderRoutes.removeSensorsFromNetwork);
@@ -99,6 +100,7 @@ app.get('/api/get-batches-by-active-state', auth, batchRoutes.getBatchesByActive
 app.get('/api/create-batch', auth, batchRoutes.createBatch);
 app.get('/api/set-batch-active-state', auth, batchRoutes.setBatchActiveState);
 app.get('/api/remove-batch-location', auth, batchRoutes.removeBatchLocation);
+app.get('/api/update-batch-calibration-procedure', auth, batchRoutes.updateBatchCalibrationProcedure);
 app.get('/api/create-location-log', auth, batchRoutes.createLocationLog);
 app.get('/api/get-locations', auth, batchRoutes.getLocations);
 app.get('/api/log-batch-interaction', auth, batchRoutes.logBatchInteraction);
@@ -107,6 +109,7 @@ app.get('/api/generate-work-order', auth, batchRoutes.generateWorkOrder);
 app.get('/api/delete-batch', auth, batchRoutes.deleteBatch);
 app.get('/api/change-batch-heartbeats', auth, batchRoutes.changeBatchHeartBeats);
 app.get('/api/move-batch-to-network-group', auth, batchRoutes.moveBatchToNetworkGroup);
+app.get('/api/reform-gateways', auth, batchRoutes.reformGateways);
 
 // Reading routes
 app.get('/api/get-recent-readings', auth, readingRoutes.getRecentReadings);
