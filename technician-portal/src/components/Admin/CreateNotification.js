@@ -19,6 +19,9 @@ export default function CreateNotification() {
 
     const { setPopupMessage } = useAppContext();
 
+    // .field_rows clips overflow, so draw the menu on body instead of inside the card
+    const selectProps = { menuPortalTarget: document.body, styles: { menuPortal: base => ({ ...base, zIndex: 9999 }) } };
+
     const timeUnitOptions = [
         { 
             value: 'days',
@@ -99,7 +102,7 @@ export default function CreateNotification() {
                     <div className={styles.field_row}>
                         <span className={styles.field_row_label}>Send to</span>
                         <div className={styles.field_row_fields}>
-                            <Select className={styles.field_select} aria-label='Technicians' options={options} key={`unique_key__${selectedTechnicians}`} value={selectedTechnicians || []} onChange={selectedOptions => setSelectedTechnicians(selectedOptions)} isMulti />
+                            <Select {...selectProps} className={styles.field_select} aria-label='Technicians' options={options} key={`unique_key__${selectedTechnicians}`} value={selectedTechnicians || []} onChange={selectedOptions => setSelectedTechnicians(selectedOptions)} isMulti />
                         </div>
                     </div>
                     <div className={styles.field_row}>
@@ -113,7 +116,7 @@ export default function CreateNotification() {
                             {repeatable &&
                                 <>
                                     <input className={styles.default_text_box} value={repeatInterval} onChange={handleRepeatIntervalUpdate} placeholder={'Interval'} aria-label='Repeat interval' />
-                                    <Select className={styles.field_select} aria-label='Repeat unit' options={timeUnitOptions} key={`unique_key__${repeatUnit}`} value={repeatUnit} onChange={selectedUnit => setRepeatUnit(selectedUnit)} />
+                                    <Select {...selectProps} className={styles.field_select} aria-label='Repeat unit' options={timeUnitOptions} key={`unique_key__${repeatUnit}`} value={repeatUnit} onChange={selectedUnit => setRepeatUnit(selectedUnit)} />
                                 </>
                             }
                         </div>

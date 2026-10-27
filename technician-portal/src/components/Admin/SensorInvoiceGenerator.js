@@ -4,7 +4,7 @@ import styles from "../../styles/styles.module.css"
 import { useState } from "react";
 import Button from "../Button/Button";
 import { useAppContext } from "../../contexts/app";
-import ip from "../../utils/ip/ip";
+import callApi from "../../utils/api/callApi";
 
 function SensorInvoiceGenerator() {
     const [startDate, setStartDate] = useState(new Date())
@@ -12,19 +12,11 @@ function SensorInvoiceGenerator() {
 
     const { setPopupMessage } = useAppContext();
 
-    function generateReport(event) {
-        const urlProtocol = process.env.REACT_APP_STATUS === 'production' ? 'https' : 'http';
-        fetch(`${urlProtocol}://${ip}/api/get-sensor-invoice-report/?start_date=${startDate.toString()}&end_date=${endDate.toString()}`, { headers: { Authorization: `Bearer ${localStorage.getItem("jwt")}` } })
+    function generateReport() {
+        // callApi refreshes an expired token on 418; raw fetch did not
+        return callApi('get-sensor-invoice-report', { start_date: startDate.toString(), end_date: endDate.toString() }, true)
             .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                } else {
-                    console.error(`Could not complete generation, response.ok: ${response.ok}`);
-                    setPopupMessage(`Failed to generate the invoice report`);
-                }
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
+                const url = URL.createObjectURL(response.data);
                 const link = document.createElement('a');
                 link.href = url;
                 const dateString = `${startDate.getMonth() + 1}_${startDate.getDate()}-${endDate.getMonth() + 1}_${endDate.getDate()}`
@@ -35,6 +27,7 @@ function SensorInvoiceGenerator() {
             })
             .catch(error => {
                 console.error('Error:', error);
+                setPopupMessage('Failed to generate the invoice report');
             });
     }
 

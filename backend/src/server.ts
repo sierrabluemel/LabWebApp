@@ -162,3 +162,5 @@ app.get('/api/get-notifications', auth, miscRoutes.getNotifications);
 app.get('/api/create-notification', auth, isAdmin, miscRoutes.createNotification);
 app.get('/api/dismiss-notification', auth, miscRoutes.dismissNotification);
 app.get('/api/get-technicians', auth, miscRoutes.getTechnicians);
+app.post('/api/create-technician', auth, isAdmin, authRoutes.createTechnician);
+app.post('/api/set-password', auth, isAdmin, authRoutes.setPassword);

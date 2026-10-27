@@ -94,11 +94,11 @@ test('Switching tabs shows only that section', async () => {
             </AppWrapper>
         )
     })
-    expect(screen.getByText(/equipment configuration/i)).toBeVisible();
-    expect(screen.getByText(/edit certificates/i)).not.toBeVisible();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Certificates' }));
-
-    expect(screen.getByText(/edit certificates/i)).toBeVisible();
+    expect(screen.getByRole('heading', { name: /create notification/i, hidden: true })).toBeVisible();
     expect(screen.getByText(/equipment configuration/i)).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Equipment' }));
+
+    expect(screen.getByText(/equipment configuration/i)).toBeVisible();
+    expect(screen.getByRole('heading', { name: /create notification/i, hidden: true })).not.toBeVisible();
 })

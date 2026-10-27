@@ -14,13 +14,15 @@ import EditCertificates from './EditCertificates';
 import CreateHumidityVariance from './CreateHumidityVariance';
 import HumidityVarianceRow from './HumidityVarianceRow';
 import StabilityTimes from './StabilityTimes';
+import ManageUsers from './ManageUsers';
 
 const tabs = [
+    { key: 'notifications', label: 'Notifications & Invoices' },
     { key: 'equipment', label: 'Equipment' },
     { key: 'variances', label: 'Variances' },
     { key: 'stability', label: 'Stability Times' },
     { key: 'certificates', label: 'Certificates' },
-    { key: 'notifications', label: 'Notifications & Invoices' }
+    { key: 'users', label: 'Users' }
 ];
 
 function Admin() {
@@ -35,7 +37,7 @@ function Admin() {
     const [addingHumidityVariance, setAddingHumidityVariance] = useState(false);
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [equipmentListFiltered, setEquipmentListFiltered] = useState(true);
-    const [tab, setTab] = useState('equipment');
+    const [tab, setTab] = useState('notifications');
     const referenceList = [reference1, reference2, reference3, reference4];
     const refreshed = useRef(false);
 
@@ -287,6 +289,9 @@ function Admin() {
             </div>
             <div hidden={tab !== 'certificates'}>
                 <EditCertificates />
+            </div>
+            <div hidden={tab !== 'users'}>
+                <ManageUsers />
             </div>
             <div className={styles.menu} hidden={tab !== 'stability'}>
                 <StabilityTimes />

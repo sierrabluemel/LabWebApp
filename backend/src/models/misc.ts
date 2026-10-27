@@ -300,6 +300,13 @@ const misc = {
             ORDER BY list_priority;
         `, []);
     },
+    createTechnician: (userId: number, firstName: string, lastName: string, admin: boolean) => {
+        return executeQuerySingleReturn(pool, `
+            INSERT INTO api_technician (user_id, first_name, last_name, admin)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *;
+        `, [userId, firstName, lastName, admin]);
+    },
 }
 
 export default misc;

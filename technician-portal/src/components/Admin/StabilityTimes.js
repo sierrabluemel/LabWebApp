@@ -42,35 +42,38 @@ export default function StabilityTimes() {
             <div className={styles.toolbar}>
                 <h1 className={styles.title}>Stability Times</h1>
             </div>
-            <table className={styles.equipment_table}>
+            <table className={`${styles.equipment_table} ${styles.stability_table}`}>
                 <thead className={styles.equipment_table_head}>
                     <tr>
                         <th className={styles.equipment_table_data}>CP</th>
-                        <th className={styles.equipment_table_data}>Set Point</th>
-                        <th className={styles.equipment_table_data}>Required Stable Minutes</th>
+                        <th className={styles.equipment_table_data}>Required Stable Minutes per Set Point</th>
                     </tr>
                 </thead>
                 <tbody className={styles.equipment_table_body}>
-                    {procedures.flatMap(procedure => (procedure.set_points ?? []).map((setPoint, index) => {
-                        const key = `${procedure.calibration_procedure_id}-${index}`;
-                        const stored = setPoint.stabilityCriteria?.minutes ?? DEFAULT_MINUTES;
-                        const label = setPointLabel(setPoint);
-                        return (
-                            <tr key={key}>
-                                <td className={styles.equipment_table_data}>{procedure.calibration_procedure_id}</td>
-                                <td className={styles.equipment_table_data}>{label}</td>
-                                <td className={styles.equipment_table_data}>
-                                    <form onSubmit={event => { event.preventDefault(); save(procedure.calibration_procedure_id, index) }}>
-                                        <input type='number' step='0.25' min='0' className={styles.default_text_box}
-                                            aria-label={`CP${procedure.calibration_procedure_id} ${label} minutes`}
-                                            value={edits[key] ?? stored}
-                                            onChange={event => setEdits({ ...edits, [key]: event.target.value })}
-                                            onBlur={() => save(procedure.calibration_procedure_id, index)} />
-                                    </form>
-                                </td>
-                            </tr>
-                        )
-                    }))}
+                    {procedures.map(procedure => (
+                        <tr key={procedure.calibration_procedure_id}>
+                            <td className={styles.equipment_table_data}>CP{procedure.calibration_procedure_id}</td>
+                            <td className={`${styles.equipment_table_data} ${styles.stability_cell}`}>
+                                <div className={styles.stability_set_points}>
+                                    {(procedure.set_points ?? []).map((setPoint, index) => {
+                                        const key = `${procedure.calibration_procedure_id}-${index}`;
+                                        const stored = setPoint.stabilityCriteria?.minutes ?? DEFAULT_MINUTES;
+                                        const label = setPointLabel(setPoint);
+                                        return (
+                                            <form key={key} className={styles.stability_set_point} onSubmit={event => { event.preventDefault(); save(procedure.calibration_procedure_id, index) }}>
+                                                <span className={styles.stability_label}>{label}</span>
+                                                <input type='number' step='0.25' min='0' className={styles.default_text_box}
+                                                    aria-label={`CP${procedure.calibration_procedure_id} ${label} minutes`}
+                                                    value={edits[key] ?? stored}
+                                                    onChange={event => setEdits({ ...edits, [key]: event.target.value })}
+                                                    onBlur={() => save(procedure.calibration_procedure_id, index)} />
+                                            </form>
+                                        )
+                                    })}
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
                 </tbody>
             </table>
         </>

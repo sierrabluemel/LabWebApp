@@ -54,8 +54,10 @@ const sensorRoutes = {
                 const templatePath = path.join(directory, 'templates', 'sensorBillingReport.xlsx')
                 const outputPath = path.join(directory, 'fileOutputs', 'sensorBillingReport.xlsx')
 
+                fs.mkdirSync(path.dirname(outputPath), { recursive: true }); // gitignored, missing on a fresh clone
+
                 const workbook = new ExcelJS.Workbook();
-                workbook.xlsx.readFile(templatePath)
+                return workbook.xlsx.readFile(templatePath)
                     .then(() => {
                         const worksheet = workbook.getWorksheet(1)!
                         worksheet.getCell('F3').value = getDateString(startDate)

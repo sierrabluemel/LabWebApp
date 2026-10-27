@@ -1685,6 +1685,48 @@ mark {
     background-color: var(--surface);
 }
 
+/* one CP per row: equal-width set point cells so they line up as columns across rows */
+.stability_table {
+    width: auto; /* fit the 5-column grid instead of stretching across the card */
+    margin: 0 auto;
+}
+
+.stability_cell {
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+}
+
+.stability_set_points {
+    display: grid;
+    grid-template-columns: repeat(5, 130px);
+    gap: 8px 10px;
+}
+
+.stability_set_point {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg);
+}
+
+.stability_label {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.stability_set_point .default_text_box {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    font-size: 14px;
+}
+
 .equipment_table_body tr:hover {
     background-color: var(--primary-soft);
 }

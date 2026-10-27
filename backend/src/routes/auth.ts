@@ -4,6 +4,7 @@ import crypt from "../utils/crypt";
 import config from "../utils/config";
 import sendMailVerification from "../utils/mail";
 import user from "../models/user";
+import misc from "../models/misc";
 import { JWT_ACCESS_TIMESPAN, JWT_REFRESH_TIMESPAN } from "../constants";
 
 const authRoutes = {
@@ -194,9 +195,16 @@ const authRoutes = {
         return authRoutes.forgotPassword(req, res);
     },
     verifyResetPassword: async (req: Request, res: Response) => {
-        const { email } = jwt.decode(
-            req.headers.authorization?.replace("Bearer ", "") || ""
-        ) as any;
+        let email: string;
+        try {
+            ({ email } = jwt.verify(
+                req.headers.authorization?.replace("Bearer ", "") || "",
+                config.JWT_SECRET_KEY
+            ) as any);
+        } catch {
+            res.status(401).json({ error: "Invalid or expired token" });
+            return;
+        }
 
         user.getByEmail(email)
             .then(async (u) => {
@@ -215,7 +223,54 @@ const authRoutes = {
                 res.status(200).json(u);
             })
             .catch((err) => {
+                console.error(err);
+                res.status(500).json("Error resetting password");
+            });
+    },
+    createTechnician: (req: Request, res: Response) => {
+        const { email, password, lastName, firstName, admin } = req.body;
+        if (!email || !password || !firstName || !lastName) {
+            res.status(400).json({ error: "First name, last name, email and password are required" });
+            return;
+        }
 
+        user.getByEmail(email)
+            .then(async (u) => {
+                if (u) {
+                    res.status(409).json({ error: `User with that email already exists` });
+                    return;
+                }
+                const hashPass = await crypt.hashAndValidatePassword(password, Number(process.env.SALT_ROUNDS || 10));
+                const created = await user.createUser(firstName, lastName, email, hashPass);
+                await user.setVerified(created.id, true); // no verification email for lab accounts
+                const technician = await misc.createTechnician(created.id, firstName, lastName, !!admin);
+                res.status(201).json(technician);
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error creating technician" });
+            });
+    },
+    setPassword: (req: Request, res: Response) => {
+        const userId = parseInt(req.body.user_id);
+        const { password } = req.body;
+        if (isNaN(userId) || !password) {
+            res.status(400).json({ error: "Technician and new password are required" });
+            return;
+        }
+
+        crypt.hashAndValidatePassword(password, Number(process.env.SALT_ROUNDS || 10))
+            .then((hashPass) => user.changePassword(userId, hashPass))
+            .then((u) => {
+                if (!u) {
+                    res.status(404).json({ error: "User not found" });
+                    return;
+                }
+                res.status(200).json({ message: "Password updated" });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error setting password" });
             });
     },
     me: (req: Request, res: Response) => {
