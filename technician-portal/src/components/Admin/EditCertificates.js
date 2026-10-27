@@ -1,18 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import styles from '../../styles/styles.module.css';
 import callApi from '../../utils/api/callApi';
 import Button from '../Button/Button';
 import { useAppContext } from '../../contexts/app';
 
 export default function EditCertificates() {
-    const [orderId, setOrderId] = useState('');
+    // The search results Edit link opens this tab as /admin?tab=certificates&order_id=..&certificate_id=..
+    const link = new URLSearchParams(window.location.search);
+    const [orderId, setOrderId] = useState(link.get('order_id') ?? '');
     const [certificates, setCertificates] = useState([]);
     const [batchId, setBatchId] = useState('');
+    const [certificateId, setCertificateId] = useState('');
     const [edits, setEdits] = useState({});
 
     const { setPopupMessage } = useAppContext();
 
-    const selected = certificates.filter(c => !batchId || c.batch_id === parseInt(batchId));
+    const inBatch = certificates.filter(c => !batchId || c.batch_id === parseInt(batchId));
+    const selected = inBatch.filter(c => !certificateId || c.certificate_id === parseInt(certificateId));
     const batchIds = [...new Set(certificates.map(c => c.batch_id))];
     // Only fields every selected certificate has can be edited; the backend rejects the rest
     const fields = selected.length === 0 ? [] : Object.keys(selected[0].generate_certificate_json)
@@ -29,13 +33,15 @@ export default function EditCertificates() {
         row ? row.fields.push(field) : rows.push({ name, fields: [field] });
     }
 
-    const loadCertificates = () => {
+    const loadCertificates = (linkedCertificateId = '') => {
         return callApi('get-certificates-by-order-id', { order_id: orderId })
             .then(response => {
                 if (response.length === 0)
                     setPopupMessage(`No certificates found for order ${orderId}`);
+                const linked = response.find(c => c.certificate_id === parseInt(linkedCertificateId));
                 setCertificates(response);
-                setBatchId('');
+                setBatchId(linked ? String(linked.batch_id) : '');
+                setCertificateId(linked ? String(linked.certificate_id) : '');
                 setEdits({});
             })
             .catch(err => {
@@ -44,10 +50,17 @@ export default function EditCertificates() {
             });
     }
 
+    useEffect(() => {
+        if (link.get('order_id'))
+            loadCertificates(link.get('certificate_id') ?? '');
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     const saveCertificates = (changes) => {
         const params = { order_id: orderId, certificate_json: JSON.stringify(changes) };
         if (batchId)
             params.batch_id = batchId;
+        if (certificateId)
+            params.certificate_id = certificateId;
         return callApi('update-certificates-json', params)
             .then(updated => {
                 setPopupMessage(`Updated ${updated.length} certificate${updated.length === 1 ? '' : 's'}`);
@@ -75,9 +88,13 @@ export default function EditCertificates() {
                 <Button onClick={loadCertificates} innerText={'Load'} />
                 {certificates.length > 0 &&
                     <>
-                        <select className={styles.default_text_box} value={batchId} onChange={event => { setBatchId(event.target.value); setEdits({}); }} aria-label='Batch'>
+                        <select className={styles.default_text_box} value={batchId} onChange={event => { setBatchId(event.target.value); setCertificateId(''); setEdits({}); }} aria-label='Batch'>
                             <option value=''>All batches</option>
                             {batchIds.map(id => <option key={id} value={id}>Batch {id} (CP {certificates.find(c => c.batch_id === id).calibration_procedure_id})</option>)}
+                        </select>
+                        <select className={styles.default_text_box} value={certificateId} onChange={event => { setCertificateId(event.target.value); setEdits({}); }} aria-label='Certificate'>
+                            <option value=''>All certificates</option>
+                            {inBatch.map(c => <option key={c.certificate_id} value={c.certificate_id}>MNT-{c.certificate_id} ({c.cable_id ? `lead ${c.cable_id}` : `sensor ${c.sensor_id}`})</option>)}
                         </select>
                         <span>{selected.length} certificate{selected.length === 1 ? '' : 's'}</span>
                     </>

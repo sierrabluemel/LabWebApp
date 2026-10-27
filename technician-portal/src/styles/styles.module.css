@@ -2398,3 +2398,28 @@ mark {
         background-color: var(--highlight);
     }
 }
+
+/* Receiving scan list: sensor id | spare toggle | lead id | get lead | remove */
+.scanned_sensor_grid {
+    display: grid;
+    grid-template-columns: 180px 1fr 140px 1fr auto;
+    gap: 8px 10px;
+    align-items: center;
+}
+
+.scanned_sensor_grid .green_sensor,
+.scanned_sensor_grid .offline_sensor {
+    margin: 0;
+    padding: 0 12px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: bold;
+}
+
+.scanned_sensor_grid .default_text_box {
+    margin: 0;
+    padding: 0 12px;
+    text-align: left;
+}

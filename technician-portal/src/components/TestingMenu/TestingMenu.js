@@ -11,9 +11,25 @@ import SensorLink from "../SensorLink/SensorLink.js";
 function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setReferencesToVerify }) {
     const {
         procedureId, sensorGrid,
-        sensorList, setSensorGrid, setPopupMessage, equipment,
+        sensorList, setSensorList, setSensorGrid, setPopupMessage, equipment,
         variances, labReadings
     } = useAppContext()
+
+    // Spares are tested with the batch but stay out of the grid until added through the popup
+    const spares = sensorList.filter(s => s.spare);
+    const [showSpares, setShowSpares] = useState(false);
+
+    const addSpare = (sensor) => {
+        setShowSpares(false);
+        return callApi('set-sensor-spare', { sensor_id: sensor.sensor_id, batch_id: sensor.batch_id, spare: false })
+            .then(() => callApi('get-sensors', { batch_id: sensor.batch_id }))
+            .then(setSensorList)
+            .then(() => setPopupMessage(`Spare ${sensor.sensor_id} added to the batch`))
+            .catch(err => {
+                setPopupMessage(`Unable to add spare ${sensor.sensor_id}`)
+                console.error(err)
+            })
+    }
 
     const [stableTimeStrings, setStableTimeStrings] = useState(setPoints.map(() => 'Loading...'));
     const [stableTimes, setStableTimes] = useState([]);
@@ -106,7 +122,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 let currentReadingString = '';
                 let elementClass = styles.grid_row;
 
-                sensorList.forEach((sensor, index) => {
+                sensorList.filter(s => !s.spare).forEach((sensor, index) => {
                     const currentReadings = recentReadings.filter(r => r.sensor_id === sensor.sensor_id)
                     const humidity = currentReadings.length !== 0 ? currentReadings.filter(r => r.type === 'humidity')[0] : null;
                     const temperature = currentReadings.length !== 0 ? currentReadings.filter(r => r.type === 'temperature')[0] : null;
@@ -528,6 +544,27 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                     </div>
                     {sensorGrid}
                 </div>
+                {spares.length > 0 ?
+                    <div className={`${styles.row} ${styles.row_end}`}>
+                        <Button onClick={() => setShowSpares(true)} innerText={`Add spare (${spares.length} available)`} />
+                    </div> : <></>}
+                {showSpares ?
+                    <>
+                        <div className={styles.popup_background} onClick={() => setShowSpares(false)}></div>
+                        <div className={`${styles.notification_popup_container} ${styles.modal}`} role='dialog' aria-label='Add spare'>
+                            <h2 className={styles.popup_header}>Add a spare to this batch</h2>
+                            <div className={styles.modal_body}>
+                                {spares.map(spare =>
+                                    <div key={spare.sensor_id} className={`${styles.modal_row} ${styles.row}`}>
+                                        <SensorLink sensorId={spare.sensor_id} text={spare.cable_id ? `${spare.sensor_id} (${spare.cable_id})` : `${spare.sensor_id}`} />
+                                        <Button className={`${styles.default_button} ${styles.green}`} onClick={() => addSpare(spare)} innerText={'Add'} />
+                                    </div>)}
+                            </div>
+                            <div className={styles.modal_footer}>
+                                <button className={styles.default_button} onClick={() => setShowSpares(false)}>Close</button>
+                            </div>
+                        </div>
+                    </> : <></>}
             </>
         )
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppContext } from "../../contexts/app";
 import addSensor from "../../utils/addSensor";
 import parseSensorString from "../../utils/parseSensorString";
@@ -9,6 +9,7 @@ import ScannedSensors from "../ScannedSensors/ScannedSensors";
 import styles from "../../styles/styles.module.css";
 import LocationPicker from "../LocationPicker/LocationPicker";
 import Button from "../Button/Button";
+import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId, preload = false, hideCancel = false }) {
     const { setPopupMessage } = useAppContext();
@@ -19,6 +20,11 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
     const [displayed, setDisplayed] = useState(true);
     const [currentLocation, setCurrentLocation] = useState('No location set');
     const [cancelling, setCancelling] = useState(false);
+    const [spareMode, setSpareMode] = useState(false);
+    const [removeConfirmation, setRemoveConfirmation] = useState([]);
+    const sensorToRemove = useRef(null);
+    const spareCount = sensors.filter(s => s.spare).length;
+    const summary = `Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length - spareCount}${spareCount ? ` | Spares: ${spareCount}` : ''}`;
 
     // Editing an existing batch: show the sensors and location it already has
     useEffect(() => {
@@ -26,7 +32,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
             return;
         callApi('get-sensors', { batch_id: batchNumber })
             .then(existing => {
-                setSensors(existing.map(s => ({ sensor: `${s.sensor_id}:${s.check_digit}`, online: false, cable_id: s.cable_id })));
+                setSensors(existing.map(s => ({ sensor: `${s.sensor_id}:${s.check_digit}`, online: false, cable_id: s.cable_id, spare: s.spare })));
                 setAddedSensors(existing.map(s => s.sensor_id));
             })
             .catch(err => console.error(err))
@@ -47,7 +53,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
             setPopupMessage(`"${sensorString}": ${error.message}`);
             return;
         }
-        const sensorObject = { sensor: `${sensorId}:${checkDigit}`, online: false }
+        const sensorObject = { sensor: `${sensorId}:${checkDigit}`, online: false, spare: spareMode }
 
         if (addedSensors.includes(sensorId)) {
             setPopupMessage(`Sensor "${sensorId}" is already in this batch`);
@@ -55,7 +61,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
         }
 
         setAddedSensors([...addedSensors, parseInt(sensorId)]);
-        addSensor(sensorString, batchNumber)
+        addSensor(sensorString, batchNumber, spareMode)
             .then(sensorValid => {
                 if (!sensorValid) {
                     setPopupMessage(`Sensor "${sensorId}" could not be added`);
@@ -102,7 +108,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
                             sensorElement.online = true;
                             sensorElement.cable_id = response.order_sensors.filter(s => s.sensor_id === sensor)[0].cable_id
                         }
-                        newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online, cable_id: sensorElement.cable_id });
+                        newSensors.push({ ...sensorElement });
                     }
                     setSensors(newSensors)
                 }
@@ -135,28 +141,57 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
             .then(setPopupMessage(`Batch ${batchNumber} work order printed`))
     }
 
+    const requestRemove = (sensorObject) => {
+        sensorToRemove.current = sensorObject;
+        setRemoveConfirmation([`Remove sensor ${parseSensorString(sensorObject.sensor)[0]} from batch ${batchNumber}?`]);
+    }
+
+    // Same two calls as the testing page: reset the iMonnit heartbeat, then drop the batch row
+    const removeSensor = () => {
+        const [sensorId, checkDigit] = parseSensorString(sensorToRemove.current.sensor);
+        callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
+            .then(() => callApi('remove-sensor-from-batch', { sensor_id: sensorId, batch_id: batchNumber }))
+            .then(() => {
+                setSensors(current => current.filter(s => parseSensorString(s.sensor)[0] !== sensorId));
+                setAddedSensors(current => current.filter(id => parseInt(id) !== sensorId));
+                setPopupMessage(`Sensor ${sensorId} removed from batch ${batchNumber}`);
+            })
+            .catch(err => {
+                setPopupMessage(`Could not remove sensor ${sensorId}`);
+                console.error(err);
+            })
+    }
+
+    const onSpareChange = (sensorId, spare) => {
+        setSensors(current => current.map(s => parseSensorString(s.sensor)[0] === sensorId ? { ...s, spare } : s));
+    }
+
     if (!displayed) {
         return (
-            <button className={styles.default_button} onClick={() => setDisplayed(true)}>{`Expand (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
+            <button className={styles.default_button} onClick={() => setDisplayed(true)}>{`Expand (${summary}`}</button>
         )
     }
 
     return (
         <section className={`${styles.subsection} ${styles.stack}`}>
-            <button className={styles.default_button} onClick={() => setDisplayed(false)}>{`Hide (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
+            <ConfirmationPopup confirmationArray={removeConfirmation} setConfirmationArray={setRemoveConfirmation} handleConfirm={removeSensor} confirmText={'Remove'} />
+            <button className={styles.default_button} onClick={() => setDisplayed(false)}>{`Hide (${summary}`}</button>
 
             <div className={styles.current_location_text}>{`Current location: ${currentLocation}`}</div>
 
             <div className={styles.grid_menu}>
-                <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
-                    <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={'Scan Sensor'} />
+                <form onSubmit={handleAddSensor} data-testid={'addSensorForm'} className={styles.row}>
+                    <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={spareMode ? 'Scan spare' : 'Scan Sensor'} style={{ flex: 1 }} />
+                    <label className={styles.admin_check_box_container}>
+                        <input className={styles.admin_check_box} type='checkbox' checked={spareMode} onChange={event => setSpareMode(event.target.checked)} /> Spare
+                    </label>
                 </form>
                 <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
                 <Button onClick={printWorkOrder} innerText={'Print work order'} />
                 <Button onClick={getAllLeads} innerText={'Get all leads'} />
             </div>
 
-            <ScannedSensors sensorList={sensors} />
+            <ScannedSensors sensorList={sensors} batchNumber={batchNumber} onSpareChange={onSpareChange} onRemove={requestRemove} />
 
             {hideCancel ? <></> :
                 <div className={styles.card_actions}>

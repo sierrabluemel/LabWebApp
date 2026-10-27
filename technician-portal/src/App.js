@@ -24,8 +24,9 @@ import SearchResults from './components/SearchResults/SearchResults.js';
 
 function App() {
   const [salesOrder, setSalesOrder] = useState('');
-  const [technicianId, setTechnicianId] = useState(0);
-  const [technician, setTechnician] = useState({});
+  // Read the saved user up front so a refresh on /admin doesn't bounce home before Header runs
+  const [technician, setTechnician] = useState(() => JSON.parse(localStorage.getItem('user')) ?? {});
+  const [technicianId, setTechnicianId] = useState(technician.technician_id ?? 0);
   const [batchNumber, setBatchNumber] = useState('');
   const [sensorList, setSensorList] = useState([]);
   const [procedureId, setProcedureId] = useState(0);

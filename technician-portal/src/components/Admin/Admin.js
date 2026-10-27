@@ -37,7 +37,7 @@ function Admin() {
     const [addingHumidityVariance, setAddingHumidityVariance] = useState(false);
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [equipmentListFiltered, setEquipmentListFiltered] = useState(true);
-    const [tab, setTab] = useState('notifications');
+    const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') ?? 'notifications');
     const referenceList = [reference1, reference2, reference3, reference4];
     const refreshed = useRef(false);
 
@@ -219,7 +219,7 @@ function Admin() {
     return !refreshed.current ? <h1 className={styles.title}>Loading...</h1> : (
         <div className={styles.admin_page}>
             <div className={styles.admin_tabs} role='group' aria-label='Admin sections'>
-                {tabs.map(t => <button key={t.key} className={styles.admin_tab} aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</button>)}
+                {tabs.map(t => <button key={t.key} className={styles.admin_tab} aria-pressed={tab === t.key} onClick={() => { setTab(t.key); window.history.replaceState(null, '', `?tab=${t.key}`) }}>{t.label}</button>)}
             </div>
             {/* hidden instead of unmounting so half-typed forms survive a tab switch */}
             <div hidden={tab !== 'notifications'}>

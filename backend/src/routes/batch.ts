@@ -260,17 +260,13 @@ const batchRoutes = {
 
         batch.getCalibrationInfo(batchId)
             .then(async (data) => {
-                let sensors = await sensor.getSensorsByBatchId(batchId);
+                const allSensors = await sensor.getSensorsByBatchId(batchId);
+                const sensors = allSensors.filter((s) => !s.spare);
+                const spares = allSensors.filter((s) => s.spare);
 
-                let sensorsString;
-
-                for (let i = 0; i < sensors.length; i++) {
-                    if (i === 0) {
-                        sensorsString = `${sensors[i].sensor_id}`
-                    } else {
-                        sensorsString = sensorsString + `, ${sensors[i].sensor_id}`
-                    }
-                }
+                let sensorsString = sensors.map((s) => s.sensor_id).join(', ');
+                if (spares.length)
+                    sensorsString += ` | Spares: ${spares.map((s) => s.sensor_id).join(', ')}`;
                 const fields = {
                     'calibrationProcedure': `${data.calibration_procedure_id}`,
                     'workOrder': `${batchId}`,

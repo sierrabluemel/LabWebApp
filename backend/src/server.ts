@@ -87,6 +87,7 @@ app.get('/api/change-sensor-heartbeat', auth, sensorRoutes.changeSensorHeartbeat
 app.get('/api/get-sensors-by-order-id', auth, sensorRoutes.getSensorsByOrderId);
 app.get('/api/get-sensors-by-batch-id', auth, sensorRoutes.getSensorsByBatchId);
 app.get('/api/remove-sensor-from-batch', auth, sensorRoutes.removeSensorFromBatch);
+app.get('/api/set-sensor-spare', auth, sensorRoutes.setSensorSpare);
 app.get('/api/remove-sensor', auth, sensorRoutes.removeSensor);
 app.get('/api/get-sensor-list', auth, sensorRoutes.getSensorList);
 app.get('/api/get-sensor-cable-id', auth, sensorRoutes.getSensorCableId);

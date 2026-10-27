@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import styles from '../../styles/styles.module.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from "../../contexts/app";
@@ -9,8 +9,6 @@ function Header({ title }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { technician, setTechnician, setTechnicianId } = useAppContext();
-    const isMounted = useRef(false);
-
     const logOut = useCallback(() => {
         setTechnician({});
         setTechnicianId(0);
@@ -24,13 +22,8 @@ function Header({ title }) {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user && location.pathname !== '/signIn') {
             logOut()
-        } else if (!isMounted.current && user) {
-            setTechnician(user);
-            setTechnicianId(user.technician_id);
-            isMounted.current = true;
-            navigate('/');
         }
-    }, [location.pathname, navigate, setTechnician, setTechnicianId, logOut]);
+    }, [location.pathname, logOut]);
 
     return (
         <header className={styles.header_container}>

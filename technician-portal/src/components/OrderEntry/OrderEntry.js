@@ -51,7 +51,7 @@ function OrderEntry() {
         callApi('get-batches-by-order-id', { order_id: orderId })
             .then(response => {
                 setBatches(response);
-                navigate('/shipping')
+                navigate(`/shipping?order_id=${orderId}`)
                 for (const batch of response) {
                     callApi('log-batch-interaction', {
                         department: 'shipping',
@@ -87,7 +87,7 @@ function OrderEntry() {
                         batch_id: batch.batch_id
                     })
                 }
-                navigate('/shipping')
+                navigate(`/shipping?order_id=${orderNumber}`)
             })
     }
 

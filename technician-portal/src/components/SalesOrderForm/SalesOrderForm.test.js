@@ -155,7 +155,7 @@ test('edit mode shows only that batch and opens it on submit', async () => {
     })
     expect(sharedState.setOrder).toBeCalledWith(null)
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/get-batch-by-id/`, expect.objectContaining({ params: { batch_id: 5 } }))
-    expect(mockedUseNavigate).toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('add and edit modes have a back button to the testing page', async () => {

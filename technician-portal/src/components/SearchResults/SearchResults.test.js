@@ -136,6 +136,16 @@ test('certificate search shows only that certificate', async () => {
     expect(screen.getByText('MNT-9002')).toBeInTheDocument()
     expect(screen.queryByText('MNT-9001')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show batch 3137' })).toBeInTheDocument()
+    expect(screen.queryByText('Edit')).not.toBeInTheDocument()
+})
+
+test('admins get an Edit link that opens the certificate in the admin Certificates tab', async () => {
+    searchRows = leadRows.filter(r => r.certificate_id === 9002)
+    await act(async () => {
+        renderResults({ searchSelection: { key: 'certificate_id', value: 9002 }, technician: { admin: true } })
+    })
+    fireEvent.click(screen.getByText('Edit'))
+    expect(mockedUseNavigate).toHaveBeenCalledWith('/admin?tab=certificates&order_id=1861&certificate_id=9002')
 })
 
 test('sensor without a lead shows its own sku and no certificate', async () => {
@@ -170,7 +180,7 @@ test('opening a batch sets the order number and goes to ManageBatch', async () =
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/update-batch-technician/`, expect.objectContaining({
         params: { department: 'testing', technician_id: 1, batch_id: 3137 }
     }))
-    expect(mockedUseNavigate).toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('opening a batch that no longer exists shows a popup', async () => {
@@ -183,7 +193,7 @@ test('opening a batch that no longer exists shows a popup', async () => {
         fireEvent.click(screen.getByText('Batch 3137'))
     })
     expect(state.setPopupMessage).toBeCalledWith('Batch 3137 not found')
-    expect(mockedUseNavigate).not.toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).not.toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('opening an order logs shipping start for each batch and goes to Shipping', async () => {
@@ -198,5 +208,5 @@ test('opening an order logs shipping start for each batch and goes to Shipping',
             params: { department: 'shipping', start: true, technician_id: 1, batch_id: batchId }
         }))
     }
-    expect(mockedUseNavigate).toBeCalledWith('/shipping')
+    expect(mockedUseNavigate).toBeCalledWith(expect.stringContaining('/shipping'))
 })

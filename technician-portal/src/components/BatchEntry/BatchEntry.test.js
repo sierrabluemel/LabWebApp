@@ -104,7 +104,7 @@ test('clicking button without technicianId does nothing', async () => {
     await act(async () => {
         fireEvent.click(batchButton)
     })
-    expect(mockedUseNavigate).not.toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).not.toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('clicking button navigates to ManageBatch screen', async () => {
@@ -125,7 +125,7 @@ test('clicking button navigates to ManageBatch screen', async () => {
         fireEvent.click(batchButton)
     })
     expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/update-batch-technician/", expect.objectContaining({ "params": { "batch_id": 123, "department": "testing", "technician_id": 1 } }))
-    expect(mockedUseNavigate).toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('empty response has message stating no batches', async () => {
@@ -164,7 +164,7 @@ test('submit batch number with valid number navigates', async () => {
     })
     expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/get-batches-by-active-state/", expect.objectContaining({"params": {"active": true}}))
     expect(mockAxios.get).toBeCalledWith("http://127.0.0.1:8000/api/get-batch-by-id/", expect.objectContaining({"params": {"batch_id": 123}}))
-    expect(mockedUseNavigate).toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('submit batch number that doesn\'t exist shows popup', async () => {
@@ -186,7 +186,7 @@ test('submit batch number that doesn\'t exist shows popup', async () => {
         fireEvent.submit(screen.getByTestId('batchForm'))
     })
     expect(mockSetPopupMessage).toBeCalledWith('Batch 999 not found')
-    expect(mockedUseNavigate).not.toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).not.toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('submit batch number without technicianId doesn\'t continue', async () => {
@@ -208,7 +208,7 @@ test('submit batch number without technicianId doesn\'t continue', async () => {
         fireEvent.submit(form)
     })
     expect(mockAxios.get).not.toBeCalledWith("http://127.0.0.1:8000/api/get-batch-by-id/", expect.objectContaining({"params": {"batch_id": 123}}))
-    expect(mockedUseNavigate).not.toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).not.toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 
 test('submit batch number without proper batch number doesn\'t continue', async () => {
@@ -230,7 +230,7 @@ test('submit batch number without proper batch number doesn\'t continue', async 
         fireEvent.submit(form)
     })
     expect(mockAxios.get).not.toBeCalledWith("http://127.0.0.1:8000/api/get-batch-by-id/", expect.anything())
-    expect(mockedUseNavigate).not.toBeCalledWith('/manageBatch')
+    expect(mockedUseNavigate).not.toBeCalledWith(expect.stringContaining('/manageBatch'))
 })
 const defaultState = () => ({
     batchNumber: 3000, setBatchNumber: jest.fn(), setSensorList: jest.fn(), setProcedureId: jest.fn(),

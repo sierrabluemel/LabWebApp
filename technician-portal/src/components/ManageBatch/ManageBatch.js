@@ -11,6 +11,7 @@ import styles from "../../styles/styles.module.css";
 import parseSensorString from "../../utils/parseSensorString";
 import LocationPicker from "../LocationPicker/LocationPicker";
 import Button from "../Button/Button";
+import useOpenBatch from "../../utils/useOpenBatch";
 
 // Heartbeats the batch can be set to, in minutes
 const HEARTBEATS = [
@@ -38,9 +39,18 @@ function ManageBatch() {
     const [calibrationProcedureDescription, setCalibrationProcedureDescription] = useState('');
     const [removeConfirmation, setRemoveConfirmation] = useState([]);
     const sensorToRemove = useRef(null);
+    const openBatch = useOpenBatch();
+
+    // After a page refresh shared state is empty; reload the batch from the URL
+    useEffect(() => {
+        if (batchNumber) return;
+        const batchId = new URLSearchParams(window.location.search).get('batch_id');
+        batchId ? openBatch(batchId) : navigate('/batchEntry');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
-        if (!isMounted.current) {
+        if (!isMounted.current && batchNumber) {
             callApi('get-batch-by-id', { batch_id: batchNumber })
                 .then(response => {
                     setCurrentLocation(response.current_location)

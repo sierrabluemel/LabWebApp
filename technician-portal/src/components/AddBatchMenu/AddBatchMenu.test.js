@@ -211,3 +211,65 @@ test('hideCancel leaves the cancel button out of the card', async () => {
     })
     expect(screen.queryByText('Cancel')).toBeNull()
 })
+
+test('scanning with the Spare box checked sends spare and counts it separately', async () => {
+    renderMenu()
+    fireEvent.click(screen.getByLabelText('Spare'))
+    const scanBox = screen.getByPlaceholderText(/scan spare/i)
+    fireEvent.change(scanBox, { target: { value: '12345:ABCDE' } })
+    await act(async () => {
+        fireEvent.submit(screen.getByTestId('addSensorForm'))
+    })
+    calledWithParams('create-sensor', { batch_id: 3000, check_digit: 'ABCDE', sensor_id: 12345, spare: true })
+    expect(screen.getByText(/spare/i, { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText(/total sensors: 0 \| spares: 1/i)).toBeInTheDocument()
+})
+
+test('"Add to batch" on a preloaded spare calls set-sensor-spare', async () => {
+    mockAxios.get.mockImplementation(url => {
+        switch (url) {
+            case api('get-sensors'):
+                return Promise.resolve({ data: [{ sensor_id: 111, check_digit: 'ABC', cable_id: null, spare: true }] })
+            case api('set-sensor-spare'):
+                return Promise.resolve({ data: { Result: 'ok' } })
+            default:
+                return Promise.reject({ response: { status: 500 } })
+        }
+    });
+    await act(async () => {
+        renderMenu({}, { preload: true })
+    })
+    await act(async () => {
+        fireEvent.click(screen.getByText('Add to batch'))
+    })
+    calledWithParams('set-sensor-spare', { sensor_id: '111', batch_id: 3000, spare: false })
+    expect(screen.getByText('Make spare')).toBeInTheDocument()
+    expect(screen.getByText(/total sensors: 1/i)).toBeInTheDocument()
+})
+
+test('trash button asks to confirm, then removes the sensor from iMonnit and the batch', async () => {
+    mockAxios.get.mockImplementation(url => {
+        switch (url) {
+            case api('get-sensors'):
+                return Promise.resolve({ data: [{ sensor_id: 111, check_digit: 'ABC', cable_id: null, spare: false }] })
+            case api('remove-sensor'):
+            case api('remove-sensor-from-batch'):
+                return Promise.resolve({ data: { Result: 'ok' } })
+            default:
+                return Promise.reject({ response: { status: 500 } })
+        }
+    });
+    const state = renderMenu({}, { preload: true })
+    await act(async () => { })
+    fireEvent.click(screen.getByLabelText('Remove sensor 111'))
+    expect(screen.getByText('Remove sensor 111 from batch 3000?')).toBeInTheDocument()
+    expect(mockAxios.get).not.toBeCalledWith(api('remove-sensor'), expect.anything())
+    await act(async () => {
+        fireEvent.click(screen.getByText('Remove'))
+    })
+    calledWithParams('remove-sensor', { sensor_id: 111, check_digit: 'ABC' })
+    calledWithParams('remove-sensor-from-batch', { sensor_id: 111, batch_id: 3000 })
+    expect(state.setPopupMessage).toBeCalledWith('Sensor 111 removed from batch 3000')
+    expect(screen.getByText(/no sensors scanned/i)).toBeInTheDocument()
+    expect(screen.getByText(/total sensors: 0/i)).toBeInTheDocument()
+})

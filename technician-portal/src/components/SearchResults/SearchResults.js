@@ -22,7 +22,7 @@ export default function SearchResults() {
     const {
         searchSelection, setPopupMessage, setBatchNumber,
         technicianId, setProcedureId, setSensorList,
-        setOrderNumber, setBatches, setCustomerOrderNumber
+        setOrderNumber, setBatches, setCustomerOrderNumber, technician
     } = useAppContext();
 
     const [rows, setRows] = useState([]);
@@ -49,7 +49,7 @@ export default function SearchResults() {
                 return callApi('get-sensors', { batch_id: batch.batch_id })
                     .then(data => {
                         setSensorList(data);
-                        navigate('/manageBatch');
+                        navigate(`/manageBatch?batch_id=${batch.batch_id}`);
                     });
             })
             .catch(() => setPopupMessage(`Unable to get batch ${batchId}`));
@@ -63,7 +63,7 @@ export default function SearchResults() {
         return callApi('get-batches-by-order-id', { order_id: orderId })
             .then(response => {
                 setBatches(response);
-                navigate('/shipping');
+                navigate(`/shipping?order_id=${orderId}`);
                 for (const batch of response) {
                     callApi('log-batch-interaction', {
                         department: 'shipping',
@@ -217,6 +217,12 @@ export default function SearchResults() {
                                             <a href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${row.certificate_id}.pdf`} target="_blank" rel="noopener noreferrer" className={styles.sensor_link}>
                                                 MNT-{row.certificate_id}
                                             </a>
+                                        ) : ''}
+                                        {row.certificate_id && technician?.admin ? (
+                                            <>
+                                                {' '}
+                                                <button className={styles.search_link} onClick={() => navigate(`/admin?tab=certificates&order_id=${row.order_id}&certificate_id=${row.certificate_id}`)}>Edit</button>
+                                            </>
                                         ) : ''}</td>
                                         <td>{row.certificate_id ? (
                                             row.certificate_pass

@@ -21,7 +21,7 @@ const sensor = {
                 API_ORDER.ACTIVE = TRUE;
         `, [])
     },
-    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number) => {
+    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number, spare: boolean) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
                 api_sensor (
@@ -29,16 +29,27 @@ const sensor = {
                     check_digit,
                     manufacturer,
                     sku,
-                    batch_id
+                    batch_id,
+                    spare
                 )
             VALUES
-                ($1, $2, $3, $4, $5)
+                ($1, $2, $3, $4, $5, $6)
             -- A sensor gets one row per batch; re-adding it to the same batch returns the existing row
             ON CONFLICT (sensor_id, batch_id) DO UPDATE SET
-                batch_id = EXCLUDED.batch_id
+                spare = EXCLUDED.spare
             RETURNING
                 *
-        `, [sensorId, checkDigit, manufacturer, sku, batchId])
+        `, [sensorId, checkDigit, manufacturer, sku, batchId, spare])
+    },
+    setSpare: (sensorId: number, batchId: number, spare: boolean) => {
+        return executeNonQuery(pool, `
+            UPDATE API_SENSOR
+            SET
+                SPARE = $3
+            WHERE
+                SENSOR_ID = $1
+                AND BATCH_ID = $2;
+        `, [sensorId, batchId, spare])
     },
     getSensorsByBatchId: (batchId: number) => {
         return executeQuery(pool, `

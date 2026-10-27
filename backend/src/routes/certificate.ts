@@ -136,6 +136,7 @@ const certificateRoutes = {
     updateCertificatesJson: async (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
         const batchId = parseInt(req.query.batch_id as string ?? "");
+        const certificateId = parseInt(req.query.certificate_id as string ?? "");
 
         let edits: any;
         try {
@@ -163,8 +164,10 @@ const certificateRoutes = {
             let targets = await certificate.getCertificatesByOrderId(orderId);
             if (batchId)
                 targets = targets.filter((c) => c.batch_id === batchId);
+            if (certificateId)
+                targets = targets.filter((c) => c.certificate_id === certificateId);
             if (targets.length === 0) {
-                res.status(400).json({ error: `No certificates found for order ${orderId}${batchId ? ` batch ${batchId}` : ''}` });
+                res.status(400).json({ error: `No certificates found for order ${orderId}${batchId ? ` batch ${batchId}` : ''}${certificateId ? ` certificate MNT-${certificateId}` : ''}` });
                 return;
             }
 
@@ -231,7 +234,8 @@ const certificateRoutes = {
         const sensorId = parseInt(req.query.sensor_id as string ?? "")
 
         try {
-            let sensors = await sensor.getSensorByOrderId(orderId);
+            // Spares only get a certificate once promoted into the batch
+            let sensors = (await sensor.getSensorByOrderId(orderId)).filter((s) => !s.spare);
             if (sensorId)
                 sensors = sensors.filter((s) => s.sensor_id === sensorId);
 

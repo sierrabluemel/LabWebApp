@@ -23,7 +23,7 @@ const downloadIcon = (
 function Shipping() {
     const {
         setConfirmationMessage, technicianId, setPopupMessage,
-        orderNumber, batches, setBatches
+        orderNumber, setOrderNumber, batches, setBatches
     } = useAppContext()
 
     const navigate = useNavigate()
@@ -113,8 +113,21 @@ function Shipping() {
         setPopupMessage('References verified');
     }
 
+    // After a page refresh shared state is empty; reload the order from the URL
     useEffect(() => {
-        if (isMounted.current)
+        if (orderNumber) return;
+        const orderId = new URLSearchParams(window.location.search).get('order_id');
+        if (!orderId) return navigate('/orderEntry');
+        callApi('get-batches-by-order-id', { order_id: orderId })
+            .then(response => {
+                setBatches(response);
+                setOrderNumber(Number(orderId));
+            })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        if (isMounted.current || !orderNumber)
             return
 
         isMounted.current = true;
@@ -214,6 +227,16 @@ function Shipping() {
             })
     };
 
+    const promoteSpare = (sensor) => {
+        return callApi('set-sensor-spare', { sensor_id: sensor.sensor_id, batch_id: sensor.batch_id, spare: false })
+            .then(() => callApi('get-sensors-by-order-id', { order_id: orderNumber }))
+            .then(setSensorList)
+            .catch(err => {
+                setPopupMessage(`Unable to add spare ${sensor.sensor_id} to the batch`);
+                console.error(err);
+            })
+    }
+
     const generateCertificate = async (sensorId) => {
         setCertificateMessage('Generating certificates...');
         callApi('create-certificates', { order_id: orderNumber, sensor_id: sensorId })
@@ -236,6 +259,11 @@ function Shipping() {
         }
         const sensorId = parseInt(parseSensorString(sensor)[0]);
         const certificate = certificateList.current.filter(cert => cert.sensor_id === sensorId)[0]
+        if (sensorList?.some(s => s.sensor_id === sensorId && s.spare)) {
+            setPopupMessage(`Sensor ${sensorId} is a spare and gets no label`)
+            setSensor('');
+            return;
+        }
         if (!certificate) {
             setPopupMessage(`No certificates found for sensor ${sensor}`)
             return;
@@ -383,8 +411,10 @@ function Shipping() {
             })
     }
 
-    // green only once every sensor on the order has a certificate
-    const certifiedCount = sensorList ? sensorList.filter(s => certificateList.current.some(c => c.sensor_id === s.sensor_id)).length : 0;
+    // green only once every non-spare sensor on the order has a certificate
+    const regularSensors = sensorList ? sensorList.filter(s => !s.spare) : [];
+    const spareCount = sensorList ? sensorList.length - regularSensors.length : 0;
+    const certifiedCount = regularSensors.filter(s => certificateList.current.some(c => c.sensor_id === s.sensor_id)).length;
 
     return (
         <>
@@ -396,7 +426,7 @@ function Shipping() {
 
                 <div className={styles.toolbar}>
                     <img className={styles.back_arrow_image} onClick={() => navigate('/orderEntry')} src={backArrow} alt="Back button" />
-                    <h2 className={styles.title}>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'} | Sensors: {sensorList ? sensorList.length : 'Loading...'}</h2>
+                    <h2 className={styles.title}>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'} | Sensors: {sensorList ? regularSensors.length : 'Loading...'}{spareCount ? ` | Spares: ${spareCount}` : ''}</h2>
                 </div>
 
                 <div className={styles.batches_container}>
@@ -415,8 +445,8 @@ function Shipping() {
                 <div className={styles.action_cards}>
                     <div className={styles.action_card}>
                         <h4>Certificates</h4>
-                        <span className={`${styles.status_pill} ${certifiedCount === 0 ? styles.soft_bad : certifiedCount < sensorList.length ? styles.soft_warn : styles.soft_good}`}>
-                            {certifiedCount > 0 && certifiedCount < sensorList.length ? `${certifiedCount} of ${sensorList.length} sensors have certificates` : certificateMessage}
+                        <span className={`${styles.status_pill} ${certifiedCount === 0 ? styles.soft_bad : certifiedCount < regularSensors.length ? styles.soft_warn : styles.soft_good}`}>
+                            {certifiedCount > 0 && certifiedCount < regularSensors.length ? `${certifiedCount} of ${regularSensors.length} sensors have certificates` : certificateMessage}
                         </span>
                         <Button onClick={generateCertificates} innerText={'Generate certificates'} />
                         <div className={styles.button_with_icon}>
@@ -444,7 +474,18 @@ function Shipping() {
                 <h3 className={styles.section_heading}>Sensors</h3>
                 <div className={styles.sensor_container}>
                     {sensorList?.map((sensor, index) => {
-                        const certificate = certificateList.current.find(c => c.sensor_id === sensor.sensor_id);
+                        const certificate = sensor.spare ? undefined : certificateList.current.find(c => c.sensor_id === sensor.sensor_id);
+                        if (sensor.spare)
+                            return (
+                                <div key={index} className={`${styles.shipping_sensor} ${styles.sensor_pending}`}>
+                                    <div className={styles.shipping_sensor_header}>
+                                        <SensorLink sensorId={sensor.sensor_id} text={sensor.cable_id ? `${sensor.sensor_id} C: ${sensor.cable_id}` : `${sensor.sensor_id}`} />
+                                        <span className={styles.shipping_sensor_status}>Spare</span>
+                                    </div>
+                                    <span className={styles.shipping_sensor_muted}>No certificate unless used</span>
+                                    <Button onClick={() => promoteSpare(sensor)} innerText={'Use spare'} />
+                                </div>
+                            );
                         const status = !certificate ? { label: 'No certificate', className: styles.sensor_pending }
                             : !certificate.pass ? { label: 'Failed', className: styles.sensor_failed }
                                 : !networkSensorIds || networkSensorIds.includes(sensor.sensor_id) ? { label: 'On network', className: styles.sensor_on_network }

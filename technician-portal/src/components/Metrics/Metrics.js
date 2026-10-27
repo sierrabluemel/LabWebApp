@@ -86,6 +86,7 @@ function Metrics() {
 					setSensorsInShipping(sensorsToShip);
 				})
 
+			// saturated twins of the --cal-1..8 CP badge colors, indexed by calibration_procedure_id - 1
 			const colors = ['#d9636e', '#4f86c6', '#d9b13b', '#d98b5f', '#4fa872', '#8a6fbf', '#3fa3ad', '#c96a9e']
 			const promises = [];
 			calibrationProcedures.current = await callApi('get-calibration-procedures')
@@ -125,8 +126,11 @@ function Metrics() {
 				const totalIndex = calibrationProcedures.current.length;
 				return {
 					total: [dataset(totalLabel, monthsData.map(m => m[key][totalIndex]), totalColor)],
-					byProcedure: calibrationProcedures.current.map((cp, i) =>
-						dataset(`CP ${i + 1}: ${cp.calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`, monthsData.map(m => m[key][i]), colors[i])),
+					// wider bars than chart.js defaults (0.9 / 0.8) so the value labels fit with 8 bars per month
+					byProcedure: calibrationProcedures.current.map((cp, i) => ({
+						...dataset(`CP ${cp.calibration_procedure_id}: ${cp.calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`, monthsData.map(m => m[key][i]), colors[(cp.calibration_procedure_id - 1) % colors.length]),
+						barPercentage: 1, categoryPercentage: 0.95,
+					})),
 				};
 			};
 			setCharts({

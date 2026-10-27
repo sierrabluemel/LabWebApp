@@ -135,6 +135,7 @@ const sensorRoutes = {
         let sensorId = parseInt(req.query.sensor_id as string ?? "");
         let checkDigit = req.query.check_digit as string;
         let batchId = parseInt(req.query.batch_id as string ?? "");
+        const spare = req.query.spare === 'true';
         const manufacturer = 'Monnit Corporation';
 
         const parameters = {
@@ -157,7 +158,7 @@ const sensorRoutes = {
                 return monnitFetch(`https://www.imonnit.com/json/LookUpSensor/?${params.toString()}`)
             })
             .then(response => {
-                return sensor.createSensor(sensorId, checkDigit, manufacturer, response.Result.SKU, batchId)
+                return sensor.createSensor(sensorId, checkDigit, manufacturer, response.Result.SKU, batchId, spare)
             })
             .then((result) => {
                 res.json(result);
@@ -228,6 +229,24 @@ const sensorRoutes = {
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: "Error removing sensor from batch." })
+            })
+    },
+    setSensorSpare: (req: Request, res: Response) => {
+        const sensorId = parseInt(req.query.sensor_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const spare = req.query.spare === 'true';
+
+        if (isNaN(sensorId) || isNaN(batchId)) {
+            return res.status(400).json({ error: "Sensor id and batch id are required." });
+        }
+
+        sensor.setSpare(sensorId, batchId, spare)
+            .then(() => {
+                res.json({ Result: spare ? `Sensor ${sensorId} marked as spare` : `Sensor ${sensorId} added to batch ${batchId}` });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error updating sensor spare state." })
             })
     },
     removeSensor: (req: Request, res: Response) => {

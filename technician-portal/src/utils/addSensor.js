@@ -1,7 +1,7 @@
 import callApi from "./api/callApi";
 import parseSensorString from "./parseSensorString";
 
-const addSensor = async (sensor, batchId) => {
+const addSensor = async (sensor, batchId, spare = false) => {
   let sensorId;
   let checkDigit;
   try {
@@ -15,6 +15,8 @@ const addSensor = async (sensor, batchId) => {
     'check_digit': checkDigit,
     'batch_id': batchId,
   }
+  if (spare)
+    parameters.spare = true;
 
   return callApi('create-sensor', parameters)
     .then((response) => {
