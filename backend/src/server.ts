@@ -119,6 +119,7 @@ app.get('/api/create-reading', auth, readingRoutes.createReading);
 // Rolling data
 app.get('/api/get-online-sensors', auth, rollingDataRoutes.getOnlineSensors);
 app.get('/api/get-last-stable-readings', auth, rollingDataRoutes.getLastStableReadings);
+app.get('/api/get-set-point-readiness', auth, rollingDataRoutes.getSetPointReadiness);
 app.get('/api/get-reading-range', auth, rollingDataRoutes.getReadingRange);
 app.get('/api/get-recent-data', auth, rollingDataRoutes.getRecentData);
 app.get('/api/get-last-sensor-readings', auth, rollingDataRoutes.getLastSensorReadings);
@@ -155,6 +156,7 @@ app.get('/api/create-humidity-variance', auth, isAdmin, miscRoutes.createHumidit
 app.get('/api/change-set-point-active-state', auth, isAdmin, miscRoutes.changeSetPointActiveState);
 app.get('/api/change-humidity-variance-active-state', auth, isAdmin, miscRoutes.changeHumidityVarianceActiveState);
 app.get('/api/create-set-point-link', auth, isAdmin, miscRoutes.createSetPointLink);
+app.get('/api/update-set-point-minutes', auth, isAdmin, miscRoutes.updateSetPointMinutes);
 app.get('/api/lookup-technician', auth, miscRoutes.lookupTechnician);
 app.get('/api/get-notifications', auth, miscRoutes.getNotifications);
 app.get('/api/create-notification', auth, isAdmin, miscRoutes.createNotification);

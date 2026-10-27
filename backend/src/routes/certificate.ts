@@ -71,8 +71,8 @@ const certificateRoutes = {
 
         certificate.getCalibrationsByDateRange(startDate, endDate)
             .then((result) => {
-                const data = removeDuplicateCertificates(result);
-                res.json(data);
+                // failures count every FAIL certificate, so they come from the raw rows, not the deduped set
+                res.json({ calibrations: removeDuplicateCertificates(result), failures: result.filter((r: any) => r.pass === false) });
             })
             .catch((err) => {
                 console.error(err);

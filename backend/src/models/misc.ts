@@ -213,6 +213,16 @@ const misc = {
         `, [setPointId, calibrationProcedureId]);
     },
 
+    // set_points is a JSON array; index is the set point's position in it
+    updateSetPointMinutes: (calibrationProcedureId: number, index: number, minutes: number) => {
+        return executeQuery(pool, `
+            UPDATE API_CALIBRATION_PROCEDURE
+            SET SET_POINTS = jsonb_set(SET_POINTS::jsonb, ARRAY[$2::text, 'stabilityCriteria', 'minutes'], to_jsonb($3::numeric))
+            WHERE CALIBRATION_PROCEDURE_ID = $1
+            RETURNING CALIBRATION_PROCEDURE_ID
+        `, [calibrationProcedureId, index, minutes]);
+    },
+
     changeSetPointActiveState: (setPointId: number, activeState: boolean) => {
         return executeQuery(pool, `
             UPDATE API_VARIANCES

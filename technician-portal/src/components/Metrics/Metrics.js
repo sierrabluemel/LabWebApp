@@ -16,10 +16,9 @@ Chart.register(
 
 function Metrics() {
 	const today = new Date();
-	const [totalSensors, setTotalSensors] = useState([]);
 	const calibrationProcedures = useRef([]);
-	const [datasets, setDataSets] = useState([]);
-	const [totalDataSets, setTotalDataSets] = useState([]);
+	const [charts, setCharts] = useState(null); // { calibrated: { total, byProcedure }, failures: { total, byProcedure } }
+	const [view, setView] = useState('total');
 	const [activeSensors, setActiveSensors] = useState(0);
 	const [nextOrderDue, setNextOrderDue] = useState({});
 	const [nextOrderDueClass, setNextOrderDueClass] = useState('');
@@ -95,68 +94,51 @@ function Metrics() {
 			}
 			let topMonth;
 			let topMonthTotal;
+			// [...count per procedure, total]
+			const countByProcedure = (list) => [
+				...calibrationProcedures.current.map(cp => list.filter(c => c.calibration_procedure_id === cp.calibration_procedure_id).length),
+				list.length
+			];
 			for (let i = 5; i >= 0; i--) {
 				const startDate = new Date(today.getFullYear(), today.getMonth() - i, 1)
 				const promise = callApi('get-calibrations-by-month', { start_date: startDate })
 					.then(response => {
-						if (!topMonthTotal || topMonthTotal < response.length) {
-							topMonthTotal = response.length;
+						const calibrations = response.calibrations ?? [];
+						if (!topMonthTotal || topMonthTotal < calibrations.length) {
+							topMonthTotal = calibrations.length;
 							topMonth = monthNames[today.getMonth() - i];
 						}
-						let calibrationProcedureTotals = []
-						for (const calibrationProcedure of calibrationProcedures.current) {
-							try {
-								calibrationProcedureTotals.push(response.filter(calibrationList => calibrationList.calibration_procedure_id === calibrationProcedure.calibration_procedure_id).length)
-							} catch (error) {
-								continue
-							}
-						}
-						calibrationProcedureTotals.push(response.length)
-						return calibrationProcedureTotals;
+						return { calibrated: countByProcedure(calibrations), failures: countByProcedure(response.failures ?? []) };
 					});
 				promises.push(promise);
 			}
-			const sensorsData = await Promise.all(promises);
+			const monthsData = await Promise.all(promises);
 
 			setBestMonth(topMonth);
 			setBestMonthTotal(topMonthTotal)
 
-			const newDatasets = [];
-			for (let i = 0; i < sensorsData[0].length; i++) {
-				if (i === sensorsData[0].length - 1) {
-					setTotalDataSets([{
-						label: 'Total sensors',
-						data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i], sensorsData[3][i], sensorsData[4][i], sensorsData[5][i]],
-						backgroundColor: colors[5],
-						borderColor: '#333',
-						borderWidth: 1,
-						hoverBorderWidth: 2,
-						borderRadius: 2,
-					}])
-				} else {
-					newDatasets.push(
-						{
-							label: `CP ${i + 1}: ${calibrationProcedures.current[i].calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`,
-							data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i], sensorsData[3][i], sensorsData[4][i], sensorsData[5][i]],
-							backgroundColor: colors[i],
-							borderColor: '#333',
-							borderWidth: 1,
-							hoverBorderWidth: 2,
-							borderRadius: 2,
-						}
-					)
-				}
-			}
-			setDataSets(newDatasets);
-			setTotalSensors(sensorsData);
+			const dataset = (label, data, color) => ({
+				label, data, backgroundColor: color, borderColor: '#333', borderWidth: 1, hoverBorderWidth: 2, borderRadius: 2,
+			});
+			// monthsData[m][key] is [...per procedure, total]; split into a by-procedure dataset list and a single total dataset
+			const buildDatasets = (key, totalLabel, totalColor) => {
+				const totalIndex = calibrationProcedures.current.length;
+				return {
+					total: [dataset(totalLabel, monthsData.map(m => m[key][totalIndex]), totalColor)],
+					byProcedure: calibrationProcedures.current.map((cp, i) =>
+						dataset(`CP ${i + 1}: ${cp.calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`, monthsData.map(m => m[key][i]), colors[i])),
+				};
+			};
+			setCharts({
+				calibrated: buildDatasets('calibrated', 'Total sensors', colors[5]),
+				failures: buildDatasets('failures', 'Total failures', colors[0]),
+			});
 		};
 
-		if (totalSensors.length === 0) {
-			fetchData();
-		}
-	}, [datasets, monthNames, totalSensors]);
+		fetchData();
+	}, []);
 
-	const byProcedureOptions = {
+	const chartOptions = (title) => ({
 		responsive: true,
 		maintainAspectRatio: false,
 		plugins: {
@@ -173,14 +155,10 @@ function Metrics() {
 			},
 			title: {
 				display: true,
-				text: 'Sensors Calibrated By Procedure',
+				text: title,
 			},
 		},
-	};
-
-	const totalOptions = JSON.parse(JSON.stringify(byProcedureOptions)); // Deep copy byProcedureOptions
-
-	totalOptions.plugins.title.text = 'Total Sensors Calibrated';
+	});
 
 	const labels = [
 		monthNames[new Date(today.getFullYear(), today.getMonth() - 5, 1).getMonth()],
@@ -191,17 +169,7 @@ function Metrics() {
 		monthNames[new Date(today.getFullYear(), today.getMonth(), 1).getMonth()]
 	]
 
-	const byProcedure6MonthData = {
-		labels,
-		datasets: datasets,
-	}
-
-	const total6MonthData = {
-		labels,
-		datasets: totalDataSets,
-	}
-
-	if (totalDataSets.length === 0) {
+	if (!charts) {
 		return (
 			<>
 				<h1 className={styles.title}>Loading...</h1>
@@ -230,11 +198,15 @@ function Metrics() {
 						))}
 					</div>
 				</div>
-				<div className={styles.graph_tile}>
-					<Bar options={byProcedureOptions} data={byProcedure6MonthData} />
+				<div className={styles.graph_toggle} role='group' aria-label='Graph view'>
+					{[['total', 'Total'], ['byProcedure', 'By procedure']].map(([key, label]) =>
+						<button key={key} aria-pressed={view === key} onClick={() => setView(key)}>{label}</button>)}
 				</div>
 				<div className={styles.graph_tile}>
-					<Bar options={totalOptions} data={total6MonthData} />
+					<Bar options={chartOptions('Sensors Calibrated')} data={{ labels, datasets: charts.calibrated[view] }} />
+				</div>
+				<div className={styles.graph_tile}>
+					<Bar options={chartOptions('Failures')} data={{ labels, datasets: charts.failures[view] }} />
 				</div>
 			</div>
 		</div>

@@ -13,10 +13,12 @@ import CreateNotification from './CreateNotification';
 import EditCertificates from './EditCertificates';
 import CreateHumidityVariance from './CreateHumidityVariance';
 import HumidityVarianceRow from './HumidityVarianceRow';
+import StabilityTimes from './StabilityTimes';
 
 const tabs = [
     { key: 'equipment', label: 'Equipment' },
     { key: 'variances', label: 'Variances' },
+    { key: 'stability', label: 'Stability Times' },
     { key: 'certificates', label: 'Certificates' },
     { key: 'notifications', label: 'Notifications & Invoices' }
 ];
@@ -285,6 +287,9 @@ function Admin() {
             </div>
             <div hidden={tab !== 'certificates'}>
                 <EditCertificates />
+            </div>
+            <div className={styles.menu} hidden={tab !== 'stability'}>
+                <StabilityTimes />
             </div>
             <div className={styles.menu} hidden={tab !== 'variances'}>
                 <div className={styles.toolbar}>

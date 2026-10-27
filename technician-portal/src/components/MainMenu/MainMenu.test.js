@@ -20,7 +20,7 @@ beforeEach(() => {
   mockAxios.get.mockImplementation(url => {
     switch (url) {
       case `http://${ip}/api/get-calibrations-by-month/`:
-        return Promise.resolve({ data: [{ order_id: 10000, calibration_procedure_id: 1 }, { order_id: 10001, calibration_procedure_id: 2 }] })
+        return Promise.resolve({ data: { calibrations: [{ order_id: 10000, calibration_procedure_id: 1 }, { order_id: 10001, calibration_procedure_id: 2 }], failures: [] } })
       case `http://${ip}/api/get-equipment/`:
         return Promise.resolve({ data: equipment })
       case `http://${ip}/api/get-active-sensors/`:

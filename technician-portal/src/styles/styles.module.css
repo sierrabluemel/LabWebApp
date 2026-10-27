@@ -1383,6 +1383,38 @@ mark {
     grid-column: span 2;
 }
 
+/* segmented Total / By procedure toggle centered above both graph tiles */
+.graph_toggle {
+    grid-column: span 2;
+    display: flex;
+    justify-content: center;
+}
+
+.graph_toggle button {
+    border: 1px solid var(--border-strong);
+    background-color: var(--surface);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: var(--space-2) var(--space-4);
+    cursor: pointer;
+}
+
+.graph_toggle button:first-child {
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.graph_toggle button:last-child {
+    border-radius: 0 var(--radius) var(--radius) 0;
+    border-left: none;
+}
+
+.graph_toggle button[aria-pressed="true"] {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-inverse);
+}
+
 .graph_tile {
     position: relative;
     background-color: var(--surface);

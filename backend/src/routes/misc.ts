@@ -146,6 +146,23 @@ const miscRoutes = {
                 return res.status(500).json({ error: `Error creating set point link` });
             });
     },
+    updateSetPointMinutes: (req: Request, res: Response) => {
+        const calibrationProcedureId = parseInt(req.query.calibration_procedure_id as string ?? "");
+        const index = parseInt(req.query.set_point_index as string ?? "");
+        const minutes = parseFloat(req.query.minutes as string ?? "");
+
+        if (isNaN(calibrationProcedureId) || isNaN(index) || index < 0 || !(minutes > 0))
+            return res.status(400).json({ error: `calibration_procedure_id, set_point_index and a positive minutes are required` });
+
+        misc.updateSetPointMinutes(calibrationProcedureId, index, minutes)
+            .then((result) => {
+                res.json(result);
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error updating set point minutes` });
+            });
+    },
     changeSetPointActiveState: (req: Request, res: Response) => {
         const setPointId = parseInt(req.query.set_point_id as string ?? "");
         const activeState = req.query.active_state as unknown as boolean ?? false;

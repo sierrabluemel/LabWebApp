@@ -128,6 +128,39 @@ const rollingDataRoutes = {
             })
 
     },
+    getSetPointReadiness: async (req: Request, res: Response) => {
+        const setPoints = JSON.parse(req.query.set_points as string ?? "[]");
+        const sensorIds = (req.query.sensor_ids as unknown as any[]) ?? [];
+        const equipmentList: any = await equipment.getEquipment(true);
+        // shortcut: CP3/CP8 only check the humidity type, same as getLastStableReadings; upgrade if techs want temperature checked too
+        const type = setPoints[0] && Object.keys(setPoints[0]).includes('humidity') ? "humidity" : "temperature";
+        const now = Date.now();
+        const start = new Date(now - 180 * 60000);
+
+        Promise.all(setPoints.map(async (setPoint: any) => {
+            const minutes = parseFloat(setPoint.stabilityCriteria?.minutes) || 1.5;
+            const stability = await rollingData.getStableSince(start, equipmentList[`${setPoint.reference}`].asset_tag, type, setPoint[`${type}`], setPoint.stabilityCriteria);
+            // Stable only if at least one reading newer than the last unstable one exists
+            const hasStableRun = stability?.last_reading && (!stability.last_unstable || new Date(stability.last_reading) > new Date(stability.last_unstable));
+            const stableSince = hasStableRun ? new Date(stability.last_unstable ?? start) : null;
+            const stableSeconds = stableSince ? Math.floor((now - stableSince.getTime()) / 1000) : 0;
+            const ready = stableSeconds >= minutes * 60;
+            let sensors: any[] = [];
+
+            if (stableSince && sensorIds.length > 0) {
+                // shortcut: "covered" allows a 30 s gap at the window start, enough for the 3 s testing heartbeat; revisit if slower heartbeats are tested
+                const windowStart = new Date(Math.max(stableSince.getTime(), now - minutes * 60000));
+                sensors = await rollingData.getSensorsInRange(windowStart, sensorIds, type, stability.reference_average, setPoint.stabilityCriteria[`tolerance_${type}`]);
+            }
+
+            return { minutes, stable_seconds: stableSeconds, ready, sensors };
+        }))
+            .then((result) => res.json({ Result: result }))
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ Error: `Unable to fetch set point readiness` });
+            });
+    },
     getReadingRange: (req: Request, res: Response) => {
         const timestamp = new Date(req.query.timestamp as string).getTime();
         const sensorIds = req.query.sensor_ids as unknown as number[];

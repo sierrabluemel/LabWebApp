@@ -7,7 +7,8 @@ const certificate = {
                 api_certificate.certificate_id, 
                 api_batch.calibration_procedure_id,
                 api_sensor.sensor_id,
-                api_certificate.timestamp
+                api_certificate.timestamp,
+                api_certificate.pass
             FROM
                 API_ORDER
                 INNER JOIN API_BATCH ON API_ORDER.ORDER_ID = API_BATCH.ORDER_ID
