@@ -92,6 +92,15 @@ const batch = {
                 BATCH_ID = $2
         `, [location, batchId]);
     },
+    setBin: (batchId: number, bin: string | null) => {
+        return executeNonQuery(pool, `
+            UPDATE API_BATCH
+            SET
+                BIN = $1
+            WHERE
+                BATCH_ID = $2
+        `, [bin, batchId]);
+    },
     createLocationLog: (batchId: number, location: string, timestamp: string) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
@@ -141,6 +150,25 @@ const batch = {
             RETURNING
                 *
         `, [batchId])
+    },
+    // Rows in every table with a foreign key to api_batch (readings, certificates, logs...). Used by force delete.
+    deleteDependents: (batchId: number) => {
+        return executeQuery(pool, `
+            SELECT
+                kcu.table_name, kcu.column_name
+            FROM
+                information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tc.constraint_name
+                JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
+            WHERE
+                tc.constraint_type = 'FOREIGN KEY' AND ccu.table_name = 'api_batch'
+        `, [])
+            .then((refs: Array<{ table_name: string, column_name: string }>) => {
+                // identifiers come from the catalog, not the request
+                return refs.reduce((chain, ref) => chain.then(() =>
+                    executeNonQuery(pool, `DELETE FROM "${ref.table_name}" WHERE "${ref.column_name}" = $1`, [batchId])
+                ), Promise.resolve());
+            });
     },
     deleteBatch: (batchId: number) => {
         return executeQuery(pool, `

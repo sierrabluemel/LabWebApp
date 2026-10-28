@@ -36,7 +36,10 @@ beforeEach(() => {
             case `http://${ip}/api/log-batch-interaction/`:
             case `http://${ip}/api/update-batch-technician/`:
             case `http://${ip}/api/delete-batch/`:
+            case `http://${ip}/api/delete-order/`:
                 return Promise.resolve({ data: {} })
+            case `http://${ip}/api/get-batches-by-order-id/`:
+                return Promise.resolve({ data: [{ batch_id: 6 }] })
             case `http://${ip}/api/get-sensors/`:
                 return Promise.resolve({ data: [] })
             case `http://${ip}/api/get-batch-by-id/`:
@@ -138,7 +141,7 @@ const renderMode = async (state) => {
 
 test('add mode titles the existing order and needs a batch before submitting', async () => {
     const sharedState = await renderMode({ mode: 'add', customerOrderNumber: 'TO5' })
-    expect(screen.getByText('TO5 | Order: 7')).toBeInTheDocument()
+    expect(screen.getByText('TO5')).toBeInTheDocument()
     await act(async () => {
         fireEvent.click(screen.getByText('Add Batch'))
     })
@@ -179,7 +182,19 @@ test('edit mode puts remove batch beside edit batch and removes after confirming
     await act(async () => {
         fireEvent.click(screen.getByText('Remove'))
     })
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-batch/`, expect.objectContaining({ params: { batch_id: 5 } }))
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-batch/`, expect.objectContaining({ params: { batch_id: 5, force: false } }))
     expect(sharedState.setPopupMessage).toBeCalledWith('Batch 5 removed')
     expect(mockedUseNavigate).toBeCalledWith('/batchEntry')
+})
+
+test('removing the last batch in edit mode deletes the order too', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation(url => url === `http://${ip}/api/get-batches-by-order-id/` ? Promise.resolve({ data: [] }) : defaultGet(url))
+    const sharedState = await renderMode({ mode: 'edit', batch: { batch_id: 5, calibration_procedure_id: 2 }, customerOrderNumber: 'TO5' })
+    fireEvent.click(screen.getByText('Remove batch'))
+    await act(async () => {
+        fireEvent.click(screen.getByText('Remove'))
+    })
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-order/`, expect.objectContaining({ params: { order_id: sharedState.order } }))
+    expect(sharedState.setPopupMessage).toBeCalledWith(`Batch 5 removed, and order ${sharedState.order} with it as it had no batches left`)
 })

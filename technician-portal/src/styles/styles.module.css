@@ -427,11 +427,18 @@ mark {
     color: var(--text-muted);
 }
 
+/* the card owns the columns (batch, bin, location, sensors, CP) so every row lines up even when a cell is empty */
+.batch_rows {
+    display: grid;
+    grid-template-columns: 3rem auto minmax(4rem, auto) 1fr auto;
+}
+
 .batch_row {
     display: grid;
-    grid-template-columns: 3.5rem 4.5rem 1fr auto;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     width: 100%;
     padding: 6px var(--space-1);
     border: none;
@@ -442,6 +449,18 @@ mark {
     color: var(--text);
     text-align: left;
     cursor: pointer;
+}
+
+.batch_row > span {
+    white-space: nowrap;
+}
+
+/* chips inside a card row are a step smaller so a full row fits the card */
+.batch_row .stage_badge,
+.batch_row [class*="calibration_"],
+.batch_row [class*="bin_"] {
+    padding: 1px 6px;
+    font-size: 0.8rem;
 }
 
 .batch_row:hover {
@@ -458,21 +477,55 @@ mark {
     color: var(--primary);
 }
 
-.stage_badge {
+/* page header as label/value groups: ORDER 1857  TO7952  LOCATION [T-AMB] */
+.title_facts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    text-align: left;
+}
+
+.title_fact {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     white-space: nowrap;
-    padding: 1px 6px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 0.8rem;
+}
+
+.title_fact_label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
     color: var(--text-muted);
 }
 
-.stage_testing {
-    border-color: var(--success);
-    background-color: var(--success-soft);
-    color: var(--success);
+.stage_badge {
+    white-space: nowrap;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.85rem;
     font-weight: 600;
+    line-height: 1.4;
+    color: var(--text-muted);
 }
+
+/* bin chips and text take the physical bin's color: B-Y.. yellow, B-R.. red, B-B.. blue */
+.bin_Y, .bin_R, .bin_B {
+    padding: 2px 8px;
+    border: 1px solid;
+    border-radius: 999px;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.bin_Y, .default_text_box.bin_Y { background-color: var(--warning-soft); border-color: var(--warning); color: #9a6b0a; font-weight: 600; }
+.bin_R, .default_text_box.bin_R { background-color: var(--danger-soft); border-color: var(--danger); color: var(--danger-strong); font-weight: 600; }
+.bin_B, .default_text_box.bin_B { background-color: var(--primary-soft); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+
 
 .none_chip {
     padding: 1px 6px;
@@ -1762,6 +1815,11 @@ mark {
     color: var(--text-inverse);
 }
 
+/* a message about something that did not happen */
+.popup_header_error {
+    background-color: var(--danger);
+}
+
 .repeat_text {
     position: absolute;
     bottom: 5px;
@@ -2256,17 +2314,22 @@ mark {
 .calibration_8 {
     padding: 2px 8px;
     color: var(--text);
+    border: 1px solid;
     border-radius: 999px;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
-.calibration_1 { background-color: var(--cal-1); }
-.calibration_2 { background-color: var(--cal-2); }
-.calibration_3 { background-color: var(--cal-3); }
-.calibration_4 { background-color: var(--cal-4); }
-.calibration_5 { background-color: var(--cal-5); }
-.calibration_6 { background-color: var(--cal-6); }
-.calibration_7 { background-color: var(--cal-7); }
-.calibration_8 { background-color: var(--cal-8); }
+.calibration_1 { background-color: var(--cal-1); border-color: color-mix(in srgb, var(--cal-1), black 30%); }
+.calibration_2 { background-color: var(--cal-2); border-color: color-mix(in srgb, var(--cal-2), black 30%); }
+.calibration_3 { background-color: var(--cal-3); border-color: color-mix(in srgb, var(--cal-3), black 30%); }
+.calibration_4 { background-color: var(--cal-4); border-color: color-mix(in srgb, var(--cal-4), black 30%); }
+.calibration_5 { background-color: var(--cal-5); border-color: color-mix(in srgb, var(--cal-5), black 30%); }
+.calibration_6 { background-color: var(--cal-6); border-color: color-mix(in srgb, var(--cal-6), black 30%); }
+.calibration_7 { background-color: var(--cal-7); border-color: color-mix(in srgb, var(--cal-7), black 30%); }
+.calibration_8 { background-color: var(--cal-8); border-color: color-mix(in srgb, var(--cal-8), black 30%); }
 
 .red_character {
     background-color: var(--danger);

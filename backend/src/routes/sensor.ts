@@ -228,7 +228,7 @@ const sensorRoutes = {
             })
             .catch((err) => {
                 console.error(err);
-                res.status(500).json({ error: "Error removing sensor from batch." })
+                res.status(500).json({ error: `Error removing sensor from batch: ${err.message}` })
             })
     },
     setSensorSpare: (req: Request, res: Response) => {

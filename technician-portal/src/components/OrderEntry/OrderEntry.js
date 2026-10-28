@@ -136,7 +136,7 @@ function OrderEntry() {
                                 className={`${styles.batch_button} ${order.elementClass}`}
                                 onClick={() => handleClick(order.order_id)}
                             >
-                                Order: {order.order_id} | Customer Order: {order.customer_order_number} | {parseDataBaseDate(order.dueDate)}{order.sensor_count === 0 && ' | Empty'}
+                                {order.customer_order_number} |{parseDataBaseDate(order.dueDate)}{order.sensor_count === 0 && ' | Empty'}
                             </button>
                         ))}
                     </div>}

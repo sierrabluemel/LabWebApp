@@ -32,11 +32,14 @@ beforeEach(() => {
     });
 })
 
+let setPopupMessage
+
 const renderPicker = async () => {
+    setPopupMessage = jest.fn()
     const onMoved = jest.fn()
     await act(async () => {
         render(
-            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), technicianId: 1 }} >
+            <AppWrapper sharedState={{ setPopupMessage, technicianId: 1 }} >
                 <LocationPicker batchNumber={3000} onMoved={onMoved} />
             </AppWrapper>
         )
@@ -67,23 +70,17 @@ test('each shelf row gets its own line, named spots go last', async () => {
     expect(testingLines.map(line => line.firstChild.getAttribute('aria-label'))).toEqual(['T-B1', 'T-C1', 'T-AMB'])
 })
 
-test('picking a bin closes the grid and does not move until Enter', async () => {
+test('clicking a bin closes the grid and moves the batch right away', async () => {
     const onMoved = await renderPicker()
     openGrid()
-    fireEvent.click(screen.getByRole('button', { name: 'T-B2' }))
-    const trigger = screen.getByLabelText('Location')
-    expect(trigger).toHaveTextContent('T-B2')
-    expect(trigger).toHaveFocus()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'T-B2' })) })
     expect(screen.queryByRole('button', { name: 'R-A1' })).not.toBeInTheDocument()
-    expect(mockAxios.get).not.toBeCalledWith(api('create-location-log'), expect.anything())
-
-    await act(async () => { fireEvent.keyDown(trigger, { key: 'Enter' }) })
     moved('T-B2')
     expect(onMoved).toBeCalledWith('T-B2')
-    expect(trigger).toHaveTextContent('Move to location...')
+    expect(screen.getByLabelText('Location')).toHaveTextContent('Move to location...')
 })
 
-test('Enter with nothing picked does not move', async () => {
+test('Enter on the box with nothing picked does not move', async () => {
     await renderPicker()
     await act(async () => { fireEvent.keyDown(screen.getByLabelText('Location'), { key: 'Enter' }) })
     expect(mockAxios.get).not.toBeCalledWith(api('create-location-log'), expect.anything())
@@ -108,4 +105,28 @@ test('a new location can be typed and is added to the grid', async () => {
     expect(screen.queryByPlaceholderText(/new location/i)).not.toBeInTheDocument()
     openGrid()
     expect(screen.getByRole('button', { name: 'S-C3' })).toBeInTheDocument()
+})
+
+test('a failing step after the location is recorded says which step failed and still shows the new location', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation(url => url === api('change-batch-heartbeats')
+        ? Promise.reject({ response: { status: 500, data: { Result: 'Unable to change heartbeats' } } })
+        : defaultGet(url))
+    const onMoved = await renderPicker()
+    openGrid()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'T-B2' })) })
+    expect(setPopupMessage).toHaveBeenLastCalledWith('Batch 3000 was moved to T-B2 but could not change its heartbeats: Unable to change heartbeats')
+    expect(onMoved).toBeCalledWith('T-B2')
+})
+
+test('a failing first step says the batch was not moved', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation(url => url === api('create-location-log')
+        ? Promise.reject({ response: { status: 500, data: { error: 'Unable to create location log' } } })
+        : defaultGet(url))
+    const onMoved = await renderPicker()
+    openGrid()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'T-B2' })) })
+    expect(setPopupMessage).toHaveBeenLastCalledWith('Could not move batch 3000 to T-B2: Unable to create location log')
+    expect(onMoved).not.toBeCalled()
 })

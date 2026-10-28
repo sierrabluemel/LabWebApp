@@ -19,3 +19,31 @@ test('ErrorMessage renders successfully', () => {
     fireEvent.click(closeButton)
     expect(mockSetPopupMessage).toBeCalledWith('')
 })
+test.each([
+    ['Could not remove batch 3171', true],
+    ['The batch was not moved successfully', true],
+    ['Bin "X1" must look like B-Y21', true],
+    ['Sensor 123 removed from batch 3171', false],
+    ['Order 7 no longer expedited', false],
+])('"%s" gets a red header: %s', (message, red) => {
+    render(
+        <AppWrapper sharedState={{ popupMessage: message, setPopupMessage: jest.fn() }}>
+            <ErrorMessage />
+        </AppWrapper>
+    )
+    expect(screen.getByText(message).className.includes('popup_header_error')).toBe(red)
+})
+
+test('a message with an action shows its button, which closes the popup and runs it', () => {
+    const setPopupMessage = jest.fn()
+    const onClick = jest.fn()
+    render(
+        <AppWrapper sharedState={{ popupMessage: { message: 'Could not remove batch 3', action: { label: 'Delete anyway', onClick } }, setPopupMessage }}>
+            <ErrorMessage />
+        </AppWrapper>
+    )
+    expect(screen.getByText('Could not remove batch 3').className.includes('popup_header_error')).toBe(true)
+    fireEvent.click(screen.getByText('Delete anyway'))
+    expect(setPopupMessage).toBeCalledWith('')
+    expect(onClick).toBeCalled()
+})

@@ -148,12 +148,38 @@ const batchRoutes = {
         }
 
         batch.setLocation(batchId, null)
+            // shipping frees the bin too
+            .then(() => batch.setBin(batchId, null))
             .then(() => {
                 res.json({ 'Result': `Batch ${batchId} location removed` });
             })
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: `Error removing batch location` });
+            })
+    },
+    // Bin labels are QR scanned, so the format is strict: B-, color letter, number. Empty clears the bin.
+    setBatchBin: (req: Request, res: Response) => {
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const bin = ((req.query.bin as string) ?? "").trim().toUpperCase() || null;
+
+        if (isNaN(batchId)) {
+            return res.status(400).json({ error: `Invalid batch id` });
+        }
+        if (bin && !/^B-[YRB]\d+$/.test(bin)) {
+            return res.status(400).json({ error: `Bin "${bin}" must look like B-Y21` });
+        }
+
+        batch.setBin(batchId, bin)
+            .then(() => {
+                res.json({ 'Result': `Batch ${batchId} bin set to ${bin}` });
+            })
+            .catch((err) => {
+                if (err.code === '23505') {
+                    return res.status(409).json({ error: `Bin ${bin} already holds another batch` });
+                }
+                console.error(err);
+                res.status(500).json({ error: `Unable to set bin` });
             })
     },
     createLocationLog: (req: Request, res: Response) => {
@@ -312,7 +338,11 @@ const batchRoutes = {
             res.status(400).json({ error: `Invalid batch id` });
         }
 
+        // force=true removes readings, certificates and logs that still point at the batch
+        const force = req.query.force === 'true';
+
         batch.deleteLogs(batchId)
+            .then(() => force ? batch.deleteDependents(batchId) : undefined)
             .then(() => {
                 return batch.deleteBatch(batchId);
             })
@@ -321,7 +351,12 @@ const batchRoutes = {
             })
             .catch((err) => {
                 console.error(err);
-                res.status(500).json({ error: `Error deleting batch` });
+                // 23503: another table (certificates, location log, readings...) still points at this batch
+                if (err.code === '23503') {
+                    const table = String(err.table ?? 'other').replace(/^api_/, '').replace(/_/g, ' ');
+                    return res.status(409).json({ error: `Batch ${batchId} still has ${table} records, so it cannot be removed` });
+                }
+                res.status(500).json({ error: `Error deleting batch: ${err.message}` });
             })
     },
     changeBatchHeartBeats: (req: Request, res: Response) => {

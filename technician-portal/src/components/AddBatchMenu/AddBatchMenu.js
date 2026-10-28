@@ -8,6 +8,7 @@ import ScannedSensors from "../ScannedSensors/ScannedSensors";
 
 import styles from "../../styles/styles.module.css";
 import LocationPicker from "../LocationPicker/LocationPicker";
+import binClass from "../../utils/binClass";
 import Button from "../Button/Button";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
@@ -19,6 +20,8 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
     const [sensorString, setSensorString] = useState('');
     const [displayed, setDisplayed] = useState(true);
     const [currentLocation, setCurrentLocation] = useState('No location set');
+    const [bin, setBin] = useState(null);
+    const [binString, setBinString] = useState('');
     const [cancelling, setCancelling] = useState(false);
     const [spareMode, setSpareMode] = useState(false);
     const [removeConfirmation, setRemoveConfirmation] = useState([]);
@@ -37,9 +40,29 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
             })
             .catch(err => console.error(err))
         callApi('get-batch-by-id', { batch_id: batchNumber })
-            .then(batch => setCurrentLocation(batch?.current_location ?? 'No location set'))
+            .then(batch => {
+                setCurrentLocation(batch?.current_location ?? 'No location set');
+                setBin(batch?.bin ?? null);
+            })
             .catch(err => console.error(err))
     }, [preload, batchNumber]);
+
+    // The bin label is QR scanned: the scanner types it and presses Enter
+    const handleSetBin = (event) => {
+        event.preventDefault();
+        if (!binString)
+            return;
+        callApi('set-batch-bin', { batch_id: batchNumber, bin: binString })
+            .then(() => {
+                setBin(binString);
+                setBinString('');
+                setPopupMessage(`Batch ${batchNumber} is in bin ${binString}`);
+            })
+            .catch(err => {
+                setPopupMessage(err.response?.data?.error ?? `Could not set bin for batch ${batchNumber}`);
+                console.error(err);
+            })
+    }
 
     const handleAddSensor = (event) => {
         event.preventDefault();
@@ -124,14 +147,18 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
         return () => clearInterval(interval);
     })
 
-    const removeBatch = () => {
+    const removeBatch = (force = false) => {
         setCancelling(true);
         Promise.all(addedSensors.map(sensorId => callApi('remove-sensor-from-batch', { sensor_id: sensorId, batch_id: batchNumber })))
-            .then(() => callApi('delete-batch', { batch_id: batchNumber }))
+            .then(() => callApi('delete-batch', { batch_id: batchNumber, force }))
             .then(() => setBatches(current => current.filter(batch => batch.batch_id !== batchNumber)))
             .catch(error => {
                 setCancelling(false);
-                setPopupMessage(`Could not remove batch ${batchNumber}`);
+                const message = error.response?.data?.error ?? `Could not remove batch ${batchNumber}`;
+                if (error.response?.status === 409 && !force)
+                    setPopupMessage({ message, action: { label: 'Delete anyway', onClick: () => removeBatch(true) } });
+                else
+                    setPopupMessage(message);
                 console.error(error)
             })
     }
@@ -177,15 +204,20 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
             <ConfirmationPopup confirmationArray={removeConfirmation} setConfirmationArray={setRemoveConfirmation} handleConfirm={removeSensor} confirmText={'Remove'} />
             <button className={styles.default_button} onClick={() => setDisplayed(false)}>{`Hide (${summary}`}</button>
 
-            <div className={styles.current_location_text}>{`Current location: ${currentLocation}`}</div>
+            <div className={styles.current_location_text}>{`Current location: ${currentLocation} | Bin: `}<span className={binClass(bin)}>{bin ?? 'none'}</span></div>
 
             <div className={styles.grid_menu}>
-                <form onSubmit={handleAddSensor} data-testid={'addSensorForm'} className={styles.row}>
-                    <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={spareMode ? 'Scan spare' : 'Scan Sensor'} style={{ flex: 1 }} />
-                    <label className={styles.admin_check_box_container}>
-                        <input className={styles.admin_check_box} type='checkbox' checked={spareMode} onChange={event => setSpareMode(event.target.checked)} /> Spare
-                    </label>
-                </form>
+                <div className={styles.row}>
+                    <form onSubmit={handleAddSensor} data-testid={'addSensorForm'} className={styles.row} style={{ flex: 1 }}>
+                        <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={spareMode ? 'Scan spare' : 'Scan Sensor'} style={{ flex: 1 }} />
+                        <label className={styles.admin_check_box_container}>
+                            <input className={styles.admin_check_box} type='checkbox' checked={spareMode} onChange={event => setSpareMode(event.target.checked)} /> Spare
+                        </label>
+                    </form>
+                    <form onSubmit={handleSetBin} data-testid={'binForm'}>
+                        <input type='text' value={binString} onChange={event => setBinString(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Scan bin'} style={{ width: '7rem' }} />
+                    </form>
+                </div>
                 <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
                 <Button onClick={printWorkOrder} innerText={'Print work order'} />
                 <Button onClick={getAllLeads} innerText={'Get all leads'} />
@@ -195,7 +227,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
 
             {hideCancel ? <></> :
                 <div className={styles.card_actions}>
-                    <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={removeBatch} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel'}</button>
+                    <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => removeBatch()} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel'}</button>
                 </div>}
         </section>
     )

@@ -7,39 +7,34 @@ const LOCATION_ACTIONS = {
     S: { department: 'testing', start: false, active: false, networkGroup: 'staging', heartbeat: 120 },
 };
 
-// Resolves to nothing on success, or an error to show on failure
+// What the server said, or the transport error
+const reason = (error) => error?.response?.data?.error ?? error?.response?.data?.Result ?? error?.message ?? 'Unknown error';
+
+// Resolves to { moved, error }. The steps run in order, so a failure after the first means the location was recorded
+// (moved is true) but a later step was not done.
 export default async function setBatchLocation(location, technicianId, batchNumber) {
     const action = location ? LOCATION_ACTIONS[location[0]] : undefined;
 
     if (!action) {
-        return `Location "${location}" is invalid`;
+        return { moved: false, error: `Location "${location}" is invalid: it must start with R, T or S` };
     }
 
-    return callApi('create-location-log', {
-        'location': location,
-        'batch_id': batchNumber
-    })
-        .then(() => callApi('log-batch-interaction', {
-            department: action.department,
-            start: action.start,
-            technician_id: technicianId,
-            batch_id: batchNumber
-        }))
-        .then(() => callApi('set-batch-active-state', {
-            batch_id: batchNumber,
-            active_state: action.active
-        }))
-        .then(() => callApi('move-batch-to-network-group', {
-            batch_id: batchNumber,
-            network_group: action.networkGroup,
-            heartbeat: action.heartbeat
-        }))
-        .then(() => callApi('change-batch-heartbeats', {
-            batch_id: batchNumber,
-            heartbeat: action.heartbeat
-        }))
-        .then(() => undefined)
-        .catch(error => {
-            return error ?? 'Unknown error';
-        })
+    const steps = [
+        ['record the location', () => callApi('create-location-log', { 'location': location, 'batch_id': batchNumber })],
+        ['log the move', () => callApi('log-batch-interaction', { department: action.department, start: action.start, technician_id: technicianId, batch_id: batchNumber })],
+        ['set the batch state', () => callApi('set-batch-active-state', { batch_id: batchNumber, active_state: action.active })],
+        ['move its sensors to the network', () => callApi('move-batch-to-network-group', { batch_id: batchNumber, network_group: action.networkGroup, heartbeat: action.heartbeat })],
+        ['change its heartbeats', () => callApi('change-batch-heartbeats', { batch_id: batchNumber, heartbeat: action.heartbeat })],
+    ];
+
+    for (const [index, [step, call]] of steps.entries()) {
+        try {
+            await call();
+        } catch (error) {
+            return index === 0
+                ? { moved: false, error: `Could not move batch ${batchNumber} to ${location}: ${reason(error)}` }
+                : { moved: true, error: `Batch ${batchNumber} was moved to ${location} but could not ${step}: ${reason(error)}` };
+        }
+    }
+    return { moved: true };
 }

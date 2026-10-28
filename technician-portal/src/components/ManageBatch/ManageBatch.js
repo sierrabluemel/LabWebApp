@@ -12,6 +12,7 @@ import parseSensorString from "../../utils/parseSensorString";
 import LocationPicker from "../LocationPicker/LocationPicker";
 import Button from "../Button/Button";
 import useOpenBatch from "../../utils/useOpenBatch";
+import binClass from "../../utils/binClass";
 
 // Heartbeats the batch can be set to, in minutes
 const HEARTBEATS = [
@@ -30,6 +31,7 @@ function ManageBatch() {
 
     const [heartbeat, setHeartBeat] = useState('');
     const [currentLocation, setCurrentLocation] = useState('');
+    const [bin, setBin] = useState(null);
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
     const setPoint = useRef(null);
@@ -54,6 +56,7 @@ function ManageBatch() {
             callApi('get-batch-by-id', { batch_id: batchNumber })
                 .then(response => {
                     setCurrentLocation(response.current_location)
+                    setBin(response.bin)
                 })
             callApi('get-calibration-procedures').then(response => {
                 const currentProcedure = response.filter(procedure => procedure.calibration_procedure_id === procedureId)[0];
@@ -202,7 +205,13 @@ function ManageBatch() {
                 <ConfirmationPopup confirmationArray={removeConfirmation} setConfirmationArray={setRemoveConfirmation} handleConfirm={removeSensor} confirmText={'Remove'} />
                 <div className={styles.toolbar}>
                     <img className={styles.back_arrow_image} onClick={() => navigate('/batchEntry')} src={backArrow} alt="Back button" />
-                    <h1 className={styles.title}>{`${customerOrderNumber} | Batch: ${batchNumber} | ${currentLocation ? `Current location: ${currentLocation}` : `No location set`}`}</h1>
+                    <h1 className={`${styles.title} ${styles.title_facts}`}>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Sales order</span>{customerOrderNumber}</span>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Batch</span>{batchNumber}</span>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Location</span>
+                            {currentLocation ? <span className={styles.stage_badge}>{currentLocation}</span> : 'none'}</span>
+                        {bin ? <span className={styles.title_fact}><span className={styles.title_fact_label}>Bin</span><span className={binClass(bin)}>{bin}</span></span> : <></>}
+                    </h1>
                     <div className={styles.row}>
                         <Button innerText={'Print work order'} onClick={printWorkOrder} />
                         <Button innerText={'Download work order'} onClick={downloadWorkOrder} />

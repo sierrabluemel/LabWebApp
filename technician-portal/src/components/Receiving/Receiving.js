@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAppContext } from "../../contexts/app";
@@ -9,6 +10,9 @@ function Receiving() {
     const navigate = useNavigate();
     const focusNewOrder = !!useLocation().state?.focusNewOrder;
     const { salesOrder, setSalesOrder, setOrder, expedited, setExpedited, setPopupMessage } = useAppContext()
+
+    // The box is shared state that the sales order form also shows, so it starts empty every time this page opens
+    useEffect(() => setSalesOrder(''), [setSalesOrder]);
 
     const handleSubmit = (event) => {
         event.preventDefault();

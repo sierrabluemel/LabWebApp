@@ -101,6 +101,7 @@ app.get('/api/get-batches-by-active-state', auth, batchRoutes.getBatchesByActive
 app.get('/api/create-batch', auth, batchRoutes.createBatch);
 app.get('/api/set-batch-active-state', auth, batchRoutes.setBatchActiveState);
 app.get('/api/remove-batch-location', auth, batchRoutes.removeBatchLocation);
+app.get('/api/set-batch-bin', auth, batchRoutes.setBatchBin);
 app.get('/api/update-batch-calibration-procedure', auth, batchRoutes.updateBatchCalibrationProcedure);
 app.get('/api/create-location-log', auth, batchRoutes.createLocationLog);
 app.get('/api/get-locations', auth, batchRoutes.getLocations);

@@ -48,50 +48,39 @@ function LocationPicker({ batchNumber, onMoved }) {
         return () => document.removeEventListener("mousedown", handleOutsideClick);
     }, []);
 
-    const move = () => {
-        const location = selected === NEW_LOCATION ? newLocation : selected;
+    const move = (location) => {
         setPopupMessage(`Moving batch ${batchNumber} to ${location}...`);
         setBatchLocation(location, technicianId, batchNumber)
-            .then(error => {
-                if (!error) {
-                    setPopupMessage(`Batch ${batchNumber} moved to ${location}`);
-                    onMoved(location);
-                    setSelected('');
-                    setNewLocation('');
-                    if (!locations.includes(location))
-                        setLocations([...locations, location].sort());
-                } else {
-                    throw new Error(error)
-                }
-            })
-            .catch(err => {
-                setPopupMessage('The batch was not moved successfully');
-                console.error(err)
+            .then(({ moved, error }) => {
+                setPopupMessage(error ?? `Batch ${batchNumber} moved to ${location}`);
+                if (!moved)
+                    return;
+                onMoved(location);
+                setSelected('');
+                setNewLocation('');
+                if (!locations.includes(location))
+                    setLocations([...locations, location].sort());
             })
     }
 
+    // Enter in the "New location" box moves to the typed location
     const handleSubmit = (event) => {
         event.preventDefault();
-        move();
+        if (newLocation)
+            move(newLocation);
     }
 
+    // Clicking a listed bin moves the batch right away; the popup confirms or reports the failure
     const pick = (location) => {
         setSelected(location);
         setOpen(false);
-        // Focus goes back to the box so Enter moves the batch
         if (location !== NEW_LOCATION)
-            triggerRef.current.focus();
+            move(location);
     }
 
-    // Enter on the box moves once a bin is picked; otherwise it opens the grid like a click
     const handleTriggerKeyDown = (event) => {
-        if (event.key === 'Escape') {
+        if (event.key === 'Escape')
             setOpen(false);
-        } else if (event.key === 'Enter' && selected && selected !== NEW_LOCATION) {
-            event.preventDefault();
-            setOpen(false);
-            move();
-        }
     }
 
     return (

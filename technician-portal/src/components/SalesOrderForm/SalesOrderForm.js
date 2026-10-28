@@ -5,6 +5,7 @@ import { useAppContext } from "../../contexts/app";
 
 import callApi from "../../utils/api/callApi";
 import AddBatchMenu from "../AddBatchMenu/AddBatchMenu";
+import removeOrderIfEmpty from "../../utils/removeOrderIfEmpty";
 import DropDown from "../DropDown/DropDown";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
@@ -88,18 +89,23 @@ function SalesOrderForm() {
     }
 
     // Edit mode removes from the bottom row instead of inside the batch card
-    const removeEditingBatch = () => {
+    const removeEditingBatch = (force = false) => {
         const batchId = batches[0].batch_id;
         callApi('get-sensors', { batch_id: batchId })
             .then(sensors => Promise.all(sensors.map(sensor => callApi('remove-sensor-from-batch', { sensor_id: sensor.sensor_id }))))
-            .then(() => callApi('delete-batch', { batch_id: batchId }))
-            .then(() => {
-                setPopupMessage(`Batch ${batchId} removed`);
+            .then(() => callApi('delete-batch', { batch_id: batchId, force }))
+            .then(() => removeOrderIfEmpty(order))
+            .then(orderRemoved => {
+                setPopupMessage(orderRemoved ? `Batch ${batchId} removed, and order ${order} with it as it had no batches left` : `Batch ${batchId} removed`);
                 setOrder(null);
                 navigate('/batchEntry');
             })
             .catch(err => {
-                setPopupMessage(`Could not remove batch ${batchId}`);
+                const message = err.response?.data?.error ?? `Could not remove batch ${batchId}`;
+                if (err.response?.status === 409 && !force)
+                    setPopupMessage({ message, action: { label: 'Delete anyway', onClick: () => removeEditingBatch(true) } });
+                else
+                    setPopupMessage(message);
                 console.error(err);
             })
     }
@@ -131,13 +137,13 @@ function SalesOrderForm() {
             <ConfirmationPopup
                 confirmationArray={removeConfirmation}
                 setConfirmationArray={setRemoveConfirmation}
-                handleConfirm={removeEditingBatch}
+                handleConfirm={() => removeEditingBatch()}
                 confirmText={'Remove'}
             />
             {mode ?
                 <div className={styles.toolbar}>
                     <img className={styles.back_arrow_image} onClick={() => { setOrder(null); navigate('/batchEntry') }} src={backArrow} alt="Back button" />
-                    <h1 className={styles.title}>{`${customerOrderNumber} | Order: ${order}`}</h1>
+                    <h1 className={styles.title}>{customerOrderNumber}</h1>
                 </div> :
                 <h1 className={styles.title}>{`${salesOrder} | Order due: ${dueDate.current ? dueDate.current : 'Loading...'}`}</h1>}
             {mode === 'edit' ? <></> : <DropDown

@@ -13,6 +13,7 @@ import getReferences from "../../utils/getReferences";
 import Button from "../Button/Button";
 import SensorLink from "../SensorLink/SensorLink";
 import backArrow from "../../media/arrow.png";
+import binClass from "../../utils/binClass";
 
 const downloadIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -391,7 +392,7 @@ function Shipping() {
                     }))
             })))
             .then(() => {
-                setConfirmationMessage(`Order: ${orderNumber} closed, please add ${order.customer_order_number} to the slack channel`);
+                setConfirmationMessage(`${order.customer_order_number} closed, please add it to the slack channel`);
                 navigate('/confirmation');
             })
             .catch((err) => {
@@ -402,7 +403,7 @@ function Shipping() {
     const deleteOrder = () => {
         callApi('delete-order', { order_id: orderNumber })
             .then(() => {
-                setPopupMessage(`Order ${orderNumber} deleted`);
+                setPopupMessage(`Order ${order?.customer_order_number ?? orderNumber} deleted`);
                 navigate('/orderEntry');
             })
             .catch((err) => {
@@ -426,16 +427,25 @@ function Shipping() {
 
                 <div className={styles.toolbar}>
                     <img className={styles.back_arrow_image} onClick={() => navigate('/orderEntry')} src={backArrow} alt="Back button" />
-                    <h2 className={styles.title}>Order: {orderNumber} | {order ? order.customer_order_number : 'Loading...'} | Sensors: {sensorList ? regularSensors.length : 'Loading...'}{spareCount ? ` | Spares: ${spareCount}` : ''}</h2>
+                    <h2 className={`${styles.title} ${styles.title_facts}`}>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Sales order</span>{order ? order.customer_order_number : 'Loading...'}</span>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Sensors</span>{sensorList ? regularSensors.length : 'Loading...'}</span>
+                        {spareCount ? <span className={styles.title_fact}><span className={styles.title_fact_label}>Spares</span>{spareCount}</span> : <></>}
+                    </h2>
                 </div>
 
                 <div className={styles.batches_container}>
                     {
                         batches.map(batch =>
-                            <div key={batch.batch_id} className={styles.shipping_batches}>
+                            <div key={batch.batch_id} className={`${styles.shipping_batches} ${styles.title_facts}`}>
                                 {batch.current_location
-                                    ? <>{`Batch ${batch.batch_id} | Location: ${batch.current_location} | `}<span className={styles[`calibration_${batch.calibration_procedure_id}`]}>CP: {batch.calibration_procedure_id}</span></>
-                                    : `Batch ${batch.batch_id} (Shipped)`}
+                                    ? <>
+                                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Batch</span>{batch.batch_id}</span>
+                                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Location</span><span className={styles.stage_badge}>{batch.current_location}</span></span>
+                                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Bin</span><span className={binClass(batch.bin)}>{batch.bin ?? 'none'}</span></span>
+                                        <span className={styles[`calibration_${batch.calibration_procedure_id}`]}>CP: {batch.calibration_procedure_id}</span>
+                                    </>
+                                    : <span className={styles.title_fact}><span className={styles.title_fact_label}>Batch</span>{batch.batch_id}<span className={styles.stage_badge}>Shipped</span></span>}
                             </div>
                         )
                     }
@@ -509,7 +519,7 @@ function Shipping() {
 
                 <div className={`${styles.row} ${styles.row_end}`}>
                     {sensorList?.length === 0 &&
-                        <button className={`${styles.default_button} ${styles.danger_outline_button}`} onClick={() => setDeleteArray([`Delete order ${orderNumber}? This cannot be undone.`])}>Delete Order</button>}
+                        <button className={`${styles.default_button} ${styles.danger_outline_button}`} onClick={() => setDeleteArray([`Delete order ${order?.customer_order_number ?? orderNumber}? This cannot be undone.`])}>Delete Order</button>}
                     <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>
                 </div>
             </div>

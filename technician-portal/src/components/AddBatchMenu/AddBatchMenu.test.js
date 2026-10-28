@@ -28,7 +28,8 @@ beforeEach(() => {
             case api('get-locations'):
                 return Promise.resolve({ data: ['R-A1', 'T-B2'] })
             case api('get-batch-by-id'):
-                return Promise.resolve({ data: { batch_id: 3000, current_location: 'R1' } })
+                return Promise.resolve({ data: { batch_id: 3000, current_location: 'R1', bin: 'B-R01' } })
+            case api('set-batch-bin'):
             case api('remove-sensor-from-batch'):
             case api('delete-batch'):
             case api('log-batch-interaction'):
@@ -145,7 +146,7 @@ test('invalid location shows popup and does not create log', async () => {
     const state = renderMenu()
     await inputLocation('my test')
     expect(mockAxios.get).not.toBeCalledWith(api('create-location-log'), expect.anything())
-    expect(state.setPopupMessage).toBeCalledWith('The batch was not moved successfully')
+    expect(state.setPopupMessage).toBeCalledWith('Location "MY TEST" is invalid: it must start with R, T or S')
 })
 
 test('checkStatus polls online sensors for the order', async () => {
@@ -183,7 +184,7 @@ test('cancel removes the batch right away and drops only its card', async () => 
     await act(async () => {
         fireEvent.click(screen.getByText('Cancel'))
     })
-    calledWithParams('delete-batch', { batch_id: 3000 })
+    calledWithParams('delete-batch', { batch_id: 3000, force: false })
     const update = setBatches.mock.calls[0][0]
     expect(update([{ batch_id: 3000 }, { batch_id: 3001 }])).toEqual([{ batch_id: 3001 }])
 })
@@ -194,7 +195,7 @@ test('preload shows the sensors and location the batch already has', async () =>
     })
     calledWithParams('get-sensors', { batch_id: 3000 })
     expect(screen.getByText('111')).toBeInTheDocument()
-    expect(screen.getByText('Current location: R1')).toBeInTheDocument()
+    expect(screen.getByText(/current location/i)).toHaveTextContent('Current location: R1 | Bin: B-R01')
 })
 
 test('without preload nothing is fetched up front', async () => {
@@ -202,7 +203,7 @@ test('without preload nothing is fetched up front', async () => {
         renderMenu()
     })
     expect(mockAxios.get).not.toBeCalledWith(api('get-sensors'), expect.anything())
-    expect(screen.getByText('Current location: No location set')).toBeInTheDocument()
+    expect(screen.getByText(/current location/i)).toHaveTextContent('Current location: No location set | Bin: none')
 })
 
 test('hideCancel leaves the cancel button out of the card', async () => {
@@ -272,4 +273,27 @@ test('trash button asks to confirm, then removes the sensor from iMonnit and the
     expect(state.setPopupMessage).toBeCalledWith('Sensor 111 removed from batch 3000')
     expect(screen.getByText(/no sensors scanned/i)).toBeInTheDocument()
     expect(screen.getByText(/total sensors: 0/i)).toBeInTheDocument()
+})
+
+test('scanning a bin sets it on the batch and shows it', async () => {
+    const state = renderMenu()
+    fireEvent.change(screen.getByPlaceholderText(/scan bin/i), { target: { value: 'b-y21' } })
+    await act(async () => {
+        fireEvent.submit(screen.getByTestId('binForm'))
+    })
+    calledWithParams('set-batch-bin', { batch_id: 3000, bin: 'B-Y21' })
+    expect(screen.getByText(/current location/i)).toHaveTextContent('Current location: No location set | Bin: B-Y21')
+    expect(screen.getByPlaceholderText(/scan bin/i)).toHaveValue('')
+    expect(state.setPopupMessage).toBeCalledWith('Batch 3000 is in bin B-Y21')
+})
+
+test('a rejected bin shows the api error', async () => {
+    const state = renderMenu()
+    mockAxios.get.mockImplementation(url => url === api('set-batch-bin') ? Promise.reject({ response: { status: 409, data: { error: 'Bin B-Y21 already holds another batch' } } }) : Promise.resolve({ data: {} }))
+    fireEvent.change(screen.getByPlaceholderText(/scan bin/i), { target: { value: 'B-Y21' } })
+    await act(async () => {
+        fireEvent.submit(screen.getByTestId('binForm'))
+    })
+    expect(state.setPopupMessage).toBeCalledWith('Bin B-Y21 already holds another batch')
+    expect(screen.getByText(/current location/i)).toHaveTextContent('Current location: No location set | Bin: none')
 })

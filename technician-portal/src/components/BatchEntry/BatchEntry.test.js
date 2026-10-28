@@ -29,11 +29,12 @@ beforeEach(() => {
             case `http://${ip}/api/get-calibration-procedures/`:
                 return Promise.resolve({ data: [{ calibration_procedure_id: 1, calibration_procedure: 'Room temp' }, { calibration_procedure_id: 2, calibration_procedure: 'Low temp' }] })
             case `http://${ip}/api/get-batches-by-order-id/`:
-                return Promise.resolve({ data: [{ batch_id: 124, current_location: 'S1', calibration_procedure_id: 1 }, { batch_id: 123, current_location: 'R1', calibration_procedure_id: 2 }, { batch_id: 125, current_location: 'T1', calibration_procedure_id: 2 }] })
+                return Promise.resolve({ data: [{ batch_id: 124, order_id: 7, current_location: 'S1', calibration_procedure_id: 1 }, { batch_id: 123, order_id: 7, current_location: 'R1', calibration_procedure_id: 2, bin: 'B-R01' }, { batch_id: 125, order_id: 7, current_location: 'T1', calibration_procedure_id: 2 }] })
             case `http://${ip}/api/get-sensors-by-order-id/`:
                 return Promise.resolve({ data: [{ sensor_id: 11, batch_id: 123 }] })
             case `http://${ip}/api/get-certificates-by-order-id/`:
                 return Promise.resolve({ data: [{ certificate_id: 1, batch_id: 125 }] })
+            case `http://${ip}/api/set-batch-bin/`:
             case `http://${ip}/api/update-batch-calibration-procedure/`:
             case `http://${ip}/api/set-order-expedited/`:
                 return Promise.resolve({ data: {} })
@@ -41,6 +42,7 @@ beforeEach(() => {
                 return Promise.resolve({ data: { batch_id: 789 } })
             case `http://${ip}/api/remove-sensor-from-batch/`:
             case `http://${ip}/api/delete-batch/`:
+            case `http://${ip}/api/delete-order/`:
                 return Promise.resolve({ data: {} })
             case `http://${ip}/api/log-batch-interaction/`:
             case `http://${ip}/api/update-batch-technician/`:
@@ -335,7 +337,48 @@ test('removing a batch unassigns its sensors and deletes it after confirming', a
         fireEvent.click(screen.getByText('Remove'))
     })
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/remove-sensor-from-batch/`, expect.objectContaining({ params: { sensor_id: 11, batch_id: 123 } }))
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-batch/`, expect.objectContaining({ params: { batch_id: 123 } }))
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-batch/`, expect.objectContaining({ params: { batch_id: 123, force: false } }))
+})
+
+test('a batch that still has readings offers Delete anyway, which retries with force', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation((url, config) => url === `http://${ip}/api/delete-batch/` && !config.params.force
+        ? Promise.reject({ response: { status: 409, data: { error: 'Batch 123 still has reading records, so it cannot be removed' } } })
+        : defaultGet(url, config))
+    const state = defaultState()
+    await act(async () => {
+        render(<AppWrapper sharedState={state}><BatchEntry /></AppWrapper>)
+    })
+    await act(async () => { fireEvent.click(screen.getByLabelText('Edit order 7')) })
+    fireEvent.click(screen.getByLabelText('Remove batch 123'))
+    await act(async () => { fireEvent.click(screen.getByText('Remove')) })
+    const popup = state.setPopupMessage.mock.calls.at(-1)[0]
+    expect(popup.message).toBe('Batch 123 still has reading records, so it cannot be removed')
+    expect(popup.action.label).toBe('Delete anyway')
+
+    await act(async () => { popup.action.onClick() })
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-batch/`, expect.objectContaining({ params: { batch_id: 123, force: true } }))
+    expect(state.setPopupMessage).toHaveBeenLastCalledWith('Batch 123 removed')
+})
+
+test('removing the last batch of an order deletes the order too', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    let deleted = false
+    mockAxios.get.mockImplementation((url, config) => {
+        if (url === `http://${ip}/api/delete-batch/`) deleted = true
+        if (url === `http://${ip}/api/get-batches-by-order-id/` && deleted) return Promise.resolve({ data: [] })
+        return defaultGet(url, config)
+    })
+    const state = defaultState()
+    await act(async () => {
+        render(<AppWrapper sharedState={state}><BatchEntry /></AppWrapper>)
+    })
+    await act(async () => { fireEvent.click(screen.getByLabelText('Edit order 7')) })
+    fireEvent.click(screen.getByLabelText('Remove batch 123'))
+    await act(async () => { fireEvent.click(screen.getByText('Remove')) })
+    await act(async () => { })
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-order/`, expect.objectContaining({ params: { order_id: 7 } }))
+    expect(state.setPopupMessage).toHaveBeenLastCalledWith('Batch 123 removed, and order 7 with it as it had no batches left')
 })
 
 test('reform gateways button reforms every lab gateway and reports the count', async () => {
@@ -348,4 +391,15 @@ test('reform gateways button reforms every lab gateway and reports the count', a
     })
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/reform-gateways/`, expect.anything())
     expect(state.setPopupMessage).toBeCalledWith('Reformed 3 gateways')
+})
+
+test('scanning a bin in the edit order popup sets it on the batch', async () => {
+    await openEditor()
+    expect(screen.getByLabelText('Bin for batch 123')).toHaveValue('B-R01')
+    expect(screen.getByLabelText('Bin for batch 124')).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Bin for batch 125'), { target: { value: 'B-Y21' } })
+    await act(async () => {
+        fireEvent.submit(screen.getByLabelText('Bin for batch 125').closest('form'))
+    })
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/set-batch-bin/`, expect.objectContaining({ params: { batch_id: 125, bin: 'B-Y21' } }))
 })
