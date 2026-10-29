@@ -8,7 +8,7 @@ const renderMetrics = () => render(<AppWrapper sharedState={{ setEquipmentList: 
 
 jest.mock('axios');
 jest.mock('react-chartjs-2', () => ({
-    Bar: () => null
+    Bar: ({ options, data }) => <div data-testid={options.plugins.title.text}>{JSON.stringify(data.datasets.map(d => d.data))}</div>
 }));
 
 beforeEach(() => {
@@ -57,6 +57,20 @@ describe('Metrics', () => {
         fireEvent.click(byProcedure)
         expect(byProcedure).toHaveAttribute('aria-pressed', 'true')
         expect(total).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    test('shows failure rate as a percent of calibrations', async () => {
+        jest.useFakeTimers();
+        renderMetrics()
+        await act(async () => {
+            jest.advanceTimersByTime(5000);
+        })
+        // mock returns 2 calibrations (CP 1 and CP 2) and 1 failure (CP 1) for every month; datasets are calibrated, failures, rate
+        expect(screen.getByTestId('Calibrations and failures by month')).toHaveTextContent('[[2,2,2,2,2,2],[1,1,1,1,1,1],[50,50,50,50,50,50]]')
+
+        fireEvent.click(screen.getByRole('button', { name: 'By procedure' }))
+        expect(screen.getByTestId('Sensors calibrated by procedure')).toHaveTextContent('[[1,1,1,1,1,1],[1,1,1,1,1,1],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]')
+        expect(screen.getByTestId('Failures by procedure')).toHaveTextContent('[[1,1,1,1,1,1],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]')
     })
 
     test('catches calibration procedure retrieval error', async () => {

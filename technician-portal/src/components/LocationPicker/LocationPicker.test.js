@@ -24,7 +24,6 @@ beforeEach(() => {
             case api('log-batch-interaction'):
             case api('set-batch-active-state'):
             case api('move-batch-to-network-group'):
-            case api('change-batch-heartbeats'):
                 return Promise.resolve({ data: {} })
             default:
                 return Promise.reject({ response: { status: 500 } })
@@ -77,7 +76,18 @@ test('clicking a bin closes the grid and moves the batch right away', async () =
     expect(screen.queryByRole('button', { name: 'R-A1' })).not.toBeInTheDocument()
     moved('T-B2')
     expect(onMoved).toBeCalledWith('T-B2')
+    expect(setPopupMessage).not.toBeCalled()
     expect(screen.getByLabelText('Location')).toHaveTextContent('Move to location...')
+})
+
+test('the move is reported as soon as the location is recorded, before the slow iMonnit step finishes', async () => {
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation(url => url === api('move-batch-to-network-group') ? new Promise(() => { }) : defaultGet(url))
+    const onMoved = await renderPicker()
+    openGrid()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'T-B2' })) })
+    expect(onMoved).toBeCalledWith('T-B2')
+    expect(setPopupMessage).not.toBeCalled()
 })
 
 test('Enter on the box with nothing picked does not move', async () => {
@@ -109,13 +119,13 @@ test('a new location can be typed and is added to the grid', async () => {
 
 test('a failing step after the location is recorded says which step failed and still shows the new location', async () => {
     const defaultGet = mockAxios.get.getMockImplementation()
-    mockAxios.get.mockImplementation(url => url === api('change-batch-heartbeats')
-        ? Promise.reject({ response: { status: 500, data: { Result: 'Unable to change heartbeats' } } })
+    mockAxios.get.mockImplementation(url => url === api('move-batch-to-network-group')
+        ? Promise.reject({ response: { status: 500, data: { error: 'Could not move sensors to new networks' } } })
         : defaultGet(url))
     const onMoved = await renderPicker()
     openGrid()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'T-B2' })) })
-    expect(setPopupMessage).toHaveBeenLastCalledWith('Batch 3000 was moved to T-B2 but could not change its heartbeats: Unable to change heartbeats')
+    expect(setPopupMessage).toHaveBeenLastCalledWith('Batch 3000 was moved to T-B2 but could not move its sensors to the network: Could not move sensors to new networks')
     expect(onMoved).toBeCalledWith('T-B2')
 })
 

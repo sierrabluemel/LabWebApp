@@ -49,18 +49,17 @@ function LocationPicker({ batchNumber, onMoved }) {
     }, []);
 
     const move = (location) => {
-        setPopupMessage(`Moving batch ${batchNumber} to ${location}...`);
-        setBatchLocation(location, technicianId, batchNumber)
-            .then(({ moved, error }) => {
-                setPopupMessage(error ?? `Batch ${batchNumber} moved to ${location}`);
-                if (!moved)
-                    return;
-                onMoved(location);
-                setSelected('');
-                setNewLocation('');
-                if (!locations.includes(location))
-                    setLocations([...locations, location].sort());
-            })
+        // The location is recorded in the first step; the iMonnit steps after it run in the background. Only a failure gets a popup.
+        const onRecorded = () => {
+            onMoved(location);
+            setSelected('');
+            setNewLocation('');
+            if (!locations.includes(location))
+                setLocations([...locations, location].sort());
+        }
+        setBatchLocation(location, technicianId, batchNumber, onRecorded)
+            .then(({ error }) => error && setPopupMessage(error))
+            .catch(error => setPopupMessage(`Could not move batch ${batchNumber} to ${location}: ${error?.message ?? 'Unknown error'}`));
     }
 
     // Enter in the "New location" box moves to the typed location

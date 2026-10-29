@@ -145,7 +145,7 @@ function Shipping() {
 
                 getProcedureReferences(calibrationProcedures)
                     .then(references => {
-                        const referenceVerifiedStrings = ['The following references must be verified for information to go onto the certificate']
+                        const referenceVerifiedStrings = ['Add these references to the certificates?']
                         references.forEach(reference => {
                             reference = JSON.parse(reference);
                             if (!reference.certificate_verified) {
@@ -519,7 +519,7 @@ function Shipping() {
 
                 <div className={`${styles.row} ${styles.row_end}`}>
                     {sensorList?.length === 0 &&
-                        <button className={`${styles.default_button} ${styles.danger_outline_button}`} onClick={() => setDeleteArray([`Delete order ${order?.customer_order_number ?? orderNumber}? This cannot be undone.`])}>Delete Order</button>}
+                        <button className={`${styles.default_button} ${styles.danger_outline_button}`} onClick={() => setDeleteArray([`Delete order ${order?.customer_order_number ?? orderNumber}?`, 'This cannot be undone.'])}>Delete Order</button>}
                     <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>
                 </div>
             </div>

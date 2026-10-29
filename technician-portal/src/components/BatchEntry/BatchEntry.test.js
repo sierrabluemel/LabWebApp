@@ -299,10 +299,13 @@ test('edit batch opens the sales order page with that batch', async () => {
     expect(mockedUseNavigate).toBeCalledWith('/createSalesOrder', { state: { mode: 'edit', batch: expect.objectContaining({ batch_id: 123 }), customerOrderNumber: 'TO7' } })
 })
 
-test('changing the CP of a batch without certificates applies immediately', async () => {
+test('changing the CP of a batch without certificates asks, then applies on Change', async () => {
     await openEditor()
+    fireEvent.change(screen.getByLabelText('Calibration procedure for batch 123'), { target: { value: '1' } })
+    expect(screen.getByText(/change batch 123 from CP \d+ to CP 1\?/i)).toBeInTheDocument()
+    expect(mockAxios.get).not.toBeCalledWith(`http://${ip}/api/update-batch-calibration-procedure/`, expect.anything())
     await act(async () => {
-        fireEvent.change(screen.getByLabelText('Calibration procedure for batch 123'), { target: { value: '1' } })
+        fireEvent.click(screen.getByText('Change'))
     })
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/update-batch-calibration-procedure/`, expect.objectContaining({ params: { batch_id: 123, calibration_procedure_id: 1 } }))
     expect(screen.getByLabelText('Calibration procedure for batch 124')).toBeDisabled()
@@ -378,7 +381,7 @@ test('removing the last batch of an order deletes the order too', async () => {
     await act(async () => { fireEvent.click(screen.getByText('Remove')) })
     await act(async () => { })
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-order/`, expect.objectContaining({ params: { order_id: 7 } }))
-    expect(state.setPopupMessage).toHaveBeenLastCalledWith('Batch 123 removed, and order 7 with it as it had no batches left')
+    expect(state.setPopupMessage).toHaveBeenLastCalledWith({ message: 'Batch 123 removed', details: 'Order 7 was removed with it as it had no batches left' })
 })
 
 test('reform gateways button reforms every lab gateway and reports the count', async () => {

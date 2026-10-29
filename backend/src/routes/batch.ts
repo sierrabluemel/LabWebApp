@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { PDFDocument } from "pdf-lib";
 import batch from "../models/batch";
 import sensor from "../models/sensor";
+import misc from "../models/misc";
 import { parseIntNullable } from "../utils/common";
 import monnitFetch from "../utils/monnit";
 const sillyConfig = require('../../config.json');
@@ -405,10 +406,16 @@ const batchRoutes = {
         const batchId = parseInt(req.query.batch_id as string ?? "");
         // Heartbeat (minutes) the batch is about to run at, so the balance uses the load the sensors will actually add
         const targetHeartbeat = parseFloat(req.query.heartbeat as string ?? "");
+        // Who gets the notification if the background work fails
+        const technicianId = parseIntNullable(req.query.technician_id as string ?? "");
 
         if (isNaN(batchId)) {
             return res.status(400).json({ error: `Invalid batch id` });
         }
+
+        // The iMonnit calls run one per second, so a big batch takes minutes and would hit the proxy timeout.
+        // Answer now and do the work in the background; a failure becomes a notification for the technician.
+        res.json({ Result: 'Started' });
 
         const stagingNetworks: Array<number> = sillyConfig.stagingNetworks;
         const anyFrequencyNetworks: Array<number> = sillyConfig.anyFrequencyNetworks;
@@ -475,16 +482,24 @@ const batchRoutes = {
                             }))
                         })
                 }))
+                    // Set the heartbeat here too, only on sensors not already at it, so a within-stage move costs no per-sensor iMonnit calls
+                    .then(() => Promise.all(allSensors
+                        .filter((s: any) => skuById.has(s.SensorID) && !isNaN(targetHeartbeat) && s.ReportInterval !== targetHeartbeat)
+                        .map((s: any) => monnitFetch(`https://www.imonnit.com/json/SensorSetHeartbeat/?SensorID=${s.SensorID}&reportInterval=${targetHeartbeat}&activeStateInterval=${targetHeartbeat}`)
+                            .then((response) => {
+                                if (response.Result !== 'Success')
+                                    return Promise.reject(`Unable to set heartbeat for sensor ${s.SensorID}: ${JSON.stringify(response)}`);
+                            }))))
                     // Every gateway that gained or lost a sensor gets a reform so the techs don't have to do it by hand
                     .then(() => moves.length === 0 ? undefined : reformGateways(gateways, moves.flatMap(m => [m.sensor.CSNetID, m.networkId])))
                     .then(() => moves.length);
             })
-            .then((moved) => {
-                res.json({ Result: 'Success', moved });
-            })
             .catch(error => {
                 console.error(`Error moving sensors: ${error}`);
-                res.status(500).json({ error: 'Could not move sensors to new networks' });
+                if (technicianId === null)
+                    return;
+                return misc.createNotification(`Batch ${batchId} sensors were not moved`, `Could not move batch ${batchId}'s sensors to the ${networkGroup} network on iMonnit: ${error}`, new Date(), technicianId, false, null, null)
+                    .catch((err) => console.error(`Error creating notification: ${err}`));
             })
     },
 

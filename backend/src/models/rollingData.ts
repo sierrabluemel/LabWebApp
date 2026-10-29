@@ -38,14 +38,15 @@ const rollingData = {
                 type,
                 value,
                 battery_level::double precision as battery_level,
-                pending_change
+                pending_change,
+                EXTRACT(EPOCH FROM timestamp - lag(timestamp) OVER (PARTITION BY sensor_id, type ORDER BY timestamp))::int AS heartbeat
             FROM
                 sensor_readings
             WHERE
                 timestamp >= NOW() - INTERVAL '3 hours'
             AND
                 sensor_id = ANY($1::bigint[])
-            ORDER BY 
+            ORDER BY
                 sensor_id, type, timestamp DESC;
         `, [sensorIds]);
     },

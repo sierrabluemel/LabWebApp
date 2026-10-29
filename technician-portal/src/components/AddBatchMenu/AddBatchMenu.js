@@ -56,7 +56,6 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
             .then(() => {
                 setBin(binString);
                 setBinString('');
-                setPopupMessage(`Batch ${batchNumber} is in bin ${binString}`);
             })
             .catch(err => {
                 setPopupMessage(err.response?.data?.error ?? `Could not set bin for batch ${batchNumber}`);

@@ -284,7 +284,7 @@ test('scanning a bin sets it on the batch and shows it', async () => {
     calledWithParams('set-batch-bin', { batch_id: 3000, bin: 'B-Y21' })
     expect(screen.getByText(/current location/i)).toHaveTextContent('Current location: No location set | Bin: B-Y21')
     expect(screen.getByPlaceholderText(/scan bin/i)).toHaveValue('')
-    expect(state.setPopupMessage).toBeCalledWith('Batch 3000 is in bin B-Y21')
+    expect(state.setPopupMessage).not.toBeCalled()
 })
 
 test('a rejected bin shows the api error', async () => {

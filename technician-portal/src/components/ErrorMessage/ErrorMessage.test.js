@@ -34,6 +34,25 @@ test.each([
     expect(screen.getByText(message).className.includes('popup_header_error')).toBe(red)
 })
 
+test('an explicit error flag overrides the wording', () => {
+    render(
+        <AppWrapper sharedState={{ popupMessage: { message: 'Equipment out of calibration', details: 'A1 (bath) is out of calibration as of 1/2/2026', error: true }, setPopupMessage: jest.fn() }}>
+            <ErrorMessage />
+        </AppWrapper>
+    )
+    expect(screen.getByRole('heading').className.includes('popup_header_error')).toBe(true)
+})
+
+test('details go in the body under the header', () => {
+    render(
+        <AppWrapper sharedState={{ popupMessage: { message: 'Batch 3 removed', details: 'Order 7 was removed with it' }, setPopupMessage: jest.fn() }}>
+            <ErrorMessage />
+        </AppWrapper>
+    )
+    expect(screen.getByRole('heading')).toHaveTextContent('Batch 3 removed')
+    expect(screen.getByText('Order 7 was removed with it')).toBeInTheDocument()
+})
+
 test('a message with an action shows its button, which closes the popup and runs it', () => {
     const setPopupMessage = jest.fn()
     const onClick = jest.fn()

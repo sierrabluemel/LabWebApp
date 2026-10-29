@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-loop-func */
 import { useState, useEffect, useRef } from 'react';
-import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart, CategoryScale, LinearScale, BarElement, LineController, LineElement, PointElement, Title, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar } from 'react-chartjs-2';
 import styles from "../../styles/styles.module.css";
@@ -10,9 +10,14 @@ import addWorkDays from '../../utils/addWorkDays';
 import { useAppContext } from '../../contexts/app';
 
 Chart.register(
-	CategoryScale, LinearScale, BarElement,
+	CategoryScale, LinearScale, BarElement, LineController, LineElement, PointElement,
 	Title, Tooltip, Legend, ChartDataLabels
 );
+
+// calibrated matches --primary, failures is the saturated twin of --cal-1, rate stays neutral so it doesn't compete with the bars
+const COLORS = { calibrated: '#3b6ea5', failures: '#d9636e', rate: '#333' };
+// saturated twins of the --cal-1..8 CP badge colors, indexed by calibration_procedure_id - 1
+const PROCEDURE_COLORS = ['#d9636e', '#4f86c6', '#d9b13b', '#d98b5f', '#4fa872', '#8a6fbf', '#3fa3ad', '#c96a9e'];
 
 function Metrics() {
 	const today = new Date();
@@ -86,8 +91,6 @@ function Metrics() {
 					setSensorsInShipping(sensorsToShip);
 				})
 
-			// saturated twins of the --cal-1..8 CP badge colors, indexed by calibration_procedure_id - 1
-			const colors = ['#d9636e', '#4f86c6', '#d9b13b', '#d98b5f', '#4fa872', '#8a6fbf', '#3fa3ad', '#c96a9e']
 			const promises = [];
 			calibrationProcedures.current = await callApi('get-calibration-procedures')
 			if (!Array.isArray(calibrationProcedures.current)) {
@@ -109,7 +112,9 @@ function Metrics() {
 							topMonthTotal = calibrations.length;
 							topMonth = monthNames[today.getMonth() - i];
 						}
-						return { calibrated: countByProcedure(calibrations), failures: countByProcedure(response.failures ?? []) };
+						const calibrated = countByProcedure(calibrations), failures = countByProcedure(response.failures ?? []);
+						// failures per 100 calibrated sensor-days; a sensor failing twice in a day counts twice
+						return { calibrated, failures, rate: calibrated.map((c, i) => c ? Math.round(100 * failures[i] / c) : 0) };
 					});
 				promises.push(promise);
 			}
@@ -118,60 +123,29 @@ function Metrics() {
 			setBestMonth(topMonth);
 			setBestMonthTotal(topMonthTotal)
 
-			const dataset = (label, data, color) => ({
-				label, data, backgroundColor: color, borderColor: '#333', borderWidth: 1, hoverBorderWidth: 2, borderRadius: 2,
-			});
-			// monthsData[m][key] is [...per procedure, total]; split into a by-procedure dataset list and a single total dataset
-			const buildDatasets = (key, totalLabel, totalColor) => {
-				const totalIndex = calibrationProcedures.current.length;
-				return {
-					total: [dataset(totalLabel, monthsData.map(m => m[key][totalIndex]), totalColor)],
-					// wider bars than chart.js defaults (0.9 / 0.8) so the value labels fit with 8 bars per month
-					byProcedure: calibrationProcedures.current.map((cp, i) => ({
-						...dataset(`CP ${cp.calibration_procedure_id}: ${cp.calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`, monthsData.map(m => m[key][i]), colors[(cp.calibration_procedure_id - 1) % colors.length]),
-						barPercentage: 1, categoryPercentage: 0.95,
-					})),
-				};
-			};
+			// monthsData[m][key] is [...per procedure, total]. Total view: one series per month. By procedure: one series per procedure, still by month.
+			const totalIndex = calibrationProcedures.current.length;
+			const byProcedure = (key) => calibrationProcedures.current.map((cp, i) => ({
+				label: `CP ${cp.calibration_procedure_id}`, // short so eight legend entries fit on one line; the full name shows in the tooltip
+				fullName: cp.calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', ''),
+				data: monthsData.map(m => m[key][i]),
+				backgroundColor: PROCEDURE_COLORS[(cp.calibration_procedure_id - 1) % PROCEDURE_COLORS.length],
+				// wider bars than chart.js defaults (0.9 / 0.8) so the value labels fit with 8 bars per month
+				barPercentage: 1, categoryPercentage: 0.95,
+			}));
 			setCharts({
-				calibrated: buildDatasets('calibrated', 'Total sensors', colors[5]),
-				failures: buildDatasets('failures', 'Total failures', colors[0]),
+				labels: [5, 4, 3, 2, 1, 0].map(i => monthNames[new Date(today.getFullYear(), today.getMonth() - i, 1).getMonth()].slice(0, 3)),
+				total: {
+					calibrated: monthsData.map(m => m.calibrated[totalIndex]),
+					failures: monthsData.map(m => m.failures[totalIndex]),
+					rate: monthsData.map(m => m.rate[totalIndex]),
+				},
+				byProcedure: { calibrated: byProcedure('calibrated'), failures: byProcedure('failures') },
 			});
 		};
 
 		fetchData();
 	}, []);
-
-	const chartOptions = (title) => ({
-		responsive: true,
-		maintainAspectRatio: false,
-		plugins: {
-			datalabels: {
-				anchor: 'end',
-				align: 'top',
-				offset: -5,
-				formatter: function (value) {
-					return value > 0 ? value : ''
-				},
-			},
-			legend: {
-				display: false,
-			},
-			title: {
-				display: true,
-				text: title,
-			},
-		},
-	});
-
-	const labels = [
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 5, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 4, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 3, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 2, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 1, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth(), 1).getMonth()]
-	]
 
 	if (!charts) {
 		return (
@@ -180,6 +154,37 @@ function Metrics() {
 			</>
 		)
 	}
+
+	const barStyle = { borderColor: '#333', borderWidth: 1, hoverBorderWidth: 2, borderRadius: 2 };
+	const chartOptions = (title, legend, extraScales = {}) => ({
+		responsive: true,
+		maintainAspectRatio: false,
+		scales: { y: { beginAtZero: true }, ...extraScales },
+		plugins: {
+			datalabels: { anchor: 'end', align: 'top', offset: -5, formatter: value => value > 0 ? value : '' },
+			legend: { display: legend, position: 'bottom' },
+			title: { display: true, text: title },
+			tooltip: { callbacks: { label: item => `${item.dataset.fullName ?? item.dataset.label}: ${item.formattedValue}` } },
+		},
+	});
+
+	// Total view: calibrated and failure bars side by side, failure rate as a line on a right-hand percent axis
+	const totalDatasets = [
+		{ ...barStyle, label: 'Total sensors', data: charts.total.calibrated, backgroundColor: COLORS.calibrated, order: 1 }, // order 1 draws under the line
+		{ ...barStyle, label: 'Total failures', data: charts.total.failures, backgroundColor: COLORS.failures, order: 1 },
+		{
+			label: 'Failure rate', data: charts.total.rate, type: 'line', yAxisID: 'y1', order: 0,
+			borderColor: COLORS.rate, backgroundColor: COLORS.rate, borderWidth: 2, tension: 0.3, pointRadius: 4,
+			datalabels: {
+				color: '#fff', backgroundColor: COLORS.rate, borderRadius: 3, padding: { top: 2, bottom: 1, left: 4, right: 4 },
+				font: { weight: 'bold' }, offset: 4, formatter: v => v + '%',
+			},
+		},
+	];
+	const totalOptions = chartOptions('Calibrations and failures by month', true, {
+		y1: { position: 'right', beginAtZero: true, grace: '25%', grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } },
+	});
+	const byProcedureDatasets = (key) => charts.byProcedure[key].map(d => ({ ...barStyle, ...d }));
 
 	return (
 		<div data-testid='graphs'>
@@ -206,12 +211,18 @@ function Metrics() {
 					{[['total', 'Total'], ['byProcedure', 'By procedure']].map(([key, label]) =>
 						<button key={key} aria-pressed={view === key} onClick={() => setView(key)}>{label}</button>)}
 				</div>
-				<div className={styles.graph_tile}>
-					<Bar options={chartOptions('Sensors Calibrated')} data={{ labels, datasets: charts.calibrated[view] }} />
-				</div>
-				<div className={styles.graph_tile}>
-					<Bar options={chartOptions('Failures')} data={{ labels, datasets: charts.failures[view] }} />
-				</div>
+				{view === 'total' ?
+					<div className={styles.graph_tile}>
+						<Bar options={totalOptions} data={{ labels: charts.labels, datasets: totalDatasets }} />
+					</div>
+					: <>
+						<div className={`${styles.graph_tile} ${styles.graph_tile_half}`}>
+							<Bar options={chartOptions('Sensors calibrated by procedure', false)} data={{ labels: charts.labels, datasets: byProcedureDatasets('calibrated') }} />
+						</div>
+						<div className={`${styles.graph_tile} ${styles.graph_tile_half}`}>
+							<Bar options={chartOptions('Failures by procedure', true)} data={{ labels: charts.labels, datasets: byProcedureDatasets('failures') }} />
+						</div>
+					</>}
 			</div>
 		</div>
 	);

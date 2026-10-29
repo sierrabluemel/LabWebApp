@@ -8,6 +8,7 @@ import AddBatchMenu from "../AddBatchMenu/AddBatchMenu";
 import removeOrderIfEmpty from "../../utils/removeOrderIfEmpty";
 import DropDown from "../DropDown/DropDown";
 import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
+import Receiving from "../Receiving/Receiving";
 
 import styles from "../../styles/styles.module.css";
 import addWorkDays from "../../utils/addWorkDays";
@@ -18,7 +19,7 @@ function SalesOrderForm() {
     const navigate = useNavigate();
     const openBatch = useOpenBatch();
     // 'add' and 'edit' reuse this page for an order that already exists; no mode is a new order
-    const { mode, batch: editingBatch, customerOrderNumber } = useLocation().state ?? {};
+    const { mode, batch: editingBatch, customerOrderNumber, newOrder } = useLocation().state ?? {};
     const {
         salesOrder, setSalesOrder, technicianId,
         setPopupMessage, order, setOrder, expedited
@@ -96,7 +97,7 @@ function SalesOrderForm() {
             .then(() => callApi('delete-batch', { batch_id: batchId, force }))
             .then(() => removeOrderIfEmpty(order))
             .then(orderRemoved => {
-                setPopupMessage(orderRemoved ? `Batch ${batchId} removed, and order ${order} with it as it had no batches left` : `Batch ${batchId} removed`);
+                setPopupMessage(orderRemoved ? { message: `Batch ${batchId} removed`, details: `Order ${order} was removed with it as it had no batches left` } : `Batch ${batchId} removed`);
                 setOrder(null);
                 navigate('/batchEntry');
             })
@@ -110,16 +111,21 @@ function SalesOrderForm() {
             })
     }
 
-    const finish = (focusNewOrder) => {
+    // "Add another order" stays on this page and shows the new order form; "Go to testing" leaves
+    const finish = (addAnother) => {
         setOrder(null);
         setSalesOrder('');
-        navigate('/batchEntry', { state: { focusNewOrder } });
+        dueDate.current = null;
+        if (addAnother)
+            navigate('/createSalesOrder', { state: { newOrder: true } });
+        else
+            navigate('/batchEntry', { state: { focusNewOrder: false } });
     }
 
     if (!order) {
         return (
             <div className={`${styles.menu} ${styles.narrow_menu}`}>
-                <h1 className={styles.title}>Loading...</h1>
+                {newOrder ? <Receiving /> : <h1 className={styles.title}>Loading...</h1>}
             </div>
         )
     }

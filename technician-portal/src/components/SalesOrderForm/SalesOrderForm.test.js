@@ -114,14 +114,27 @@ test('"Go to testing" clears the order and navigates to batch list', async () =>
     expect(mockedUseNavigate).toBeCalledWith('/batchEntry', { state: { focusNewOrder: false } })
 })
 
-test('"Add another order" clears the order and focuses the new order box', async () => {
+test('"Add another order" clears the order and opens a new order page', async () => {
     const state = await completeOrder()
     await act(async () => {
         fireEvent.click(screen.getByText(/add another order/i))
     })
     expect(state.setOrder).toBeCalledWith(null)
     expect(state.setSalesOrder).toBeCalledWith('')
-    expect(mockedUseNavigate).toBeCalledWith('/batchEntry', { state: { focusNewOrder: true } })
+    expect(mockedUseNavigate).toBeCalledWith('/createSalesOrder', { state: { newOrder: true } })
+})
+
+test('the new order page shows the new order form until an order exists', async () => {
+    mockLocation = { state: { newOrder: true } }
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{ salesOrder: '', setSalesOrder: jest.fn(), setOrder: jest.fn(), order: null, expedited: false, setExpedited: jest.fn(), setPopupMessage: jest.fn(), technicianId: 1 }}>
+                <SalesOrderForm />
+            </AppWrapper>
+        )
+    })
+    expect(screen.getByPlaceholderText(/new sales order/i)).toBeInTheDocument()
+    expect(screen.queryByText(/loading/i)).not.toBeInTheDocument()
 })
 const renderMode = async (state) => {
     mockLocation = { state }
@@ -196,5 +209,5 @@ test('removing the last batch in edit mode deletes the order too', async () => {
         fireEvent.click(screen.getByText('Remove'))
     })
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-order/`, expect.objectContaining({ params: { order_id: sharedState.order } }))
-    expect(sharedState.setPopupMessage).toBeCalledWith(`Batch 5 removed, and order ${sharedState.order} with it as it had no batches left`)
+    expect(sharedState.setPopupMessage).toBeCalledWith({ message: 'Batch 5 removed', details: `Order ${sharedState.order} was removed with it as it had no batches left` })
 })

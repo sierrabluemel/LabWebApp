@@ -372,7 +372,7 @@ mark {
 
 .graph_grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     grid-gap: var(--space-4);
     margin: var(--space-3) 0;
 }
@@ -581,6 +581,15 @@ mark {
     flex-direction: column;
     overflow: hidden;
     text-align: left;
+}
+
+/* confirmations are as wide as their text, so a one-line question is not a 900px bar */
+.notification_popup_container.confirm_popup {
+    /* above a content dialog (edit order, add spare) that opened it, below the message popup */
+    z-index: 1005;
+    width: fit-content;
+    min-width: min(480px, 92vw);
+    max-width: min(900px, 92vw);
 }
 
 /* app-wide message popup always sits above any other open popup */
@@ -1137,34 +1146,13 @@ mark {
     width: 1em;
 }
 
-.close_button:after {
-    position: absolute;
-    content: "\00d7";
-    right: 10px;
-    top: 0px;
-    font-size: 32px;
-}
-
-.close_button:hover {
-    cursor: pointer;
-    opacity: 0.8;
-}
-
 .trash_can_icon {
     width: 20px;
     position: absolute;
     right: 5px;
 }
 
-.popup_trash_can_icon {
-    width: 30px;
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
-}
-
-.trash_can_icon:hover,
-.popup_trash_can_icon:hover {
+.trash_can_icon:hover {
     cursor: pointer;
     filter: invert(0.2);
 }
@@ -1433,12 +1421,10 @@ mark {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
-    grid-column: span 2;
 }
 
-/* segmented Total / By procedure toggle centered above both graph tiles */
+/* segmented Total / By procedure toggle centered above the graph */
 .graph_toggle {
-    grid-column: span 2;
     display: flex;
     justify-content: center;
 }
@@ -1475,7 +1461,14 @@ mark {
     border-radius: var(--radius);
     padding: 20px;
     box-shadow: var(--shadow-sm);
-    height: 400px;
+    /* fits under the header, KPIs and toggle (~400px) without scrolling on a laptop */
+    height: clamp(260px, calc(100vh - 400px), 400px);
+}
+
+/* By procedure view: two graphs stacked in the same space as the one Total graph */
+.graph_tile_half {
+    padding: 8px 20px;
+    height: clamp(150px, calc((100vh - 452px) / 2), 400px);
 }
 
 .shipping_batches {
@@ -1818,12 +1811,6 @@ mark {
 /* a message about something that did not happen */
 .popup_header_error {
     background-color: var(--danger);
-}
-
-.repeat_text {
-    position: absolute;
-    bottom: 5px;
-    left: 10px;
 }
 
 /* ---------------- Search ---------------- */

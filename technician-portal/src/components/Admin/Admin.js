@@ -91,7 +91,7 @@ function Admin() {
     }
 
     function handleSubmit(event) {
-        let warningMessage = ['This will set the following references:'];
+        let warningMessage = ['Set these references?'];
         if (isReferenceValid(superDaq)) {
             warningMessage.push(
                 `The SuperDAQ will be set to ${superDaq.referenceTag}
