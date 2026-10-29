@@ -153,7 +153,7 @@ const rollingDataRoutes = {
                 sensors = await rollingData.getSensorsInRange(windowStart, sensorIds, type, stability.reference_average, setPoint.stabilityCriteria[`tolerance_${type}`]);
             }
 
-            return { minutes, stable_seconds: stableSeconds, ready, sensors, reference_average: stability?.reference_average ?? null };
+            return { minutes, stable_seconds: stableSeconds, ready, sensors, reference_value: stability?.reference_value ?? null };
         }))
             .then((result) => res.json({ Result: result }))
             .catch((err) => {

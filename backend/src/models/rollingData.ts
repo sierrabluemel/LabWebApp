@@ -136,7 +136,8 @@ const rollingData = {
                     AND assumed_set_point - average < $4
                 )) AS last_unstable,
                 MAX(timestamp) AS last_reading,
-                (array_agg(average ORDER BY timestamp DESC))[1] AS reference_average
+                (array_agg(average ORDER BY timestamp DESC))[1] AS reference_average,
+                (array_agg(value ORDER BY timestamp DESC))[1] AS reference_value
             FROM
                 reference_readings
             WHERE

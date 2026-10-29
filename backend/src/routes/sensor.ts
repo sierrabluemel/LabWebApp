@@ -106,7 +106,14 @@ const sensorRoutes = {
         let params = new URLSearchParams();
         params.append("SensorID", sensorId);
 
-        monnitFetch(`${url}?${params.toString()}`)
+        // iMonnit ignores the auto-calibrate push while the sensor holds an unexpired certificate ("pre-calibrated and certified"),
+        // so drop any current one first; the batch re-creates the certificate when it finishes
+        const monnitDate = (value: string) => parseInt(value.match(/-?\d+/)?.[0] ?? "0");
+        monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateList/?SensorID=${sensorId}`)
+            .then((list) => Promise.all((list.Result ?? [])
+                .filter((cert: any) => monnitDate(cert.CertificationValidUntil) > Date.now())
+                .map((cert: any) => monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateRemove/?CalibrationCertificateID=${cert.CalibrationCertificateID}`))))
+            .then(() => monnitFetch(`${url}?${params.toString()}`))
             .then((result) => {
                 url = `https://www.imonnit.com/json/SensorSetCalibration/`;
 

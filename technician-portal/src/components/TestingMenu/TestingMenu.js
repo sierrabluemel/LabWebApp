@@ -262,9 +262,9 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                         </div>
                     );
                 })
-                // Live reference average until a reading is saved for the set point
+                // Latest reference value (same as the sidebar) until a reading is saved for the set point
                 const liveReference = (index) => {
-                    const value = readiness.current[index]?.reference_average;
+                    const value = readiness.current[index]?.reference_value;
                     return value == null ? '' : `${Number(value).toFixed(2)}${readinessType === 'humidity' ? '%RH' : '°C'}`;
                 }
                 setReferenceReadings(setPoints.map((setPoint, index) => tempReferenceReadings[`setPoint${index}`] || liveReference(index)));
@@ -293,7 +293,7 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                 return 'Stable';
             const stableTime = stableTimes[index];
             if (!stableTime)
-                return 'None found';
+                return 'Not stable yet';
             const totalSeconds = parseInt((now.getTime() - new Date(stableTime).getTime()) / 1000);
             const minutesAgo = parseInt(totalSeconds / 60)
 
@@ -478,6 +478,10 @@ function TestingMenu({ setPoints, referenceStrings, referencesToVerify, setRefer
                                                     console.error(response)
                                                     return;
                                                 }
+                                            })
+                                            .catch(err => {
+                                                setPopupMessage(`Could not calibrate sensor ${sensorId}, please try again`)
+                                                console.error(err)
                                             })
                                     }
                                 })

@@ -1891,8 +1891,9 @@ mark {
     top: 100%;
     left: 0;
     z-index: 1000;
+    /* min-width keeps it from shrinking to the batch column, which only fits two bins at laptop width */
     width: max-content;
-    max-width: min(480px, 90vw);
+    min-width: max-content;
     padding: var(--space-2);
     background-color: var(--surface);
     color: var(--text);
