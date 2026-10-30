@@ -5,9 +5,35 @@ import QRCode from "qrcode";
 import { PDFDocument } from "pdf-lib";
 import batch from "../models/batch";
 import sensor from "../models/sensor";
+import misc from "../models/misc";
 import { parseIntNullable } from "../utils/common";
 import monnitFetch from "../utils/monnit";
 const sillyConfig = require('../../config.json');
+
+// department is interpolated into SQL column names, so it must be one of these
+const DEPARTMENTS = ['receiving', 'testing', 'shipping'];
+
+const LAB_NETWORKS: Array<number> = [...sillyConfig.stagingNetworks, ...sillyConfig.anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
+
+// Reform makes a gateway rebuild its sensor list, which is what the techs otherwise do by hand after sensors move.
+// Failures are logged and reported, not thrown: the sensor moves that led here already happened.
+function reformGateways(gateways: any[], networkIds: Iterable<number>) {
+    const networks = new Set(networkIds);
+    const targets = gateways.filter((gateway: any) => networks.has(gateway.NetworkID) && !gateway.GatewayType.startsWith('Wifi'));
+    const failed: number[] = [];
+
+    return Promise.all(targets.map((gateway: any) => {
+        return monnitFetch(`https://www.imonnit.com/json/GatewayReform?gatewayID=${gateway.GatewayID}`)
+            .catch((error) => ({ Result: String(error) }))
+            .then((response) => {
+                if (response.Result !== 'Success') {
+                    console.error(`Unable to reform gateway ${gateway.GatewayID}: `, response);
+                    failed.push(gateway.GatewayID);
+                }
+            })
+    }))
+        .then(() => ({ reformed: targets.length - failed.length, failed }));
+}
 
 const batchRoutes = {
     getBatchById: (req: Request, res: Response) => {
@@ -52,7 +78,7 @@ const batchRoutes = {
             });
     },
     getBatchesByActiveState: (req: Request, res: Response) => {
-        const active = eval(req.query.active as string);
+        const active = req.query.active === 'true';
 
         batch.getBatchesByActiveState(active)
             .then((result) => {
@@ -82,7 +108,7 @@ const batchRoutes = {
     },
     setBatchActiveState: (req: Request, res: Response) => {
         const batchId = parseInt(req.query.batch_id as string ?? "");
-        const activeState = eval(req.query.active_state as string);
+        const activeState = req.query.active_state === 'true';
 
         if (isNaN(batchId)) {
             res.status(400).json({ error: `Invalid batch id` });
@@ -97,6 +123,24 @@ const batchRoutes = {
                 res.status(500).json({ error: "Unable to set batch state" })
             })
     },
+    updateBatchCalibrationProcedure: (req: Request, res: Response) => {
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const calibrationProcedureId = parseInt(req.query.calibration_procedure_id as string ?? "");
+
+        if (isNaN(batchId) || isNaN(calibrationProcedureId)) {
+            res.status(400).json({ error: `Invalid batch id or calibration procedure id` });
+            return;
+        }
+
+        batch.setCalibrationProcedure(batchId, calibrationProcedureId)
+            .then(() => {
+                res.json({ 'Result': `Batch ${batchId} calibration procedure set to ${calibrationProcedureId}` });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to change calibration procedure` });
+            })
+    },
     removeBatchLocation: (req: Request, res: Response) => {
         const batchId = parseInt(req.query.batch_id as string ?? "");
 
@@ -105,12 +149,38 @@ const batchRoutes = {
         }
 
         batch.setLocation(batchId, null)
+            // shipping frees the bin too
+            .then(() => batch.setBin(batchId, null))
             .then(() => {
                 res.json({ 'Result': `Batch ${batchId} location removed` });
             })
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: `Error removing batch location` });
+            })
+    },
+    // Bin labels are QR scanned, so the format is strict: B-, color letter, number. Empty clears the bin.
+    setBatchBin: (req: Request, res: Response) => {
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const bin = ((req.query.bin as string) ?? "").trim().toUpperCase() || null;
+
+        if (isNaN(batchId)) {
+            return res.status(400).json({ error: `Invalid batch id` });
+        }
+        if (bin && !/^B-[YRB]\d+$/.test(bin)) {
+            return res.status(400).json({ error: `Bin "${bin}" must look like B-Y21` });
+        }
+
+        batch.setBin(batchId, bin)
+            .then(() => {
+                res.json({ 'Result': `Batch ${batchId} bin set to ${bin}` });
+            })
+            .catch((err) => {
+                if (err.code === '23505') {
+                    return res.status(409).json({ error: `Bin ${bin} already holds another batch` });
+                }
+                console.error(err);
+                res.status(500).json({ error: `Unable to set bin` });
             })
     },
     createLocationLog: (req: Request, res: Response) => {
@@ -138,11 +208,25 @@ const batchRoutes = {
                 res.status(500).json({ error: `Unable to create location log` });
             })
     },
+    getLocations: (req: Request, res: Response) => {
+        batch.getLocations()
+            .then((rows) => {
+                res.json(rows.map((row: { location: string }) => row.location));
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to get locations` });
+            })
+    },
     logBatchInteraction: (req: Request, res: Response) => {
-        const department = req.query.department;
-        const start = eval(req.query.start as string);
+        const department = req.query.department as string;
+        const start = req.query.start === 'true';
         const technicianId = req.query.technician_id;
         const batchId = parseInt(req.query.batch_id as string ?? "");
+
+        if (!DEPARTMENTS.includes(department)) {
+            return res.status(400).json({ error: `Invalid department` });
+        }
 
         const timestamp = new Date().toISOString();
         const status = (start === true) ? 'start' : 'end';
@@ -173,9 +257,13 @@ const batchRoutes = {
             })
     },
     updateBatchTechnician: (req: Request, res: Response) => {
-        let department = req.query.department;
+        let department = req.query.department as string;
         let technicianId = req.query.technician_id;
         let batchId = req.query.batch_id;
+
+        if (!DEPARTMENTS.includes(department)) {
+            return res.status(400).json({ error: `Invalid department` });
+        }
 
         const query = `UPDATE api_batch SET ${department}_technician_id = $1 WHERE batch_id = $2 RETURNING *`
 
@@ -190,7 +278,7 @@ const batchRoutes = {
     },
     generateWorkOrder: (req: Request, res: Response) => {
         const batchId = parseInt(req.query.batch_id as string ?? "");
-        const print = eval(req.query.print as string);
+        const print = req.query.print === 'true';
         const today = new Date()
         const hours = String(today.getHours()).padStart(2, '0');
         const minutes = String(today.getMinutes()).padStart(2, '0');
@@ -199,17 +287,13 @@ const batchRoutes = {
 
         batch.getCalibrationInfo(batchId)
             .then(async (data) => {
-                let sensors = await sensor.getSensorsByBatchId(batchId);
+                const allSensors = await sensor.getSensorsByBatchId(batchId);
+                const sensors = allSensors.filter((s) => !s.spare);
+                const spares = allSensors.filter((s) => s.spare);
 
-                let sensorsString;
-
-                for (let i = 0; i < sensors.length; i++) {
-                    if (i === 0) {
-                        sensorsString = `${sensors[i].sensor_id}`
-                    } else {
-                        sensorsString = sensorsString + `, ${sensors[i].sensor_id}`
-                    }
-                }
+                let sensorsString = sensors.map((s) => s.sensor_id).join(', ');
+                if (spares.length)
+                    sensorsString += ` | Spares: ${spares.map((s) => s.sensor_id).join(', ')}`;
                 const fields = {
                     'calibrationProcedure': `${data.calibration_procedure_id}`,
                     'workOrder': `${batchId}`,
@@ -240,8 +324,12 @@ const batchRoutes = {
                     pdf.printPdf(new Blob([finishedPdf]));
                 }
                 res.setHeader("Content-Disposition", `attachment; filename=workOrder${batchId}.pdf`);
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.setHeader("Content-Type", "application/pdf");
                 res.end(Buffer.from(finishedPdf));
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Error generating work order` });
             })
     },
     deleteBatch: (req: Request, res: Response) => {
@@ -251,7 +339,11 @@ const batchRoutes = {
             res.status(400).json({ error: `Invalid batch id` });
         }
 
+        // force=true removes readings, certificates and logs that still point at the batch
+        const force = req.query.force === 'true';
+
         batch.deleteLogs(batchId)
+            .then(() => force ? batch.deleteDependents(batchId) : undefined)
             .then(() => {
                 return batch.deleteBatch(batchId);
             })
@@ -260,7 +352,12 @@ const batchRoutes = {
             })
             .catch((err) => {
                 console.error(err);
-                res.status(500).json({ error: `Error deleting batch` });
+                // 23503: another table (certificates, location log, readings...) still points at this batch
+                if (err.code === '23503') {
+                    const table = String(err.table ?? 'other').replace(/^api_/, '').replace(/_/g, ' ');
+                    return res.status(409).json({ error: `Batch ${batchId} still has ${table} records, so it cannot be removed` });
+                }
+                res.status(500).json({ error: `Error deleting batch: ${err.message}` });
             })
     },
     changeBatchHeartBeats: (req: Request, res: Response) => {
@@ -268,7 +365,7 @@ const batchRoutes = {
         const heartbeat = parseFloat(req.query.heartbeat as string ?? "");
 
         if (isNaN(heartbeat)) {
-            res.status(500).json({ Result: 'Heartbeat must be a number' });
+            return res.status(400).json({ Result: 'Heartbeat must be a number' });
         }
 
         sensor.getSensorsByBatchId(batchId)
@@ -287,7 +384,7 @@ const batchRoutes = {
                     return monnitFetch(`${url}?${params.toString()}`)
                         .then((response) => {
                             if (response.Result !== 'Success') {
-                                console.error(`Unable to set heartbeat for sensor: ${sensorObject.sensor_id}: ${response.json()}`);
+                                console.error(`Unable to set heartbeat for sensor: ${sensorObject.sensor_id}: ${JSON.stringify(response)}`);
                                 return Promise.reject(response.Result);
                             } else {
                                 return response;
@@ -307,110 +404,114 @@ const batchRoutes = {
     moveBatchToNetworkGroup: (req: Request, res: Response) => {
         const networkGroup = req.query.network_group;
         const batchId = parseInt(req.query.batch_id as string ?? "");
+        // Heartbeat (minutes) the batch is about to run at, so the balance uses the load the sensors will actually add
+        const targetHeartbeat = parseFloat(req.query.heartbeat as string ?? "");
+        // Who gets the notification if the background work fails
+        const technicianId = parseIntNullable(req.query.technician_id as string ?? "");
+
+        if (isNaN(batchId)) {
+            return res.status(400).json({ error: `Invalid batch id` });
+        }
+
+        // The iMonnit calls run one per second, so a big batch takes minutes and would hit the proxy timeout.
+        // Answer now and do the work in the background; a failure becomes a notification for the technician.
+        res.json({ Result: 'Started' });
 
         const stagingNetworks: Array<number> = sillyConfig.stagingNetworks;
-        const testingAllFrequencies: Array<number> = sillyConfig.anyFrequencyNetworks;
-        const testingAllNetworks: Array<number> = [...sillyConfig.anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
-        const allNetworks: Array<number> = [...sillyConfig.stagingNetworks, ...sillyConfig.anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
+        const anyFrequencyNetworks: Array<number> = sillyConfig.anyFrequencyNetworks;
+        const commonFrequencyNetworks: Array<number> = [...anyFrequencyNetworks, ...sillyConfig.commonFrequencyOnlyNetworks];
+        const allNetworks: Array<number> = LAB_NETWORKS;
 
-        sensor.getSensorsByBatchId(batchId)
-            .then((sensorList) => {
-                let sensorsInBatch = sensorList.map(sensor => sensor.sensor_id)
+        // Network type 9 is the common frequency, which the common-frequency-only networks can also take
+        const allowedNetworks = (networkType: number) => {
+            if (networkGroup !== 'testing')
+                return stagingNetworks;
+            return networkType === 9 ? commonFrequencyNetworks : anyFrequencyNetworks;
+        }
+        const heartbeatsPerSecond = (minutes: number) => 1 / (minutes * 60);
 
-                monnitFetch('https://www.imonnit.com/json/GatewayList')
-                    .then((response) => {
-                        let gateways = response.Result
-                        monnitFetch('https://www.imonnit.com/json/SensorListFull')
+        Promise.all([
+            sensor.getSensorsByBatchId(batchId),
+            monnitFetch('https://www.imonnit.com/json/GatewayList'),
+            monnitFetch('https://www.imonnit.com/json/SensorListFull'),
+        ])
+            .then(([batchSensors, gatewayResponse, sensorResponse]) => {
+                const gateways = gatewayResponse.Result;
+                const allSensors = sensorResponse.Result;
+                const skuById = new Map(batchSensors.map((s: any) => [s.sensor_id, s.sku]));
+
+                const load = new Map<number, number>(allNetworks.map(networkId => [networkId, 0]));
+                for (const s of allSensors) {
+                    if (load.has(s.CSNetID))
+                        load.set(s.CSNetID, load.get(s.CSNetID)! + heartbeatsPerSecond(s.ReportInterval));
+                }
+
+                const moves: Array<{ sensor: any, networkId: number }> = [];
+                for (const s of allSensors.filter((s: any) => skuById.has(s.SensorID))) {
+                    // Take the sensor off its current network's load, then put it on the least loaded allowed network (staying put on a tie)
+                    if (load.has(s.CSNetID))
+                        load.set(s.CSNetID, load.get(s.CSNetID)! - heartbeatsPerSecond(s.ReportInterval));
+
+                    const candidates = allowedNetworks(parseInt(String(skuById.get(s.SensorID)).split('-')[1]));
+                    let networkId = candidates.includes(s.CSNetID) ? s.CSNetID : candidates[0];
+                    for (const candidate of candidates) {
+                        if (load.get(candidate)! < load.get(networkId)!)
+                            networkId = candidate;
+                    }
+
+                    load.set(networkId, load.get(networkId)! + heartbeatsPerSecond(isNaN(targetHeartbeat) ? s.ReportInterval : targetHeartbeat));
+                    if (networkId !== s.CSNetID)
+                        moves.push({ sensor: s, networkId });
+                }
+
+                return Promise.all(moves.map(({ sensor: s, networkId }) => {
+                    const oldGateways = gateways.filter((gateway: any) => gateway.NetworkID === s.CSNetID && !gateway.GatewayType.startsWith('Wifi'));
+
+                    return monnitFetch(`https://www.imonnit.com/json/AssignSensor?NetworkID=${networkId}&SensorID=${s.SensorID}&CheckDigit=${s.CheckDigit}`)
+                        .then((response) => {
+                            if (response.Result !== 'Success')
+                                return Promise.reject(`Unable to move sensor ${s.SensorID} to network ${networkId}: ${JSON.stringify(response)}`);
+
+                            // The sensor is already on its new network here, so a failed cleanup is logged rather than failing the move
+                            return Promise.all(oldGateways.map((gateway: any) => {
+                                return monnitFetch(`https://www.imonnit.com/json/RemoveSensorFromGateway?gatewayID=${gateway.GatewayID}&sensorID=${s.SensorID}`)
+                                    .then(response => {
+                                        if (response.Result !== 'Success')
+                                            console.error(`Unable to remove sensor ${s.SensorID} from gateway ${gateway.GatewayID}: `, response);
+                                    })
+                            }))
+                        })
+                }))
+                    // Set the heartbeat here too, only on sensors not already at it, so a within-stage move costs no per-sensor iMonnit calls
+                    .then(() => Promise.all(allSensors
+                        .filter((s: any) => skuById.has(s.SensorID) && !isNaN(targetHeartbeat) && s.ReportInterval !== targetHeartbeat)
+                        .map((s: any) => monnitFetch(`https://www.imonnit.com/json/SensorSetHeartbeat/?SensorID=${s.SensorID}&reportInterval=${targetHeartbeat}&activeStateInterval=${targetHeartbeat}`)
                             .then((response) => {
-                                let promises: any = [];
-                                let allSensors = response.Result
-                                for (let sensor of allSensors) {
-                                    sensor.heartbeatsPerSecond = 60 / (sensor.ReportInterval * 60) / 60; // Converting minutes per heartbeat to heartbeats per second
+                                if (response.Result !== 'Success')
+                                    return Promise.reject(`Unable to set heartbeat for sensor ${s.SensorID}: ${JSON.stringify(response)}`);
+                            }))))
+                    // Every gateway that gained or lost a sensor gets a reform so the techs don't have to do it by hand
+                    .then(() => moves.length === 0 ? undefined : reformGateways(gateways, moves.flatMap(m => [m.sensor.CSNetID, m.networkId])))
+                    .then(() => moves.length);
+            })
+            .catch(error => {
+                console.error(`Error moving sensors: ${error}`);
+                if (technicianId === null)
+                    return;
+                return misc.createNotification(`Batch ${batchId} sensors were not moved`, `Could not move batch ${batchId}'s sensors to the ${networkGroup} network on iMonnit: ${error}`, new Date(), technicianId, false, null, null)
+                    .catch((err) => console.error(`Error creating notification: ${err}`));
+            })
+    },
 
-                                    if (sensorsInBatch.includes(sensor.SensorID)) {
-                                        sensor.moving = true;
-                                        const sensorSku = sensorList.filter(s => s.sensor_id === sensor.SensorID)[0].sku
-                                        sensor.networkType = parseInt(sensorSku.split('-')[1]);
-                                    } else {
-                                        sensor.moving = false;
-                                    }
-                                }
-
-
-                                let networkLoad = allNetworks.map(networkID => {
-                                    const sensorsOnNetwork = allSensors.filter((sensor: any) => sensor.CSNetID === networkID)
-                                    let heartbeatsPerSecond = 0
-                                    sensorsOnNetwork.map((sensor: any) => {
-                                        heartbeatsPerSecond += sensor.heartbeatsPerSecond
-                                    })
-                                    return {
-                                        networkID,
-                                        heartbeatsPerSecond,
-                                    }
-                                })
-
-                                let sensorsToMove = allSensors.filter((sensor: any) => sensor.moving === true);
-
-                                let networksToAddTo: Array<any> = [];
-                                let networkHeartbeats = networkLoad.filter(network => stagingNetworks.includes(network.networkID));
-
-
-                                for (const sensorToMove of sensorsToMove) {
-                                    if (networkGroup === 'testing' && !isNaN(sensorToMove.networkType)) {
-                                        if (sensorToMove.networkType === 9) {
-                                            networkHeartbeats = networkLoad.filter(network => testingAllNetworks.includes(network.networkID));
-                                        } else {
-                                            networkHeartbeats = networkLoad.filter(network => testingAllFrequencies.includes(network.networkID));
-                                        }
-                                    }
-
-                                    if (networksToAddTo.length === 0) {
-                                        const lowestCapacity = Math.min(...networkHeartbeats.map(network => network.heartbeatsPerSecond))
-                                        networksToAddTo = networkHeartbeats.filter(network => {
-                                            return network.heartbeatsPerSecond === lowestCapacity;
-                                        })
-                                    }
-
-                                    const nextNetwork = networksToAddTo[0];
-                                    const sensor = allSensors.filter((sensor: any) => sensor.SensorID === sensorToMove.SensorID)[0];
-                                    const currentNetwork = networkHeartbeats.filter(network => network.networkID === sensorToMove.CSNetID)[0];
-                                    const networkGateways = gateways.filter((gateway: any) => gateway.NetworkID === sensorToMove.CSNetID);
-
-                                    if (!currentNetwork || currentNetwork?.heartbeatsPerSecond > nextNetwork.heartbeatsPerSecond) {
-                                        promises.push(monnitFetch(`https://www.imonnit.com/json/AssignSensor?NetworkID=${nextNetwork.networkID}&SensorID=${sensor.SensorID}&CheckDigit=${sensor.CheckDigit}`)
-                                            .then((response) => {
-                                                if (response.Result !== 'Success') {
-                                                    Promise.reject(`Unable to move sensor ${sensor.SensorID} to new network`);
-                                                    console.error(`Bad iMonnit fetch on "AssignSensor"(Sensor ID: ${sensor.SensorID}): `, response)
-                                                }
-                                                promises.push(networkGateways.map((gateway: any) => {
-                                                    if (!gateway.GatewayType.startsWith('Wifi'))
-                                                        monnitFetch(`https://www.imonnit.com/json/RemoveSensorFromGateway?gatewayID=${gateway.GatewayID}&sensorID=${sensor.SensorID}`)
-                                                            .then(response => {
-                                                                if (response.Result !== 'Success') {
-                                                                    Promise.reject(`Unable to remove sensor ${sensor.SensorID} from gateway`);
-                                                                    console.error('Bad iMonnit fetch on "RemoveSensorFromGateway": ', response)
-                                                                }
-                                                            })
-                                                }))
-                                            }))
-                                        if (currentNetwork) {
-                                            currentNetwork.heartbeatsPerSecond -= sensor.heartbeatsPerSecond;
-                                        }
-                                        nextNetwork.heartbeatsPerSecond += sensor.heartbeatsPerSecond
-                                        networksToAddTo.shift();
-                                    }
-                                }
-                                Promise.all(promises)
-                                    .then(() => {
-                                        res.json({ Result: 'Success' })
-                                    })
-                                    .catch(error => {
-                                        console.error(`Error moving sensors: ${error}`);
-                                        res.status(500).json({ Error: 'Could not move sensors' });
-                                    })
-                            })
-                    })
+    reformGateways: (req: Request, res: Response) => {
+        monnitFetch('https://www.imonnit.com/json/GatewayList')
+            .then((response) => reformGateways(response.Result, LAB_NETWORKS))
+            .then(({ reformed, failed }) => {
+                res.json({ Result: 'Success', reformed, failed });
+            })
+            .catch((error) => {
+                console.error(`Error reforming gateways: ${error}`);
+                res.status(500).json({ error: 'Could not reform gateways' });
             })
     },
 

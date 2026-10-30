@@ -4,27 +4,19 @@ import styles from "../../styles/styles.module.css"
 import { useState } from "react";
 import Button from "../Button/Button";
 import { useAppContext } from "../../contexts/app";
-import ip from "../../utils/ip/ip";
+import callApi from "../../utils/api/callApi";
 
 function SensorInvoiceGenerator() {
     const [startDate, setStartDate] = useState(new Date())
     const [endDate, setEndDate] = useState(new Date())
 
-    const { setPopupMessage } = useAppContext;
+    const { setPopupMessage } = useAppContext();
 
-    function generateReport(event) {
-        const urlProtocol = process.env.REACT_APP_STATUS === 'production' ? 'https' : 'http';
-        fetch(`${urlProtocol}://${ip}/api/get-sensor-invoice-report/?start_date=${startDate.toString()}&end_date=${endDate.toString()}`, { headers: { Authorization: `Bearer ${localStorage.getItem("jwt")}` } })
+    function generateReport() {
+        // callApi refreshes an expired token on 418; raw fetch did not
+        return callApi('get-sensor-invoice-report', { start_date: startDate.toString(), end_date: endDate.toString() }, true)
             .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                } else {
-                    console.error(`Could not complete generation, response.ok: ${response.ok}`);
-                    setPopupMessage(`Failed to generate the invoice report`);
-                }
-            })
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
+                const url = URL.createObjectURL(response.data);
                 const link = document.createElement('a');
                 link.href = url;
                 const dateString = `${startDate.getMonth() + 1}_${startDate.getDate()}-${endDate.getMonth() + 1}_${endDate.getDate()}`
@@ -35,21 +27,18 @@ function SensorInvoiceGenerator() {
             })
             .catch(error => {
                 console.error('Error:', error);
+                setPopupMessage('Failed to generate the invoice report');
             });
     }
 
     return (
         <div className={styles.menu}>
             <h1 className={styles.title}>Sensor Invoices</h1>
-            <div className={styles.invoice_grid}>
-                <div>
-                    <label htmlFor="startDate">Start Date: </label>
-                    <DatePicker id="startDate" className={styles.date_picker} selected={startDate} onChange={date => setStartDate(date)} />
-                </div>
-                <div>
-                    <label htmlFor="endDate">End Date: </label>
-                    <DatePicker id="endDate" className={styles.date_picker} selected={endDate} onChange={date => setEndDate(date)} />
-                </div>
+            <div className={`${styles.toolbar} ${styles.center_toolbar}`}>
+                <label htmlFor="startDate">Start</label>
+                <DatePicker id="startDate" className={styles.default_text_box} selected={startDate} onChange={date => setStartDate(date)} />
+                <label htmlFor="endDate">End</label>
+                <DatePicker id="endDate" className={styles.default_text_box} selected={endDate} onChange={date => setEndDate(date)} />
                 <Button innerText={'Generate report'} onClick={generateReport} />
             </div>
         </div>

@@ -9,8 +9,17 @@ import backArrow from "../../media/arrow.png";
 
 import styles from "../../styles/styles.module.css";
 import parseSensorString from "../../utils/parseSensorString";
-import setBatchLocation from "../../utils/setBatchLocation";
+import LocationPicker from "../LocationPicker/LocationPicker";
 import Button from "../Button/Button";
+import useOpenBatch from "../../utils/useOpenBatch";
+import binClass from "../../utils/binClass";
+
+// Heartbeats the batch can be set to, in minutes
+const HEARTBEATS = [
+    { label: '3 seconds', minutes: 0.05 },
+    { label: '2 minutes', minutes: 2 },
+    { label: '2 hours', minutes: 120 },
+];
 
 function ManageBatch() {
     const navigate = useNavigate();
@@ -21,8 +30,8 @@ function ManageBatch() {
     } = useAppContext()
 
     const [heartbeat, setHeartBeat] = useState('');
-    const [location, setLocation] = useState('');
     const [currentLocation, setCurrentLocation] = useState('');
+    const [bin, setBin] = useState(null);
     const [sensor, setSensor] = useState('');
     const readings = useRef(null);
     const setPoint = useRef(null);
@@ -30,12 +39,24 @@ function ManageBatch() {
     const [referencesToVerify, setReferencesToVerify] = useState([]);
     const referenceStrings = useRef([])
     const [calibrationProcedureDescription, setCalibrationProcedureDescription] = useState('');
+    const [removeConfirmation, setRemoveConfirmation] = useState([]);
+    const sensorToRemove = useRef(null);
+    const openBatch = useOpenBatch();
+
+    // After a page refresh shared state is empty; reload the batch from the URL
+    useEffect(() => {
+        if (batchNumber) return;
+        const batchId = new URLSearchParams(window.location.search).get('batch_id');
+        batchId ? openBatch(batchId) : navigate('/batchEntry');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
-        if (!isMounted.current) {
+        if (!isMounted.current && batchNumber) {
             callApi('get-batch-by-id', { batch_id: batchNumber })
                 .then(response => {
                     setCurrentLocation(response.current_location)
+                    setBin(response.bin)
                 })
             callApi('get-calibration-procedures').then(response => {
                 const currentProcedure = response.filter(procedure => procedure.calibration_procedure_id === procedureId)[0];
@@ -61,8 +82,8 @@ function ManageBatch() {
             .then(response => {
                 if (response.status === 200) {
                     const contentType = response.headers['content-type']
-                    if (contentType !== 'application/json; charset=utf-8') {
-                        console.error(`Expecting work order 'application/json; charset=utf-8' but instead got '${contentType}': ${response}`);
+                    if (!contentType?.startsWith('application/pdf')) {
+                        console.error(`Expecting work order 'application/pdf' but instead got '${contentType}': ${response}`);
                         setPopupMessage(`Failed to generate work order for batch ${batchNumber}: Server responded with the wrong file type`);
                     }
                 } else {
@@ -99,19 +120,16 @@ function ManageBatch() {
             })
     }
 
-    const handleHeartBeatChange = (event) => {
-        setHeartBeat(event.target.value);
-    }
-
-    const handleHeartBeatSubmit = async (event) => {
-        if (!heartbeat) {
+    // A select doesn't submit its form on Enter, so apply the picked heartbeat here
+    const handleHeartBeatKeyDown = (event) => {
+        if (event.key !== 'Enter' || !heartbeat)
             return;
-        }
         event.preventDefault();
+        const label = HEARTBEATS.find(option => String(option.minutes) === heartbeat).label;
         callApi('change-batch-heartbeats', { batch_id: batchNumber, heartbeat: heartbeat })
             .then((response) => {
                 if (response.Result === 'Success') {
-                    setPopupMessage(`Heartbeat changed to ${heartbeat} minutes`);
+                    setPopupMessage(`Heartbeat changed to ${label}`);
                     setHeartBeat('');
                 }
             })
@@ -121,63 +139,58 @@ function ManageBatch() {
             });
     }
 
-    const handleLocationChange = (event) => {
-        setLocation(event.target.value.toUpperCase());
-    }
-
-    const handleLocationSubmit = (event) => {
-        event.preventDefault();
-        setBatchLocation(location, technicianId, batchNumber)
-            .then(error => {
-                if (!error) {
-                    setPopupMessage(`Batch ${batchNumber} moved to ${location}`);
-                    setCurrentLocation(location);
-                    setLocation('');
-                } else {
-                    throw new Error(error)
-                }
-            })
-            .catch((err) => {
-                setPopupMessage('The batch was not moved successfully');
-                console.error(err)
-            })
-    }
-
     const handleSensorChange = (event) => {
         setSensor(event.target.value.toUpperCase());
     }
 
+    const removeSensor = () => {
+        const [sensorId, checkDigit] = sensorToRemove.current;
+        callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
+            .then(() => callApi('remove-sensor-from-batch', { sensor_id: sensorId, batch_id: batchNumber }))
+            .then(response => {
+                setPopupMessage(response.Result);
+                setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
+            })
+            .catch(err => {
+                setPopupMessage(`Could not remove sensor ${sensorId} from iMonnit`)
+                console.error(err)
+            })
+    }
+
     const handleSensorSubmit = (event) => {
         event.preventDefault()
-        const [sensorId, checkDigit] = parseSensorString(sensor);
-        if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
-            callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
-                .then(() => {
-                    callApi('remove-sensor-from-batch', { sensor_id: sensorId })
-                        .then(response => {
-                            setPopupMessage(response.Result);
-                            setSensorList(sensorList.filter(sensorObject => sensorObject.sensor_id !== sensorId));
-                        })
-                })
-                .catch(err => {
-                    setPopupMessage(`Could not remove sensor ${sensorId} from iMonnit`)
-                    console.error(err)
-                })
-        } else {
-            callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })
-                .then(response => {
-                    if (response.sensor_id !== sensorId) {
-                        setPopupMessage(response.Result);
-                        return;
-                    }
-                    return callApi('get-sensors', { 'batch_id': batchNumber })
-                })
-                .then(data => {
-                    setSensorList(data);
-                    setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
-                })
-        }
         setSensor('')
+        let sensorId, checkDigit;
+        try {
+            [sensorId, checkDigit] = parseSensorString(sensor);
+        } catch (error) {
+            setPopupMessage(`"${sensor}": ${error.message}`);
+            return;
+        }
+        if (sensorList.filter(sensorObject => sensorObject.sensor_id === sensorId).length > 0) {
+            // Scanning a sensor already in the batch removes it, so confirm in case it was a double scan
+            sensorToRemove.current = [sensorId, checkDigit];
+            setRemoveConfirmation([`Sensor ${sensorId} is already in this batch. Remove it?`]);
+            return;
+        }
+        callApi('create-sensor', { sensor_id: sensorId, check_digit: checkDigit, batch_id: batchNumber })
+            .then(response => {
+                if (response.sensor_id !== sensorId)
+                    return Promise.reject(new Error(response.error));
+                // A sensor added mid-test has to join the testing networks and heartbeat like the rest of the batch
+                if (currentLocation?.startsWith('T'))
+                    return callApi('move-batch-to-network-group', { batch_id: batchNumber, network_group: 'testing', heartbeat: 0.05 })
+                        .then(() => callApi('change-sensor-heartbeat', { sensor_id: sensorId, heartbeat: 0.05 }))
+            })
+            .then(() => callApi('get-sensors', { 'batch_id': batchNumber }))
+            .then(data => {
+                setSensorList(data);
+                setPopupMessage(`Sensor ${sensorId} added to batch ${batchNumber}`);
+            })
+            .catch(err => {
+                setPopupMessage(err.response?.data?.error ?? err.message ?? `Could not add sensor ${sensorId}`);
+                console.error(err)
+            })
     }
 
     const printWorkOrder = () => {
@@ -189,20 +202,29 @@ function ManageBatch() {
         <>
             <div className={styles.menu}>
                 <ConfirmationPopup confirmationArray={referenceStrings.current} setConfirmationArray={setReferencesToVerify} handleConfirm={verifyReferences} />
-                <div className={styles.back_arrow_container}>
+                <ConfirmationPopup confirmationArray={removeConfirmation} setConfirmationArray={setRemoveConfirmation} handleConfirm={removeSensor} confirmText={'Remove'} />
+                <div className={styles.toolbar}>
                     <img className={styles.back_arrow_image} onClick={() => navigate('/batchEntry')} src={backArrow} alt="Back button" />
+                    <h1 className={`${styles.title} ${styles.title_facts}`}>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Sales order</span>{customerOrderNumber}</span>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Batch</span>{batchNumber}</span>
+                        <span className={styles.title_fact}><span className={styles.title_fact_label}>Location</span>
+                            {currentLocation ? <span className={styles.stage_badge}>{currentLocation}</span> : 'none'}</span>
+                        {bin ? <span className={styles.title_fact}><span className={styles.title_fact_label}>Bin</span><span className={binClass(bin)}>{bin}</span></span> : <></>}
+                    </h1>
+                    <div className={styles.row}>
+                        <Button innerText={'Print work order'} onClick={printWorkOrder} />
+                        <Button innerText={'Download work order'} onClick={downloadWorkOrder} />
+                        <Button innerText={'Get sensor leads'} onClick={getSensorLeads} />
+                    </div>
                 </div>
-                <div className={styles.grid_menu}>
-                    <h1 className={styles.title}>{`${customerOrderNumber} | Batch: ${batchNumber} | ${currentLocation ? `Current location: ${currentLocation}` : `No location set`}`}</h1>
-                    <Button innerText={'Print work order'} onClick={printWorkOrder} />
-                    <form onSubmit={handleLocationSubmit} data-testid={'locationForm'}>
-                        <input type='text' value={location} onChange={handleLocationChange} className={styles.default_text_box} placeholder={'Location'} />
-                    </form>
-                    <Button innerText={'Get sensor leads'} onClick={getSensorLeads} />
-                    <form onSubmit={handleHeartBeatSubmit} data-testid={'heartbeatForm'}>
-                        <input type='text' value={heartbeat} onChange={handleHeartBeatChange} className={styles.default_text_box} placeholder={'Heartbeat (minutes)'} />
-                    </form>
-                    <Button innerText={'Download work order'} onClick={downloadWorkOrder} />
+                <div className={styles.triple_grid_menu}>
+                    <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
+                    <select className={styles.dropdown} aria-label={'Heartbeat'} value={heartbeat} onChange={event => setHeartBeat(event.target.value)} onKeyDown={handleHeartBeatKeyDown}>
+                        {/* Shown in the closed box only; hidden from the list */}
+                        <option value='' disabled hidden>Change heartbeat...</option>
+                        {HEARTBEATS.map(option => <option key={option.minutes} value={option.minutes}>{option.label}</option>)}
+                    </select>
                     <form onSubmit={handleSensorSubmit}>
                         <input type='text' value={sensor} onChange={handleSensorChange} className={styles.default_text_box} placeholder={'Add/remove sensor'} />
                     </form>

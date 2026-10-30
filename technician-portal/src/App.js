@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 import { AppWrapper } from './contexts/app';
 
@@ -14,7 +14,6 @@ import Metrics from './components/Metrics/Metrics';
 import NavigationMenu from './components/NavigationMenu.js/NavigationMenu.js';
 import OrderEntry from './components/OrderEntry/OrderEntry';
 import PageNotFound from './components/PageNotFound/PageNotFound';
-import Receiving from './components/Receiving/Receiving';
 import SalesOrderForm from './components/SalesOrderForm/SalesOrderForm';
 import Shipping from './components/Shipping/Shipping';
 import SignInMenu from './components/SignInMenu/SignInMenu';
@@ -25,8 +24,9 @@ import SearchResults from './components/SearchResults/SearchResults.js';
 
 function App() {
   const [salesOrder, setSalesOrder] = useState('');
-  const [technicianId, setTechnicianId] = useState(0);
-  const [technician, setTechnician] = useState({});
+  // Read the saved user up front so a refresh on /admin doesn't bounce home before Header runs
+  const [technician, setTechnician] = useState(() => JSON.parse(localStorage.getItem('user')) ?? {});
+  const [technicianId, setTechnicianId] = useState(technician.technician_id ?? 0);
   const [batchNumber, setBatchNumber] = useState('');
   const [sensorList, setSensorList] = useState([]);
   const [procedureId, setProcedureId] = useState(0);
@@ -48,7 +48,7 @@ function App() {
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
 
   return (
-    <div className={styles.App}>
+    <div className={`${styles.App} ${banner ? styles.has_banner : ''}`}>
       <meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
       <AppWrapper
         sharedState={{
@@ -91,11 +91,10 @@ function App() {
                 <Route path='/metrics' element={<Metrics />} />
                 <Route path='/orderEntry' element={<OrderEntry />} />
 
-                <Route path='/receiving' element={<Receiving />} />
                 <Route path='/shipping' element={<Shipping />} />
                 <Route path='/signIn' element={<SignInMenu />} />
 
-                <Route path='/admin' element={<Admin />} />
+                <Route path='/admin' element={technician.admin ? <Admin /> : <Navigate to='/' replace />} />
 
                 <Route path='/search' element={<SearchResults />} />
 

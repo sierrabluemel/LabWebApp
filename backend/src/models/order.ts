@@ -32,7 +32,16 @@ const order = {
                 API_ORDER.ORDER_ID,
                 API_ORDER.CUSTOMER_ORDER_NUMBER,
                 API_ORDER.RECEIVED_TIMESTAMP,
-                API_ORDER.EXPEDITED
+                API_ORDER.EXPEDITED,
+                (
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        API_BATCH
+                        JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
+                    WHERE
+                        API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
+                ) AS SENSOR_COUNT
             FROM
                 API_ORDER
             WHERE
@@ -61,6 +70,15 @@ const order = {
                 *
         `, [timestamp, courier, orderId]);
     },
+    setOrderExpedited: (orderId: number, expedited: boolean) => {
+        return executeNonQuery(pool, `
+            UPDATE API_ORDER
+            SET
+                EXPEDITED = $1
+            WHERE
+                ORDER_ID = $2
+        `, [expedited, orderId]);
+    },
     setOrderActiveState: (orderId: number, status: boolean) => {
         return executeNonQuery(pool, `
             UPDATE API_ORDER
@@ -69,6 +87,15 @@ const order = {
             WHERE
                 ORDER_ID = $2
         `, [status, orderId]);
+    },
+    deleteOrder: (orderId: number) => {
+        return executeQuery(pool, `
+            DELETE FROM API_ORDER
+            WHERE
+                ORDER_ID = $1
+            RETURNING
+                *
+        `, [orderId]);
     },
     getOrderDetails: (orderId: number) => {
         return executeQuerySingleReturn(pool, `

@@ -5,7 +5,6 @@ import Equipment from "../Equipment/Equipment";
 import { useAppContext } from "../../contexts/app";
 import getEquipment from "../../utils/getEquipment";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
-import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 import Switch from "../Switch/Switch";
 
 
@@ -14,7 +13,6 @@ function LabView() {
     const [referenceList, setReferenceList] = useState([]);
     const openedEquipment = useRef('');
     const isMounted = useRef(false);
-    const [equipmentOutOfCalibration, setEquipmentOutOfCalibration] = useState([]);
     const [labReadingString, setLabReadingString] = useState();
     const [bath2On, setBath2On] = useState(false);
     const [bath3On, setBath3On] = useState(false);
@@ -165,7 +163,7 @@ function LabView() {
                     }
                 }
                 if (badEquipment.length > 0) {
-                    setEquipmentOutOfCalibration(['EQUIPMENT OUT OF CALIBRATION', ...badEquipment]);
+                    setPopupMessage({ message: 'Equipment out of calibration', details: badEquipment.join('\n'), error: true });
                 }
             })
     }
@@ -230,7 +228,6 @@ function LabView() {
 
     return (
         <>
-            <ConfirmationPopup confirmationArray={equipmentOutOfCalibration} setConfirmationArray={setEquipmentOutOfCalibration} handleConfirm={() => equipmentOutOfCalibration.current = []} />
             <div className={styles.equipment_bar}>
                 <div className={styles.equipment_container}>
                     <h1 className={styles.lab_readings}>

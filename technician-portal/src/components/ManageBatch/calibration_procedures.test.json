@@ -16,7 +16,8 @@
                 "stabilityCriteria": {
                     "slope": 0.0099,
                     "difference": 0.5,
-                    "standardDeviation": 0.005
+                    "standardDeviation": 0.005,
+                    "minutes": 3
                 }
             },
             {
@@ -24,7 +25,8 @@
                 "stabilityCriteria": {
                     "slope": 0.0099,
                     "difference": 0.5,
-                    "standardDeviation": 0.009
+                    "standardDeviation": 0.009,
+                    "minutes": 5.5
                 }
             },
             {
@@ -32,7 +34,8 @@
                 "stabilityCriteria": {
                     "slope": 0.0099,
                     "difference": 0.5,
-                    "standardDeviation": 0.006
+                    "standardDeviation": 0.006,
+                    "minutes": 2.25
                 }
             }
         ]
@@ -54,7 +57,8 @@
                 "stabilityCriteria": {
                     "slope": 0.0099,
                     "difference": 0.5,
-                    "standardDeviation": 0.0078
+                    "standardDeviation": 0.0078,
+                    "minutes": 3
                 }
             },
             {
@@ -62,7 +66,8 @@
                 "stabilityCriteria": {
                     "slope": 0.0099,
                     "difference": 0.5,
-                    "standardDeviation": 0.0057
+                    "standardDeviation": 0.0057,
+                    "minutes": 10.75
                 }
             },
             {
@@ -70,7 +75,8 @@
                 "stabilityCriteria": {
                     "slope": 0.0099,
                     "difference": 0.5,
-                    "standardDeviation": 0.002
+                    "standardDeviation": 0.002,
+                    "minutes": 4
                 }
             }
         ]

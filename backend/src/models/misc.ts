@@ -1,59 +1,82 @@
 import { executeQuery, executeQuerySingleReturn, executeNonQuery, pool } from "../utils/db";
 
-const allowedSearchColumns = [
-    "o.order_id",
-    "b.batch_id",
-    "s.sensor_id",
-    "s.cable_id",
-    "o.customer_order_number"
-];
+// search_type -> SQL filter. A certificate keeps the lead it was issued for, so a lead search
+// finds old certificates even after the base sensor was given a different lead.
+const searchFilters: Record<string, string> = {
+    order_id: "o.order_id = $1",
+    customer_order_number: "o.customer_order_number = $1",
+    batch_id: "b.batch_id = $1",
+    sensor_id: "s.sensor_id = $1",
+    cable_id: "COALESCE(c.cable_id, s.cable_id) = $1",
+    certificate_id: "c.certificate_id = $1",
+};
 
 const misc = {
-    getSearchResults: (column: string, value: string) => {
-        // Validate column against whitelist
-        if (!allowedSearchColumns.includes(column)) {
-            throw new Error(`Invalid column name: ${column}`);
+    searchTypes: Object.keys(searchFilters),
+
+    // One row per certificate (or per sensor without one) that matches; nothing else from the order
+    getSearchResults: (searchType: string, value: string) => {
+        const filter = searchFilters[searchType];
+        if (!filter) {
+            throw new Error(`Invalid search type: ${searchType}`);
         }
 
-        const sql = `
-        WITH matching_orders AS (
-            SELECT DISTINCT o.order_id
-            FROM API_ORDER o
-            INNER JOIN API_BATCH b ON b.order_id = o.order_id
-            INNER JOIN API_SENSOR s ON s.batch_id = b.batch_id
-            LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id
-            WHERE ${column} = $1
-        )
-        SELECT
-            o.order_id,
-            o.customer_order_number,
-            o.received_timestamp,
-            o.shipped_timestamp,
-            o.expedited,
-            b.batch_id,
-            b.current_location,
-            s.sensor_id,
-            s.sku AS sensor_sku,
-            s.cable_id,
-            c.certificate_id,
-            c.timestamp as certificate_timestamp,
-            c.pass as certificate_pass,
-            b.calibration_procedure_id,
-            il.log_id AS interaction_log_id
-        FROM matching_orders mo
-        INNER JOIN API_ORDER o ON o.order_id = mo.order_id
-        INNER JOIN API_BATCH b ON b.order_id = o.order_id
-        INNER JOIN API_SENSOR s ON s.batch_id = b.batch_id
-        LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id
-        LEFT JOIN API_INTERACTION_LOG il ON il.batch_id = b.batch_id
-        ORDER BY
-            o.order_id,
-            b.batch_id,
-            s.sensor_id,
-            c.certificate_id;
-    `;
+        return executeQuery(pool, `
+            SELECT
+                o.order_id,
+                o.customer_order_number,
+                o.received_timestamp,
+                o.shipped_timestamp,
+                o.expedited,
+                b.batch_id,
+                b.calibration_procedure_id,
+                b.current_location,
+                s.sensor_id,
+                s.sku AS sensor_sku,
+                COALESCE(c.cable_id, s.cable_id) AS lead_id,
+                COALESCE(c.cable_sku, s.cable_sku) AS lead_sku,
+                c.certificate_id,
+                c.timestamp AS certificate_timestamp,
+                c.pass AS certificate_pass
+            FROM API_SENSOR s
+            INNER JOIN API_BATCH b ON b.batch_id = s.batch_id
+            INNER JOIN API_ORDER o ON o.order_id = b.order_id
+            LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id AND c.batch_id = s.batch_id
+            WHERE ${filter}
+            ORDER BY
+                b.batch_id DESC,
+                s.sensor_id,
+                c.certificate_id DESC;
+        `, [value]);
+    },
 
-        return executeQuery(pool, sql, [value]);
+    // Order searches get one summary row per batch instead of every sensor in the order
+    getSearchBatchSummaries: (searchType: string, value: string) => {
+        const filter = searchFilters[searchType];
+        if (!filter) {
+            throw new Error(`Invalid search type: ${searchType}`);
+        }
+
+        return executeQuery(pool, `
+            SELECT
+                o.order_id,
+                o.customer_order_number,
+                o.received_timestamp,
+                o.shipped_timestamp,
+                o.expedited,
+                b.batch_id,
+                b.calibration_procedure_id,
+                b.current_location,
+                COUNT(DISTINCT s.sensor_id) AS sensor_count,
+                COUNT(c.certificate_id) AS certificate_count
+            FROM API_ORDER o
+            LEFT JOIN API_BATCH b ON b.order_id = o.order_id
+            LEFT JOIN API_SENSOR s ON s.batch_id = b.batch_id
+            LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id AND c.batch_id = s.batch_id
+            WHERE ${filter}
+            GROUP BY o.order_id, b.batch_id
+            ORDER BY o.order_id, b.batch_id;
+        `, [value]);
     },
 
     searchData: () => {
@@ -63,10 +86,12 @@ const misc = {
                 api_order.order_id,
                 api_order.customer_order_number,
                 api_sensor.sensor_id,
-                api_sensor.cable_id
+                COALESCE(api_certificate.cable_id, api_sensor.cable_id) AS cable_id,
+                api_certificate.certificate_id
             FROM api_order
-            INNER JOIN api_batch ON api_order.order_id = api_batch.order_id
-            INNER JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
+            LEFT JOIN api_batch ON api_order.order_id = api_batch.order_id
+            LEFT JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
+            LEFT JOIN api_certificate ON api_certificate.sensor_id = api_sensor.sensor_id AND api_certificate.batch_id = api_sensor.batch_id
         `, []);
     },
 
@@ -188,6 +213,16 @@ const misc = {
         `, [setPointId, calibrationProcedureId]);
     },
 
+    // set_points is a JSON array; index is the set point's position in it
+    updateSetPointMinutes: (calibrationProcedureId: number, index: number, minutes: number) => {
+        return executeQuery(pool, `
+            UPDATE API_CALIBRATION_PROCEDURE
+            SET SET_POINTS = jsonb_set(SET_POINTS::jsonb, ARRAY[$2::text, 'stabilityCriteria', 'minutes'], to_jsonb($3::numeric))
+            WHERE CALIBRATION_PROCEDURE_ID = $1
+            RETURNING CALIBRATION_PROCEDURE_ID
+        `, [calibrationProcedureId, index, minutes]);
+    },
+
     changeSetPointActiveState: (setPointId: number, activeState: boolean) => {
         return executeQuery(pool, `
             UPDATE API_VARIANCES
@@ -264,6 +299,13 @@ const misc = {
             FROM api_technician
             ORDER BY list_priority;
         `, []);
+    },
+    createTechnician: (userId: number, firstName: string, lastName: string, admin: boolean) => {
+        return executeQuerySingleReturn(pool, `
+            INSERT INTO api_technician (user_id, first_name, last_name, admin)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *;
+        `, [userId, firstName, lastName, admin]);
     },
 }
 

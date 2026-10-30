@@ -74,6 +74,15 @@ const batch = {
                 BATCH_ID = $2
         `, [state, batchId]);
     },
+    setCalibrationProcedure: (batchId: number, calibrationProcedureId: number) => {
+        return executeNonQuery(pool, `
+            UPDATE API_BATCH
+            SET
+                CALIBRATION_PROCEDURE_ID = $1
+            WHERE
+                BATCH_ID = $2
+        `, [calibrationProcedureId, batchId]);
+    },
     setLocation: (batchId: number, location: string | null) => {
         return executeNonQuery(pool, `
             UPDATE API_BATCH
@@ -82,6 +91,15 @@ const batch = {
             WHERE
                 BATCH_ID = $2
         `, [location, batchId]);
+    },
+    setBin: (batchId: number, bin: string | null) => {
+        return executeNonQuery(pool, `
+            UPDATE API_BATCH
+            SET
+                BIN = $1
+            WHERE
+                BATCH_ID = $2
+        `, [bin, batchId]);
     },
     createLocationLog: (batchId: number, location: string, timestamp: string) => {
         return executeQuerySingleReturn(pool, `
@@ -92,6 +110,25 @@ const batch = {
             RETURNING
                 *
         `, [location, timestamp, batchId]);
+    },
+    getLocations: () => {
+        // Every location used before, minus typos and pre-dash formats from history, plus bins not used yet, minus retired bins
+        return executeQuery(pool, `
+            SELECT
+                LOCATION
+            FROM
+                API_LOCATION_LOG
+            WHERE
+                LOCATION ~ '^[RTS]-[A-Z0-9]+$'
+                AND LOCATION NOT IN ('T-AB', 'S-C12', 'S-BS', 'S-C', 'S-STD')
+            UNION
+            SELECT
+                LOCATION
+            FROM
+                (VALUES ('R-A1'), ('R-A2'), ('R-A3'), ('R-E1'), ('S-A2')) AS ADDED (LOCATION)
+            ORDER BY
+                LOCATION
+        `, []);
     },
     getCalibrationInfo: (batchId: number) => {
         return executeQuerySingleReturn(pool, `
@@ -113,6 +150,25 @@ const batch = {
             RETURNING
                 *
         `, [batchId])
+    },
+    // Rows in every table with a foreign key to api_batch (readings, certificates, logs...). Used by force delete.
+    deleteDependents: (batchId: number) => {
+        return executeQuery(pool, `
+            SELECT
+                kcu.table_name, kcu.column_name
+            FROM
+                information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tc.constraint_name
+                JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
+            WHERE
+                tc.constraint_type = 'FOREIGN KEY' AND ccu.table_name = 'api_batch'
+        `, [])
+            .then((refs: Array<{ table_name: string, column_name: string }>) => {
+                // identifiers come from the catalog, not the request
+                return refs.reduce((chain, ref) => chain.then(() =>
+                    executeNonQuery(pool, `DELETE FROM "${ref.table_name}" WHERE "${ref.column_name}" = $1`, [batchId])
+                ), Promise.resolve());
+            });
     },
     deleteBatch: (batchId: number) => {
         return executeQuery(pool, `

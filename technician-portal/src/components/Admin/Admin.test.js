@@ -6,7 +6,13 @@ import mockAxios from 'axios';
 import ip from '../../utils/ip/ip';
 import { act } from 'react-dom/test-utils';
 
-const equipment = require('../../utils/equipment.test.json')
+// the shared fixture predates the prt/rotronic/bath types the variance forms need
+const equipment = [
+    ...require('../../utils/equipment.test.json'),
+    { asset_tag: 'T000001', type: 'prt', active: true },
+    { asset_tag: 'T000002', type: 'rotronic', active: true },
+    { asset_tag: 'T000003', type: 'bath', active: true }
+]
 
 jest.mock('axios')
 
@@ -17,11 +23,15 @@ beforeEach(() => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/set-generator/`:
-                return Promise.resolve()
+                return Promise.resolve({ data: {} })
             case `http://${ip}/api/get-equipment/`:
                 return Promise.resolve({ data: equipment })
+            case `http://${ip}/api/get-technicians/`:
+            case `http://${ip}/api/get-variances/`:
+            case `http://${ip}/api/get-humidity-variances/`:
+                return Promise.resolve({ data: [] })
             default:
-                return Promise.reject()
+                return Promise.reject({ response: { status: 500 } })
         }
     });
 })
@@ -29,7 +39,7 @@ beforeEach(() => {
 test('Admin menu renders successfully', async () => {
     await act(async () => {
         render(
-            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipmentList: {current: equipment} }}>
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipmentList: equipment }}>
                 <Admin />
             </AppWrapper>
         )
@@ -41,7 +51,7 @@ test('Admin menu renders successfully', async () => {
 test('Changing references with all correct data', async () => {
     await act(async () => {
         render(
-            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipmentList: {current: equipment} }}>
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipmentList: equipment }}>
                 <Admin />
             </AppWrapper>
         )
@@ -74,4 +84,21 @@ test('Changing references with all correct data', async () => {
     expect(certificateNumberInput).toHaveValue('');
     expect(calibrationDateInput).toHaveValue('');
     expect(calibrationDateInput).toHaveValue('');
+})
+
+test('Switching tabs shows only that section', async () => {
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn(), equipmentList: equipment }}>
+                <Admin />
+            </AppWrapper>
+        )
+    })
+    expect(screen.getByRole('heading', { name: /create notification/i, hidden: true })).toBeVisible();
+    expect(screen.getByText(/equipment configuration/i)).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Equipment' }));
+
+    expect(screen.getByText(/equipment configuration/i)).toBeVisible();
+    expect(screen.getByRole('heading', { name: /create notification/i, hidden: true })).not.toBeVisible();
 })

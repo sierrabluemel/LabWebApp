@@ -6,34 +6,16 @@ const miscRoutes = {
         const searchType = req.query.search_type as string;
         const searchValue = req.query.search_value as string;
 
-        let column: string;
-
-        switch (searchType) {
-            case 'customer_order_number':
-                column = 'o.customer_order_number';
-                break;
-            case 'order_id':
-                column = 'o.order_id';
-                break;
-            case 'batch_id':
-                column = 'b.batch_id';
-                break;
-            case 'sensor_id':
-                column = 's.sensor_id';
-                break;
-            case 'cable_id':
-                column = 's.cable_id';
-                break;
-            default:
-                column = '';
-                break;
-        }
-
-        if (!column) {
+        if (!misc.searchTypes.includes(searchType) || !searchValue) {
             res.status(400).json({ error: 'Invalid search type' });
+            return;
         }
 
-        misc.getSearchResults(column, searchValue)
+        // Whole orders are too big to list sensor by sensor; the portal expands a batch on demand
+        const isOrderSearch = ['order_id', 'customer_order_number'].includes(searchType);
+        const search = isOrderSearch ? misc.getSearchBatchSummaries : misc.getSearchResults;
+
+        search(searchType, searchValue)
             .then((data) => {
                 return res.status(200).json(data);
             })
@@ -162,6 +144,23 @@ const miscRoutes = {
             .catch((err) => {
                 console.error(err);
                 return res.status(500).json({ error: `Error creating set point link` });
+            });
+    },
+    updateSetPointMinutes: (req: Request, res: Response) => {
+        const calibrationProcedureId = parseInt(req.query.calibration_procedure_id as string ?? "");
+        const index = parseInt(req.query.set_point_index as string ?? "");
+        const minutes = parseFloat(req.query.minutes as string ?? "");
+
+        if (isNaN(calibrationProcedureId) || isNaN(index) || index < 0 || !(minutes > 0))
+            return res.status(400).json({ error: `calibration_procedure_id, set_point_index and a positive minutes are required` });
+
+        misc.updateSetPointMinutes(calibrationProcedureId, index, minutes)
+            .then((result) => {
+                res.json(result);
+            })
+            .catch((err) => {
+                console.error(err);
+                return res.status(500).json({ error: `Error updating set point minutes` });
             });
     },
     changeSetPointActiveState: (req: Request, res: Response) => {

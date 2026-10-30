@@ -9,16 +9,6 @@ const sensor = {
                 API_SENSOR
         `, []);
     },
-    getSensorById: (sensorId: number) => {
-        return executeQuery(pool, `
-            SELECT
-                *
-            FROM
-                api_sensor
-            WHERE
-                sensor_id = $1
-        `, [sensorId]);
-    },
     getActiveSensors: () => {
         return executeQuery(pool, `
             SELECT
@@ -31,7 +21,7 @@ const sensor = {
                 API_ORDER.ACTIVE = TRUE;
         `, [])
     },
-    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number) => {
+    createSensor: (sensorId: number, checkDigit: string, manufacturer: string, sku: string, batchId: number, spare: boolean) => {
         return executeQuerySingleReturn(pool, `
             INSERT INTO
                 api_sensor (
@@ -39,26 +29,27 @@ const sensor = {
                     check_digit,
                     manufacturer,
                     sku,
-                    batch_id
+                    batch_id,
+                    spare
                 )
             VALUES
-                ($1, $2, $3, $4, $5)
+                ($1, $2, $3, $4, $5, $6)
+            -- A sensor gets one row per batch; re-adding it to the same batch returns the existing row
+            ON CONFLICT (sensor_id, batch_id) DO UPDATE SET
+                spare = EXCLUDED.spare
             RETURNING
                 *
-        `, [sensorId, checkDigit, manufacturer, sku, batchId])
+        `, [sensorId, checkDigit, manufacturer, sku, batchId, spare])
     },
-    setBatchId: (sensorId: number, batchId: number) => {
-        return executeQuerySingleReturn(pool, `
-            UPDATE api_sensor
+    setSpare: (sensorId: number, batchId: number, spare: boolean) => {
+        return executeNonQuery(pool, `
+            UPDATE API_SENSOR
             SET
-                batch_id = $1,
-                cable_id = NULL,
-                cable_sku = NULL
+                SPARE = $3
             WHERE
-                sensor_id = $2
-            RETURNING
-                *
-        `, [batchId, sensorId]);
+                SENSOR_ID = $1
+                AND BATCH_ID = $2;
+        `, [sensorId, batchId, spare])
     },
     getSensorsByBatchId: (batchId: number) => {
         return executeQuery(pool, `
@@ -81,23 +72,25 @@ const sensor = {
                 API_BATCH.ORDER_ID = $1;
         `, [orderId]);
     },
-    removeFromBatch: (sensorId: number) => {
+    removeFromBatch: (sensorId: number, batchId: number) => {
         return executeNonQuery(pool, `
             UPDATE API_SENSOR
             SET
                 BATCH_ID = NULL
             WHERE
-                SENSOR_ID = $1;
-        `, [sensorId])
+                SENSOR_ID = $1
+                AND BATCH_ID = $2;
+        `, [sensorId, batchId])
     },
     addCableToSensor: (sensorId: number, cableId: number, cableSku: string) => {
+        // shortcut: cables are scanned while the sensor is in its newest batch, so the latest row is updated; pass batch_id if cables get edited on older batches
         return executeNonQuery(pool, `
             UPDATE api_sensor
             SET
                 cable_id = $1,
                 cable_sku = $2
             WHERE
-                sensor_id = $3;
+                id = (SELECT MAX(id) FROM api_sensor WHERE sensor_id = $3);
         `, [cableId, cableSku, sensorId])
     },
 };

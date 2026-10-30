@@ -54,8 +54,10 @@ const sensorRoutes = {
                 const templatePath = path.join(directory, 'templates', 'sensorBillingReport.xlsx')
                 const outputPath = path.join(directory, 'fileOutputs', 'sensorBillingReport.xlsx')
 
+                fs.mkdirSync(path.dirname(outputPath), { recursive: true }); // gitignored, missing on a fresh clone
+
                 const workbook = new ExcelJS.Workbook();
-                workbook.xlsx.readFile(templatePath)
+                return workbook.xlsx.readFile(templatePath)
                     .then(() => {
                         const worksheet = workbook.getWorksheet(1)!
                         worksheet.getCell('F3').value = getDateString(startDate)
@@ -104,7 +106,14 @@ const sensorRoutes = {
         let params = new URLSearchParams();
         params.append("SensorID", sensorId);
 
-        monnitFetch(`${url}?${params.toString()}`)
+        // iMonnit ignores the auto-calibrate push while the sensor holds an unexpired certificate ("pre-calibrated and certified"),
+        // so drop any current one first; the batch re-creates the certificate when it finishes
+        const monnitDate = (value: string) => parseInt(value.match(/-?\d+/)?.[0] ?? "0");
+        monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateList/?SensorID=${sensorId}`)
+            .then((list) => Promise.all((list.Result ?? [])
+                .filter((cert: any) => monnitDate(cert.CertificationValidUntil) > Date.now())
+                .map((cert: any) => monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateRemove/?CalibrationCertificateID=${cert.CalibrationCertificateID}`))))
+            .then(() => monnitFetch(`${url}?${params.toString()}`))
             .then((result) => {
                 url = `https://www.imonnit.com/json/SensorSetCalibration/`;
 
@@ -133,6 +142,7 @@ const sensorRoutes = {
         let sensorId = parseInt(req.query.sensor_id as string ?? "");
         let checkDigit = req.query.check_digit as string;
         let batchId = parseInt(req.query.batch_id as string ?? "");
+        const spare = req.query.spare === 'true';
         const manufacturer = 'Monnit Corporation';
 
         const parameters = {
@@ -155,30 +165,19 @@ const sensorRoutes = {
                 return monnitFetch(`https://www.imonnit.com/json/LookUpSensor/?${params.toString()}`)
             })
             .then(response => {
-                return sensor.createSensor(sensorId, checkDigit, manufacturer, response.Result.SKU, batchId)
+                return sensor.createSensor(sensorId, checkDigit, manufacturer, response.Result.SKU, batchId, spare)
             })
             .then((result) => {
                 res.json(result);
             })
             .catch((err) => {
-                if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
-                    sensor.setBatchId(sensorId, batchId)
-                        .then((result) => {
-                            res.json(result);
-                        })
-                        .catch((err) => {
-                            console.error(err);
-                            res.status(500).json({ error: `Error creating sensor` });
-                        })
-                } else {
-                    console.error(err);
-                    res.json({ error: `Error creating sensor` });
-                }
+                console.error(err);
+                res.status(500).json({ error: `Could not add sensor ${sensorId} in iMonnit` });
             });
     },
     changeSensorHeartbeat: (req: Request, res: Response) => {
         let sensorId = req.query.sensor_id;
-        let reportInterval = parseInt(req.query.heartbeat as string ?? "");
+        let reportInterval = parseFloat(req.query.heartbeat as string ?? "");
         if (isNaN(reportInterval)) {
             res.json({ Result: 'Heartbeat must be a number' })
             return
@@ -224,14 +223,37 @@ const sensorRoutes = {
     },
     removeSensorFromBatch: (req: Request, res: Response) => {
         const sensorId = parseInt(req.query.sensor_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
 
-        sensor.removeFromBatch(sensorId)
+        if (isNaN(sensorId) || isNaN(batchId)) {
+            return res.status(400).json({ error: "Sensor id and batch id are required." });
+        }
+
+        sensor.removeFromBatch(sensorId, batchId)
             .then(() => {
                 res.json({ Result: 'Sensor successfully removed from batch' });
             })
             .catch((err) => {
                 console.error(err);
-                res.status(500).json({ error: "Error removing sensor from batch." })
+                res.status(500).json({ error: `Error removing sensor from batch: ${err.message}` })
+            })
+    },
+    setSensorSpare: (req: Request, res: Response) => {
+        const sensorId = parseInt(req.query.sensor_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const spare = req.query.spare === 'true';
+
+        if (isNaN(sensorId) || isNaN(batchId)) {
+            return res.status(400).json({ error: "Sensor id and batch id are required." });
+        }
+
+        sensor.setSpare(sensorId, batchId, spare)
+            .then(() => {
+                res.json({ Result: spare ? `Sensor ${sensorId} marked as spare` : `Sensor ${sensorId} added to batch ${batchId}` });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error updating sensor spare state." })
             })
     },
     removeSensor: (req: Request, res: Response) => {

@@ -29,6 +29,16 @@ it('should call setConfirmationArray empty on dismiss', () => {
     expect(mockSetConfimrationArray).toHaveBeenCalledWith([]);
 })
 
+it('should use custom button labels and call handleDismiss', () => {
+    const mockHandleDismiss = jest.fn();
+    render(
+        <ConfirmationPopup confirmationArray={['']} setConfirmationArray={jest.fn()} handleConfirm={jest.fn()} handleDismiss={mockHandleDismiss} confirmText={'Go to testing'} dismissText={'Add another order'} />
+    )
+    expect(screen.getByText(/go to testing/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/add another order/i));
+    expect(mockHandleDismiss).toHaveBeenCalled();
+})
+
 it('should display items in confirmationArray', () => {
     const mockConfirmationArray = ['test1', 'test2'];
     render(

@@ -10,8 +10,20 @@ import EquipmentRow from './EquipmentRow';
 import SetPointRow from './SetPointRow';
 import CreateSetPoint from './CreateSetPoint';
 import CreateNotification from './CreateNotification';
+import EditCertificates from './EditCertificates';
 import CreateHumidityVariance from './CreateHumidityVariance';
 import HumidityVarianceRow from './HumidityVarianceRow';
+import StabilityTimes from './StabilityTimes';
+import ManageUsers from './ManageUsers';
+
+const tabs = [
+    { key: 'notifications', label: 'Notifications & Invoices' },
+    { key: 'equipment', label: 'Equipment' },
+    { key: 'variances', label: 'Variances' },
+    { key: 'stability', label: 'Stability Times' },
+    { key: 'certificates', label: 'Certificates' },
+    { key: 'users', label: 'Users' }
+];
 
 function Admin() {
     const [reference1, setReference1] = useState({});
@@ -25,6 +37,7 @@ function Admin() {
     const [addingHumidityVariance, setAddingHumidityVariance] = useState(false);
     const [confirmationArray, setConfirmationArray] = useState(false);
     const [equipmentListFiltered, setEquipmentListFiltered] = useState(true);
+    const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') ?? 'notifications');
     const referenceList = [reference1, reference2, reference3, reference4];
     const refreshed = useRef(false);
 
@@ -78,7 +91,7 @@ function Admin() {
     }
 
     function handleSubmit(event) {
-        let warningMessage = ['This will set the following references:'];
+        let warningMessage = ['Set these references?'];
         if (isReferenceValid(superDaq)) {
             warningMessage.push(
                 `The SuperDAQ will be set to ${superDaq.referenceTag}
@@ -204,9 +217,15 @@ function Admin() {
     }
 
     return !refreshed.current ? <h1 className={styles.title}>Loading...</h1> : (
-        <>
-            <SensorInvoiceGenerator />
-            <div className={styles.menu}>
+        <div className={styles.admin_page}>
+            <div className={styles.admin_tabs} role='group' aria-label='Admin sections'>
+                {tabs.map(t => <button key={t.key} className={styles.admin_tab} aria-pressed={tab === t.key} onClick={() => { setTab(t.key); window.history.replaceState(null, '', `?tab=${t.key}`) }}>{t.label}</button>)}
+            </div>
+            {/* hidden instead of unmounting so half-typed forms survive a tab switch */}
+            <div hidden={tab !== 'notifications'}>
+                <SensorInvoiceGenerator />
+            </div>
+            <div className={styles.menu} hidden={tab !== 'equipment'}>
                 {
                     confirmationArray.length > 0 ?
                         <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={handleConfirm} /> :
@@ -261,43 +280,56 @@ function Admin() {
                         setSelectedOption={setReference4}
                     />
                 </div>
-                <button className={styles.equipment_save_button} onClick={handleSubmit}>Save</button>
+                <div className={`${styles.row} ${styles.row_end}`}>
+                    <button className={styles.default_button} onClick={handleSubmit}>Save</button>
+                </div>
             </div>
-            <CreateNotification />
-            <div className={styles.menu}>
-                <span className={styles.plus_button_container}><button className={styles.plus_button} title='Add humidity variance' onClick={() => setAddingHumidityVariance(!addingHumidityVariance)}></button></span>
-                <h1 className={styles.title}>
-                    Humidity Variances
-                </h1>
+            <div hidden={tab !== 'notifications'}>
+                <CreateNotification />
+            </div>
+            <div hidden={tab !== 'certificates'}>
+                <EditCertificates />
+            </div>
+            <div hidden={tab !== 'users'}>
+                <ManageUsers />
+            </div>
+            <div className={styles.menu} hidden={tab !== 'stability'}>
+                <StabilityTimes />
+            </div>
+            <div className={styles.menu} hidden={tab !== 'variances'}>
+                <div className={styles.toolbar}>
+                    <h1 className={styles.title}>Humidity Variances</h1>
+                    <button className={styles.plus_button} title='Add humidity variance' onClick={() => setAddingHumidityVariance(!addingHumidityVariance)}></button>
+                </div>
                 {equipmentList && equipmentList.length > 0 && <CreateHumidityVariance key={humidityVariances.length} addingVariance={addingHumidityVariance} refreshVariances={refreshVariances} /> }
                 <table className={styles.equipment_table}>
                     <thead className={styles.equipment_table_head}>
                         <tr>
-                            <td className={styles.equipment_table_data}></td>
-                            <td className={styles.equipment_table_data}>
+                            <th className={styles.equipment_table_data}></th>
+                            <th className={styles.equipment_table_data}>
                                 Asset Tag
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Temperature
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Humidity
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Calibration
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Interpolation
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Drift
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Hysteresis
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Gas Temperature Dependance
-                            </td>
+                            </th>
                         </tr>
                     </thead>
                     <tbody className={styles.equipment_table_body}>
@@ -305,37 +337,37 @@ function Admin() {
                     </tbody>
                 </table>
             </div>
-            <div className={styles.menu}>
-                <span className={styles.plus_button_container}><button className={styles.plus_button} title='Add set point' onClick={() => setAddingVariance(!addingVariance)}></button></span>
-                <h1 className={styles.title}>
-                    Set Points
-                </h1>
+            <div className={styles.menu} hidden={tab !== 'variances'}>
+                <div className={styles.toolbar}>
+                    <h1 className={styles.title}>Set Points</h1>
+                    <button className={styles.plus_button} title='Add set point' onClick={() => setAddingVariance(!addingVariance)}></button>
+                </div>
                 {equipmentList && equipmentList.length > 0 && <CreateSetPoint key={setPoints.length} addingVariance={addingVariance} refreshVariances={refreshVariances} />}
                 <table className={styles.equipment_table}>
                     <thead className={styles.equipment_table_head}>
                         <tr>
-                            <td className={styles.equipment_table_data}></td>
-                            <td className={styles.equipment_table_data}>
+                            <th className={styles.equipment_table_data}></th>
+                            <th className={styles.equipment_table_data}>
                                 Set Point
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Reference Asset Tag
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Generator Asset Tag
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Reference Uncertainty
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Bridge Variance
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Generator Stability
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Add to CP
-                            </td>
+                            </th>
                         </tr>
                     </thead>
                     <tbody className={styles.equipment_table_body}>
@@ -343,37 +375,35 @@ function Admin() {
                     </tbody>
                 </table>
             </div>
-            <div className={styles.menu}>
-                <h1 className={styles.title}>
-                    Lab Equipment
-                    <span className={styles.right_align_checkbox}>
-                        <label className={styles.check_box_container}>
-                            <input className={styles.grid_check_box} type="checkbox" onChange={handleActiveSelected} checked={equipmentListFiltered} />
-                            <span className={styles.expedite_text}>Show Inactive</span>
-                        </label>
-                    </span>
-                </h1>
+            <div className={styles.menu} hidden={tab !== 'equipment'}>
+                <div className={styles.toolbar}>
+                    <h1 className={styles.title}>Lab Equipment</h1>
+                    <label className={styles.check_box_container}>
+                        <input className={styles.grid_check_box} type="checkbox" onChange={handleActiveSelected} checked={equipmentListFiltered} />
+                        <span className={styles.expedite_text}>Show Inactive</span>
+                    </label>
+                </div>
                 <table className={styles.equipment_table}>
                     <thead className={styles.equipment_table_head}>
                         <tr>
-                            <td className={styles.equipment_table_data}>
+                            <th className={styles.equipment_table_data}>
                                 Asset Tag
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Description
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Serial Number
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Certificate Number
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Calibration Date
-                            </td>
-                            <td className={styles.equipment_table_data}>
+                            </th>
+                            <th className={styles.equipment_table_data}>
                                 Calibration Due Date
-                            </td>
+                            </th>
                         </tr>
                     </thead>
                     <tbody className={styles.equipment_table_body}>
@@ -381,7 +411,7 @@ function Admin() {
                     </tbody>
                 </table>
             </div>
-        </>
+        </div>
     )
 }
 

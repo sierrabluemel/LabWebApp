@@ -19,6 +19,9 @@ export default function CreateNotification() {
 
     const { setPopupMessage } = useAppContext();
 
+    // .field_rows clips overflow, so draw the menu on body instead of inside the card
+    const selectProps = { menuPortalTarget: document.body, styles: { menuPortal: base => ({ ...base, zIndex: 9999 }) } };
+
     const timeUnitOptions = [
         { 
             value: 'days',
@@ -87,36 +90,44 @@ export default function CreateNotification() {
 
     return (
         <div className={styles.menu}>
-            <div className={styles.title}>
-                Create Notification
-            </div>
+            <h1 className={styles.title}>Create Notification</h1>
             <form onSubmit={handleSubmit}>
-                <div className={styles.create_notification_grid}>
-                    <input className={styles.default_text_box} value={notificationTitle} onChange={event => setNotificationTitle(event.target.value)} placeholder={'Notification Title'} />
-                    <div>
-                        <Select options={options} key={`unique_key__${selectedTechnicians}`} value={selectedTechnicians || []} onChange={selectedOptions => setSelectedTechnicians(selectedOptions)} isMulti />
+                <div className={styles.field_rows}>
+                    <div className={styles.field_row}>
+                        <label className={styles.field_row_label} htmlFor='notificationTitle'>Title</label>
+                        <div className={styles.field_row_fields}>
+                            <input id='notificationTitle' className={styles.default_text_box} value={notificationTitle} onChange={event => setNotificationTitle(event.target.value)} placeholder={'Notification Title'} />
+                        </div>
                     </div>
-                    <div>
-                        <label htmlFor="notifyDate">Notify Date: </label>
-                        <DatePicker id="notifyDate" className={styles.date_picker} selected={notifyDate} onChange={date => setNotifyDate(date)} />
+                    <div className={styles.field_row}>
+                        <span className={styles.field_row_label}>Send to</span>
+                        <div className={styles.field_row_fields}>
+                            <Select {...selectProps} className={styles.field_select} aria-label='Technicians' options={options} key={`unique_key__${selectedTechnicians}`} value={selectedTechnicians || []} onChange={selectedOptions => setSelectedTechnicians(selectedOptions)} isMulti />
+                        </div>
                     </div>
-                        <div>
+                    <div className={styles.field_row}>
+                        <label className={styles.field_row_label} htmlFor='notifyDate'>Notify</label>
+                        <div className={styles.field_row_fields}>
+                            <DatePicker id='notifyDate' className={styles.default_text_box} selected={notifyDate} onChange={date => setNotifyDate(date)} />
                             <label className={styles.check_box_container}>
                                 <input className={styles.grid_check_box} type="checkbox" onChange={() => setRepeatable(!repeatable)} checked={repeatable} />
                                 <span className={styles.expedite_text}>Repeat?</span>
                             </label>
+                            {repeatable &&
+                                <>
+                                    <input className={styles.default_text_box} value={repeatInterval} onChange={handleRepeatIntervalUpdate} placeholder={'Interval'} aria-label='Repeat interval' />
+                                    <Select {...selectProps} className={styles.field_select} aria-label='Repeat unit' options={timeUnitOptions} key={`unique_key__${repeatUnit}`} value={repeatUnit} onChange={selectedUnit => setRepeatUnit(selectedUnit)} />
+                                </>
+                            }
                         </div>
-                    {repeatable &&
-                    <>
-                    <input className={styles.default_text_box} value={repeatInterval} onChange={handleRepeatIntervalUpdate} placeholder={'Interval'} />
-                        <div className={styles.unit_select}>
-                            <Select options={timeUnitOptions} key={`unique_key__${repeatUnit}`} value={repeatUnit} onChange={selectedUnit => setRepeatUnit(selectedUnit)} />
+                    </div>
+                    <div className={styles.field_row}>
+                        <label className={styles.field_row_label} htmlFor='notificationDescription'>Description</label>
+                        <div className={styles.field_row_fields}>
+                            <textarea id='notificationDescription' className={styles.notification_text} value={notificationDescription} onChange={event => setNotificationDescription(event.target.value)} placeholder={'Notification Description'} />
                         </div>
-                    </>
-                    }
-                    <br />
+                    </div>
                 </div>
-                    <textarea className={styles.notification_text} value={notificationDescription} onChange={event => setNotificationDescription(event.target.value)} placeholder={'Notification Description'} />
                 <Button onClick={handleSubmit} innerText={'Create Notification'} />
             </form>
         </div>

@@ -38,14 +38,15 @@ const rollingData = {
                 type,
                 value,
                 battery_level::double precision as battery_level,
-                pending_change
+                pending_change,
+                EXTRACT(EPOCH FROM timestamp - lag(timestamp) OVER (PARTITION BY sensor_id, type ORDER BY timestamp))::int AS heartbeat
             FROM
                 sensor_readings
             WHERE
                 timestamp >= NOW() - INTERVAL '3 hours'
             AND
                 sensor_id = ANY($1::bigint[])
-            ORDER BY 
+            ORDER BY
                 sensor_id, type, timestamp DESC;
         `, [sensorIds]);
     },
@@ -122,6 +123,51 @@ const rollingData = {
                 timestamp DESC
             LIMIT 1;
         `, [setPoint, stabilityCriteria.slope, stabilityCriteria.standardDeviation, stabilityCriteria.difference, assetTag, startTime]);
+    },
+    // Same four conditions as getStableTime so the indicator and the reading button agree.
+    // last_unstable is the newest row that failed them; the current stable run starts right after it.
+    getStableSince: (startTime: Date, assetTag: string, type: string, setPoint: number, stabilityCriteria: any) => {
+        return executeQuerySingleReturn(rollingDataPool, `
+            SELECT
+                MAX(timestamp) FILTER (WHERE NOT (
+                    assumed_set_point = $1
+                    AND slope <= $2
+                    AND standard_deviation <= $3
+                    AND assumed_set_point - average < $4
+                )) AS last_unstable,
+                MAX(timestamp) AS last_reading,
+                (array_agg(average ORDER BY timestamp DESC))[1] AS reference_average,
+                (array_agg(value ORDER BY timestamp DESC))[1] AS reference_value
+            FROM
+                reference_readings
+            WHERE
+                asset_tag = $5
+            AND
+                type = $6
+            AND
+                timestamp > $7;
+        `, [setPoint, stabilityCriteria.slope, stabilityCriteria.standardDeviation, stabilityCriteria.difference, assetTag, type, startTime]);
+    },
+    getSensorsInRange: (startTime: Date, sensorIds: any[], type: string, referenceValue: number, tolerance: number) => {
+        return executeQuery(rollingDataPool, `
+            SELECT
+                sensor_id::bigint AS sensor_id,
+                bool_and(abs(value - $1) <= $2) AS in_range,
+                max(value) - min(value) <= $2 AS settled,
+                avg(value)::double precision AS average,
+                min(timestamp) - $5 <= interval '30 seconds' AS covered,
+                count(*)::int AS readings
+            FROM
+                sensor_readings
+            WHERE
+                sensor_id = ANY($3::bigint[])
+            AND
+                type = $4
+            AND
+                timestamp > $5
+            GROUP BY
+                sensor_id;
+        `, [referenceValue, tolerance, sensorIds, type, startTime]);
     },
     getDataInTimeRange: (startTime: Date, endTime: Date, sensorIds: any[]) => {
         return executeQuery(rollingDataPool, `

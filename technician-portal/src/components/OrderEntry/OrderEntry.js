@@ -27,7 +27,9 @@ function OrderEntry() {
             else
                 dueDate = addWorkDays(new Date(order.received_timestamp), 7)
 
-            if (addWorkDays(today, 0) > dueDate)
+            if (order.sensor_count === 0)
+                order.elementClass = styles.gray;
+            else if (addWorkDays(today, 0) > dueDate)
                 order.elementClass = styles.red;
             else if (addWorkDays(today, 3) < dueDate)
                 order.elementClass = styles.green;
@@ -49,7 +51,7 @@ function OrderEntry() {
         callApi('get-batches-by-order-id', { order_id: orderId })
             .then(response => {
                 setBatches(response);
-                navigate('/shipping')
+                navigate(`/shipping?order_id=${orderId}`)
                 for (const batch of response) {
                     callApi('log-batch-interaction', {
                         department: 'shipping',
@@ -85,7 +87,7 @@ function OrderEntry() {
                         batch_id: batch.batch_id
                     })
                 }
-                navigate('/shipping')
+                navigate(`/shipping?order_id=${orderNumber}`)
             })
     }
 
@@ -101,7 +103,8 @@ function OrderEntry() {
     return (
         <>
             <div className={styles.menu}>
-                <form onSubmit={handleSubmit}>
+                <h2 className={styles.section_heading}>Open an order by order number</h2>
+                <form onSubmit={handleSubmit} className={styles.inline_form}>
                     <input
                         type='text'
                         value={orderNumber}
@@ -116,28 +119,28 @@ function OrderEntry() {
                         Submit
                     </button>
                 </form>
+                <h2 className={styles.section_heading}>Orders to ship</h2>
+                {!activeOrders &&
+                    <h1 className={styles.title}>Loading...</h1>
+                }
+
+                {activeOrders?.length === 0 &&
+                    <h1 className={styles.title}>No orders found</h1>
+                }
+
+                {activeOrders?.length > 0 &&
+                    <div className={styles.batches_container}>
+                        {activeOrders.map(order => (
+                            <button
+                                key={order.order_id}
+                                className={`${styles.batch_button} ${order.elementClass}`}
+                                onClick={() => handleClick(order.order_id)}
+                            >
+                                {order.customer_order_number} |{parseDataBaseDate(order.dueDate)}{order.sensor_count === 0 && ' | Empty'}
+                            </button>
+                        ))}
+                    </div>}
             </div>
-            <br />
-            <hr />
-            <br />
-            {!activeOrders &&
-                <h1 className={styles.title}>Loading...</h1>
-            }
-
-            {activeOrders?.length === 0 &&
-                <h1 className={styles.title}>No orders found</h1>
-            }
-
-            {activeOrders?.length > 0 &&
-                activeOrders.map(order => (
-                    <button
-                        key={order.order_id}
-                        className={`${styles.batch_button} ${order.elementClass}`}
-                        onClick={() => handleClick(order.order_id)}
-                    >
-                        Order: {order.order_id} | Customer Order: {order.customer_order_number} | {parseDataBaseDate(order.dueDate)}
-                    </button>
-                ))}
         </>
     )
 }
