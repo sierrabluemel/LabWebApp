@@ -37,15 +37,18 @@ export default function EditCertificates() {
         row ? row.fields.push(field) : rows.push({ name, fields: [field] });
     }
 
-    const loadCertificates = (linkedCertificateId = '') => {
+    // keepSelection: a reload after saving stays on the batch/certificate that was being edited
+    const loadCertificates = (linkedCertificateId = '', keepSelection = false) => {
         return callApi('get-certificates-by-order-id', lookupParams())
             .then(response => {
                 if (response.length === 0)
                     setPopupMessage(`No certificates found for ${lookupLabel}`);
                 const linked = response.find(c => c.certificate_id === parseInt(linkedCertificateId));
                 setCertificates(response);
-                setBatchId(linked ? String(linked.batch_id) : '');
-                setCertificateId(linked ? String(linked.certificate_id) : '');
+                if (!keepSelection) {
+                    setBatchId(linked ? String(linked.batch_id) : '');
+                    setCertificateId(linked ? String(linked.certificate_id) : '');
+                }
                 setEdits({});
             })
             .catch(err => {
@@ -71,7 +74,7 @@ export default function EditCertificates() {
         return callApi('update-certificates-json', params)
             .then(updated => {
                 setPopupMessage(`${publish ? 'Republished' : 'Updated'} ${updated.length} certificate${updated.length === 1 ? '' : 's'}`);
-                return loadCertificates();
+                return loadCertificates('', true);
             })
             .catch(err => {
                 console.error(err);

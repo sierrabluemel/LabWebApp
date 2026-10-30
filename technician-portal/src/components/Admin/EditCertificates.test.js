@@ -81,6 +81,9 @@ test('picking one certificate edits only that one', async () => {
         params: { order_id: '5', certificate_id: '2', certificate_json: JSON.stringify({ D2: 'Model: C' }) }
     }))
     expect(state.setPopupMessage).toHaveBeenCalledWith('Updated 1 certificate')
+    // the reload after saving stays on the edited certificate
+    expect(screen.getByLabelText('Certificate')).toHaveValue('2')
+    expect(screen.getByText('1 certificate')).toBeInTheDocument()
 })
 
 test('opening from a search link loads the order with that certificate selected', async () => {
