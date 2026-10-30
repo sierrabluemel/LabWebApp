@@ -25,7 +25,7 @@ const app = express();
 const corsOptions = {
     origin: function (origin: string | undefined, callback: any) {
         // 172.16.2.70:3000 lets a tech on the lab network open the dev portal running on Austin's machine
-        const whitelist = ['http://localhost:3000', 'http://172.16.2.70:3000', 'https://technicianportal.sensorcalibrations.com'];
+        const whitelist = ['http://localhost:3000', 'http://172.16.2.70:3000', 'https://technicianportal.sensorcalibrations.com', 'https://sensorcalibrations.com'];
         if (!origin || whitelist.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
