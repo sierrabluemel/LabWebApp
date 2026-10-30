@@ -188,7 +188,8 @@ export default function SearchResults() {
 
                         return (
                             <tr key={rowKey(row)} className={`${!isOrderSearch && isMatch(row) ? styles.search_match : ''} ${firstOfBatch ? styles.search_batch_start : ''}`}>
-                                <td>{firstOfOrder && (
+                                <td>{firstOfOrder && row.order_id == null && <span className={styles.search_sub}>No order</span>}
+                                {firstOfOrder && row.order_id != null && (
                                     <>
                                         <button className={styles.search_link} onClick={() => goToOrder(row.order_id)}>Order {row.order_id}</button>
                                         <div className={styles.search_sub}>
@@ -221,7 +222,7 @@ export default function SearchResults() {
                                         {row.certificate_id && technician?.admin ? (
                                             <>
                                                 {' '}
-                                                <button className={styles.search_link} onClick={() => navigate(`/admin?tab=certificates&order_id=${row.order_id}&certificate_id=${row.certificate_id}`)}>Edit</button>
+                                                <button className={styles.search_link} onClick={() => navigate(`/admin?tab=certificates&certificate_id=${row.certificate_id}${row.order_id != null ? `&order_id=${row.order_id}` : ''}`)}>Edit</button>
                                             </>
                                         ) : ''}</td>
                                         <td>{row.certificate_id ? (

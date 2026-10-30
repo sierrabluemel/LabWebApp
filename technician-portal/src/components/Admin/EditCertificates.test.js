@@ -98,6 +98,55 @@ test('opening from a search link loads the order with that certificate selected'
     expect(screen.getByLabelText('D2')).toHaveValue('Model: B')
 })
 
+test('republish sends publish=true with no changes', async () => {
+    const state = await renderAndLoad()
+    await act(async () => {
+        fireEvent.click(screen.getByText('Republish PDFs'))
+    })
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/update-certificates-json/`, expect.objectContaining({
+        params: { order_id: '5', certificate_json: '{}', publish: 'true' }
+    }))
+    expect(state.setPopupMessage).toHaveBeenCalledWith('Republished 2 certificates')
+})
+
+test('a certificate with no order loads and saves by certificate number', async () => {
+    const orphan = { ...certificates[1], certificate_id: 7, batch_id: null, calibration_procedure_id: undefined }
+    mockAxios.get.mockImplementation(() => Promise.resolve({ data: [orphan] }))
+    const state = { setPopupMessage: jest.fn() }
+    render(
+        <AppWrapper sharedState={state}>
+            <EditCertificates />
+        </AppWrapper>
+    )
+    fireEvent.change(screen.getByLabelText('Certificate number'), { target: { value: 'MNT-7' } })
+    await act(async () => {
+        fireEvent.click(screen.getByText('Load'))
+    })
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { certificate_id: '7' } }))
+    expect(screen.getByText('MNT-7 (lead 30412)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Batch').options).toHaveLength(1)
+    fireEvent.change(screen.getByLabelText('TechName'), { target: { value: 'Jane' } })
+    await act(async () => {
+        fireEvent.click(screen.getByText('Save changes'))
+    })
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/update-certificates-json/`, expect.objectContaining({
+        params: { certificate_id: '7', certificate_json: JSON.stringify({ TechName: 'Jane' }) }
+    }))
+})
+
+test('a search link with only a certificate id loads that certificate', async () => {
+    window.history.pushState({}, '', '/admin?tab=certificates&certificate_id=2')
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{ setPopupMessage: jest.fn() }}>
+                <EditCertificates />
+            </AppWrapper>
+        )
+    })
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { certificate_id: '2' } }))
+    expect(screen.getByLabelText('Certificate')).toHaveValue('2')
+})
+
 test('a rejected save shows the backend error', async () => {
     mockAxios.get.mockImplementation(url => url === `http://${ip}/api/get-certificates-by-order-id/`
         ? Promise.resolve({ data: certificates })

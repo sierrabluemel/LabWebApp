@@ -8,6 +8,8 @@ export default function EditCertificates() {
     // The search results Edit link opens this tab as /admin?tab=certificates&order_id=..&certificate_id=..
     const link = new URLSearchParams(window.location.search);
     const [orderId, setOrderId] = useState(link.get('order_id') ?? '');
+    // Certificates whose sensor had no batch when batch_id was backfilled have no order; they load by certificate number
+    const [certificateNumber, setCertificateNumber] = useState(link.get('order_id') ? '' : (link.get('certificate_id') ?? ''));
     const [certificates, setCertificates] = useState([]);
     const [batchId, setBatchId] = useState('');
     const [certificateId, setCertificateId] = useState('');
@@ -17,7 +19,9 @@ export default function EditCertificates() {
 
     const inBatch = certificates.filter(c => !batchId || c.batch_id === parseInt(batchId));
     const selected = inBatch.filter(c => !certificateId || c.certificate_id === parseInt(certificateId));
-    const batchIds = [...new Set(certificates.map(c => c.batch_id))];
+    const batchIds = [...new Set(certificates.map(c => c.batch_id))].filter(id => id != null);
+    const lookupParams = () => orderId ? { order_id: orderId } : { certificate_id: certificateNumber.replace(/^MNT-?/i, '') };
+    const lookupLabel = orderId ? `order ${orderId}` : `certificate ${certificateNumber}`;
     // Only fields every selected certificate has can be edited; the backend rejects the rest
     const fields = selected.length === 0 ? [] : Object.keys(selected[0].generate_certificate_json)
         .filter(key => selected.every(c => key in c.generate_certificate_json))
@@ -34,10 +38,10 @@ export default function EditCertificates() {
     }
 
     const loadCertificates = (linkedCertificateId = '') => {
-        return callApi('get-certificates-by-order-id', { order_id: orderId })
+        return callApi('get-certificates-by-order-id', lookupParams())
             .then(response => {
                 if (response.length === 0)
-                    setPopupMessage(`No certificates found for order ${orderId}`);
+                    setPopupMessage(`No certificates found for ${lookupLabel}`);
                 const linked = response.find(c => c.certificate_id === parseInt(linkedCertificateId));
                 setCertificates(response);
                 setBatchId(linked ? String(linked.batch_id) : '');
@@ -46,24 +50,27 @@ export default function EditCertificates() {
             })
             .catch(err => {
                 console.error(err);
-                setPopupMessage(`Unable to load certificates for order ${orderId}`);
+                setPopupMessage(`Unable to load certificates for ${lookupLabel}`);
             });
     }
 
     useEffect(() => {
-        if (link.get('order_id'))
+        if (link.get('order_id') || link.get('certificate_id'))
             loadCertificates(link.get('certificate_id') ?? '');
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const saveCertificates = (changes) => {
-        const params = { order_id: orderId, certificate_json: JSON.stringify(changes) };
+    // Save only updates the database; Republish also uploads the PDFs and syncs iMonnit
+    const saveCertificates = (changes, publish = false) => {
+        const params = { ...lookupParams(), certificate_json: JSON.stringify(changes) };
         if (batchId)
             params.batch_id = batchId;
         if (certificateId)
             params.certificate_id = certificateId;
+        if (publish)
+            params.publish = 'true';
         return callApi('update-certificates-json', params)
             .then(updated => {
-                setPopupMessage(`Updated ${updated.length} certificate${updated.length === 1 ? '' : 's'}`);
+                setPopupMessage(`${publish ? 'Republished' : 'Updated'} ${updated.length} certificate${updated.length === 1 ? '' : 's'}`);
                 return loadCertificates();
             })
             .catch(err => {
@@ -85,12 +92,16 @@ export default function EditCertificates() {
             <h1 className={styles.title}>Edit Certificates</h1>
             <form className={`${styles.toolbar} ${styles.center_toolbar}`}onSubmit={event => { event.preventDefault(); loadCertificates(); }}>
                 <input className={styles.default_text_box} value={orderId} onChange={event => setOrderId(event.target.value)} placeholder={'Order number'} aria-label='Order number' />
-                <Button onClick={loadCertificates} innerText={'Load'} />
+                <input className={styles.default_text_box} value={certificateNumber} onChange={event => setCertificateNumber(event.target.value)} placeholder={'or MNT- number'} aria-label='Certificate number' />
+                <Button onClick={() => loadCertificates()} innerText={'Load'} />
                 {certificates.length > 0 &&
                     <>
                         <select className={styles.default_text_box} value={batchId} onChange={event => { setBatchId(event.target.value); setCertificateId(''); setEdits({}); }} aria-label='Batch'>
                             <option value=''>All batches</option>
-                            {batchIds.map(id => <option key={id} value={id}>Batch {id} (CP {certificates.find(c => c.batch_id === id).calibration_procedure_id})</option>)}
+                            {batchIds.map(id => {
+                                const cp = certificates.find(c => c.batch_id === id).calibration_procedure_id;
+                                return <option key={id} value={id}>Batch {id}{cp ? ` (CP ${cp})` : ''}</option>;
+                            })}
                         </select>
                         <select className={styles.default_text_box} value={certificateId} onChange={event => { setCertificateId(event.target.value); setEdits({}); }} aria-label='Certificate'>
                             <option value=''>All certificates</option>
@@ -127,7 +138,7 @@ export default function EditCertificates() {
                         ))}
                     </div>
                     <Button onClick={handleSave} innerText={'Save changes'} />
-                    <Button onClick={() => saveCertificates({})} innerText={'Republish PDFs'} />
+                    <Button onClick={() => saveCertificates({}, true)} innerText={'Republish PDFs'} />
                 </>
             }
         </div>

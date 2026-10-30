@@ -20,10 +20,11 @@ const certificate = {
                 AND API_CERTIFICATE.CERTIFICATE_ID IS NOT NULL
         `, [startDate, endDate]);
     },
-    getCertificatesByOrderId: (orderId: number) => {
+    // latestOnly keeps the newest certificate per sensor/lead (PDF bundle); the edit page needs superseded ones too
+    getCertificatesByOrderId: (orderId: number, latestOnly = true) => {
         return executeQuery(pool, `
-            SELECT 
-                DISTINCT ON (API_CERTIFICATE.SENSOR_ID, API_CERTIFICATE.CABLE_ID) *
+            SELECT
+                ${latestOnly ? 'DISTINCT ON (API_CERTIFICATE.SENSOR_ID, API_CERTIFICATE.CABLE_ID)' : ''} *
             FROM
                 API_SENSOR
                 INNER JOIN API_CERTIFICATE ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID AND API_CERTIFICATE.BATCH_ID = API_SENSOR.BATCH_ID

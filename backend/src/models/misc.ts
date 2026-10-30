@@ -39,9 +39,10 @@ const misc = {
                 c.timestamp AS certificate_timestamp,
                 c.pass AS certificate_pass
             FROM API_SENSOR s
-            INNER JOIN API_BATCH b ON b.batch_id = s.batch_id
-            INNER JOIN API_ORDER o ON o.order_id = b.order_id
-            LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id AND c.batch_id = s.batch_id
+            LEFT JOIN API_BATCH b ON b.batch_id = s.batch_id
+            LEFT JOIN API_ORDER o ON o.order_id = b.order_id
+            -- Certificates whose sensor was out of a batch when batch_id was backfilled have batch_id NULL; they live on the sensor's NULL-batch row
+            LEFT JOIN API_CERTIFICATE c ON c.sensor_id = s.sensor_id AND c.batch_id IS NOT DISTINCT FROM s.batch_id
             WHERE ${filter}
             ORDER BY
                 b.batch_id DESC,
@@ -92,6 +93,10 @@ const misc = {
             LEFT JOIN api_batch ON api_order.order_id = api_batch.order_id
             LEFT JOIN api_sensor ON api_sensor.batch_id = api_batch.batch_id
             LEFT JOIN api_certificate ON api_certificate.sensor_id = api_sensor.sensor_id AND api_certificate.batch_id = api_sensor.batch_id
+            UNION ALL
+            SELECT NULL, NULL, NULL, sensor_id, cable_id, certificate_id
+            FROM api_certificate
+            WHERE batch_id IS NULL
         `, []);
     },
 
