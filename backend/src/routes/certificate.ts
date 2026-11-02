@@ -86,7 +86,7 @@ const certificateRoutes = {
         // A certificate with no batch (and so no order) can only be loaded by its own number
         const lookup = !orderId && certificateId
             ? certificate.getCertficateById(certificateId).then((row) => row ? [row] : [])
-            : certificate.getCertificatesByOrderId(orderId, false);
+            : certificate.getCertificatesByOrderId(orderId, req.query.all !== 'true');
         lookup
             .then((result) => {
                 res.json(result);

@@ -75,10 +75,10 @@ function Shipping() {
                     setCertificateMessage('No certificates found')
                     return
                 }
-                const fullDate = new Date(certificates[0].timestamp)
+                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
+                const fullDate = new Date(certificates[certificates.length - 1].timestamp)
                 const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
                 setCertificateMessage(`${certificates.length} certificate${certificates.length > 1 ? 's' : ''} generated on ${dateString}`);
-                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
     }
 

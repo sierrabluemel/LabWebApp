@@ -95,7 +95,7 @@ test('opening from a search link loads the order with that certificate selected'
             </AppWrapper>
         )
     })
-    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { order_id: '5' } }))
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { order_id: '5', all: true } }))
     expect(screen.getByLabelText('Batch')).toHaveValue('11')
     expect(screen.getByLabelText('Certificate')).toHaveValue('2')
     expect(screen.getByLabelText('D2')).toHaveValue('Model: B')
@@ -125,7 +125,7 @@ test('a certificate with no order loads and saves by certificate number', async 
     await act(async () => {
         fireEvent.click(screen.getByText('Load'))
     })
-    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { certificate_id: '7' } }))
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { certificate_id: '7', all: true } }))
     expect(screen.getByText('MNT-7 (lead 30412)')).toBeInTheDocument()
     expect(screen.getByLabelText('Batch').options).toHaveLength(1)
     fireEvent.change(screen.getByLabelText('TechName'), { target: { value: 'Jane' } })
@@ -146,7 +146,7 @@ test('a search link with only a certificate id loads that certificate', async ()
             </AppWrapper>
         )
     })
-    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { certificate_id: '2' } }))
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { certificate_id: '2', all: true } }))
     expect(screen.getByLabelText('Certificate')).toHaveValue('2')
 })
 
@@ -173,7 +173,7 @@ test('pressing enter in the order number loads certificates', async () => {
     await act(async () => {
         fireEvent.submit(orderInput.closest('form'))
     })
-    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { order_id: '5' } }))
+    expect(mockAxios.get).toHaveBeenCalledWith(`http://${ip}/api/get-certificates-by-order-id/`, expect.objectContaining({ params: { order_id: '5', all: true } }))
     expect(screen.getByLabelText('TechName')).toHaveValue('Ross')
 })
 

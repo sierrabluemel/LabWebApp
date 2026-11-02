@@ -39,7 +39,8 @@ export default function EditCertificates() {
 
     // keepSelection: a reload after saving stays on the batch/certificate that was being edited
     const loadCertificates = (linkedCertificateId = '', keepSelection = false) => {
-        return callApi('get-certificates-by-order-id', lookupParams())
+        // all: superseded certificates too; other callers get only the newest per sensor
+        return callApi('get-certificates-by-order-id', { ...lookupParams(), all: true })
             .then(response => {
                 if (response.length === 0)
                     setPopupMessage(`No certificates found for ${lookupLabel}`);

@@ -32,6 +32,21 @@ function SalesOrderForm() {
     const [selectedOption, setSelectedOption] = useState('');
     const [batchDisplay, setBatchDisplay] = useState(null);
     const dueDate = useRef(null);
+    // finish() nulls the order before navigating, so the unmount cleanup needs the last id it had
+    const orderRef = useRef(order);
+    if (order)
+        orderRef.current = order;
+    const cleanupTimer = useRef(null);
+
+    // A new order is created before any batch exists; leaving the page (browser back, nav tab) with none would strand it in Shipping as "Empty".
+    // The delete is deferred a tick because StrictMode runs cleanup then re-runs the effect on mount; the re-run cancels it.
+    useEffect(() => {
+        clearTimeout(cleanupTimer.current);
+        return () => {
+            if (!mode && orderRef.current)
+                cleanupTimer.current = setTimeout(() => removeOrderIfEmpty(orderRef.current).catch(console.error), 0);
+        }
+    }, [mode]);
 
     useEffect(() => {
         if (!dueDate.current) {
@@ -65,7 +80,7 @@ function SalesOrderForm() {
             setOrder(null);
             return batches.length === 1 ? openBatch(batches[0].batch_id) : navigate('/batchEntry');
         }
-        if (mode === 'add' && batches.length === 0) {
+        if (batches.length === 0) {
             setPopupMessage('Add a calibration procedure first');
             return;
         }
@@ -163,10 +178,10 @@ function SalesOrderForm() {
                 {batchDisplay}
                 {mode === 'edit' && batches.length > 0 ?
                     <div className={styles.row}>
-                        <button onClick={handleSubmit} className={`${styles.default_button} ${styles.grow}`}>Edit Batch</button>
+                        <button onClick={handleSubmit} className={`${styles.default_button} ${styles.grow}`}>Save Batch</button>
                         <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => setRemoveConfirmation([`Remove batch ${batches[0].batch_id}?`, 'Its sensors will be unassigned'])}>Remove batch</button>
                     </div> :
-                    <button onClick={handleSubmit} className={styles.default_button}>{{ add: 'Add Batch', edit: 'Edit Batch' }[mode] ?? 'Complete Sales Order'}</button>}
+                    <button onClick={handleSubmit} className={styles.default_button}>{mode ? 'Save Batch' : 'Save Sales Order'}</button>}
             </div>
         </div>
     );

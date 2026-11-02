@@ -6,8 +6,8 @@ import ip from '../../utils/ip/ip';
 import mockAxios from 'axios';
 import { act } from 'react-dom/test-utils';
 
-jest.mock('../DropDown/DropDown.js', () => () => {
-    return <mock-dropdown />
+jest.mock('../DropDown/DropDown.js', () => ({ setBatches }) => {
+    return <button onClick={() => setBatches([{ batch_id: 6, calibration_procedure_id: 2 }])}>mock-add-batch</button>
 })
 
 jest.mock('axios')
@@ -61,7 +61,7 @@ test('Receiving renders successfully', async () => {
             </AppWrapper>
         )
     })
-    const submitButton = screen.getByText(/complete sales order/i)
+    const submitButton = screen.getByText(/save sales order/i)
     expect(submitButton).toBeInTheDocument()
 })
 
@@ -93,7 +93,10 @@ const completeOrder = async () => {
         )
     })
     await act(async () => {
-        fireEvent.click(screen.getByText(/complete sales order/i))
+        fireEvent.click(screen.getByText('mock-add-batch'))
+    })
+    await act(async () => {
+        fireEvent.click(screen.getByText(/save sales order/i))
     })
     return sharedState
 }
@@ -102,6 +105,53 @@ test('completing order shows popup instead of navigating', async () => {
     await completeOrder()
     expect(screen.getByText(/order 1 \(SO1\) created/i)).toBeInTheDocument()
     expect(mockedUseNavigate).not.toBeCalled()
+})
+
+test('a new order needs a batch before completing', async () => {
+    const sharedState = { salesOrder: 'SO1', setSalesOrder: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(), order: 1, setOrder: jest.fn() }
+    await act(async () => {
+        render(<AppWrapper sharedState={sharedState}><SalesOrderForm /></AppWrapper>)
+    })
+    await act(async () => {
+        fireEvent.click(screen.getByText(/save sales order/i))
+    })
+    expect(sharedState.setPopupMessage).toBeCalledWith('Add a calibration procedure first')
+    expect(screen.queryByText(/created/i)).not.toBeInTheDocument()
+})
+
+test('leaving a new order with no batches deletes it', async () => {
+    jest.useFakeTimers()
+    const defaultGet = mockAxios.get.getMockImplementation()
+    mockAxios.get.mockImplementation(url => url === `http://${ip}/api/get-batches-by-order-id/` ? Promise.resolve({ data: [] }) : defaultGet(url))
+    const sharedState = { salesOrder: 'SO1', setSalesOrder: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(), order: 1, setOrder: jest.fn() }
+    let unmount
+    await act(async () => {
+        ({ unmount } = render(<AppWrapper sharedState={sharedState}><SalesOrderForm /></AppWrapper>))
+    })
+    await act(async () => {
+        unmount()
+        jest.runAllTimers()
+    })
+    jest.useRealTimers()
+    await act(async () => {})
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/delete-order/`, expect.objectContaining({ params: { order_id: 1 } }))
+})
+
+test('leaving a new order that has a batch keeps it', async () => {
+    jest.useFakeTimers()
+    const sharedState = { salesOrder: 'SO1', setSalesOrder: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(), order: 1, setOrder: jest.fn() }
+    let unmount
+    await act(async () => {
+        ({ unmount } = render(<AppWrapper sharedState={sharedState}><SalesOrderForm /></AppWrapper>))
+    })
+    await act(async () => {
+        unmount()
+        jest.runAllTimers()
+    })
+    jest.useRealTimers()
+    await act(async () => {})
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/get-batches-by-order-id/`, expect.objectContaining({ params: { order_id: 1 } }))
+    expect(mockAxios.get).not.toBeCalledWith(`http://${ip}/api/delete-order/`, expect.anything())
 })
 
 test('"Go to testing" clears the order and navigates to batch list', async () => {
@@ -156,7 +206,7 @@ test('add mode titles the existing order and needs a batch before submitting', a
     const sharedState = await renderMode({ mode: 'add', customerOrderNumber: 'TO5' })
     expect(screen.getByText('TO5')).toBeInTheDocument()
     await act(async () => {
-        fireEvent.click(screen.getByText('Add Batch'))
+        fireEvent.click(screen.getByText('Save Batch'))
     })
     expect(sharedState.setPopupMessage).toBeCalledWith('Add a calibration procedure first')
     expect(mockedUseNavigate).not.toBeCalled()
@@ -167,7 +217,7 @@ test('edit mode shows only that batch and opens it on submit', async () => {
     expect(document.querySelector('mock-dropdown')).toBeNull()
     expect(screen.getByText(/batch: 5/i)).toBeInTheDocument()
     await act(async () => {
-        fireEvent.click(screen.getByText('Edit Batch'))
+        fireEvent.click(screen.getByText('Save Batch'))
     })
     expect(sharedState.setOrder).toBeCalledWith(null)
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/get-batch-by-id/`, expect.objectContaining({ params: { batch_id: 5 } }))
@@ -190,7 +240,7 @@ test('edit mode puts remove batch beside edit batch and removes after confirming
     const sharedState = await renderMode({ mode: 'edit', batch: { batch_id: 5, calibration_procedure_id: 2 }, customerOrderNumber: 'TO5' })
     const removeButtons = screen.getAllByText('Remove batch')
     expect(removeButtons).toHaveLength(1)
-    expect(removeButtons[0].parentElement).toContainElement(screen.getByText('Edit Batch'))
+    expect(removeButtons[0].parentElement).toContainElement(screen.getByText('Save Batch'))
     fireEvent.click(removeButtons[0])
     await act(async () => {
         fireEvent.click(screen.getByText('Remove'))
