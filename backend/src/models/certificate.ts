@@ -27,11 +27,14 @@ const certificate = {
                 ${latestOnly ? 'DISTINCT ON (API_CERTIFICATE.SENSOR_ID, API_CERTIFICATE.CABLE_ID)' : ''} *
             FROM
                 API_SENSOR
+                -- Lead match: the 10-26 backfill put a base sensor's whole history (one certificate per past lead) on its current batch
                 INNER JOIN API_CERTIFICATE ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID AND API_CERTIFICATE.BATCH_ID = API_SENSOR.BATCH_ID
+                    AND API_CERTIFICATE.CABLE_ID IS NOT DISTINCT FROM API_SENSOR.CABLE_ID
                 INNER JOIN API_BATCH ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
                 INNER JOIN API_ORDER ON API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
             WHERE
                 API_ORDER.ORDER_ID = $1
+                AND NOT API_SENSOR.SPARE
             ORDER BY API_CERTIFICATE.SENSOR_ID, API_CERTIFICATE.CABLE_ID, API_CERTIFICATE.CERTIFICATE_ID DESC;
         `, [orderId]);
     },
