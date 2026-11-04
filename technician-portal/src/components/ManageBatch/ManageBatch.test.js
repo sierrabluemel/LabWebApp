@@ -153,7 +153,7 @@ test('generating work order with success returns blob', async () => {
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/generate-work-order?batch_id=1`, { "responseType": "blob" });
 });
 
-test('picking a heartbeat and pressing Enter changes the batch heartbeat', async () => {
+test('picking a heartbeat changes the batch heartbeat', async () => {
     await act(async () => {
         setupComponent({
             batchNumber: 1,
@@ -166,9 +166,8 @@ test('picking a heartbeat and pressing Enter changes the batch heartbeat', async
     });
 
     const heartbeatSelect = screen.getByLabelText('Heartbeat');
-    fireEvent.change(heartbeatSelect, { target: { value: '120' } });
     await act(async () => {
-        fireEvent.keyDown(heartbeatSelect, { key: 'Enter' });
+        fireEvent.change(heartbeatSelect, { target: { value: '120' } });
     });
 
     expect(heartbeatSelect).toHaveValue('');

@@ -112,8 +112,10 @@ function BatchEntry() {
         .sort((a, b) => (b[0].expedited ? 1 : 0) - (a[0].expedited ? 1 : 0)
             || new Date(a[0].received_timestamp) - new Date(b[0].received_timestamp)
             || a[0].order_id - b[0].order_id);
-    // an order is active once any of its batches is in testing
-    const isActive = order => order.some(batch => batch.current_location?.startsWith('T'));
+    const inTesting = batch => batch.current_location?.startsWith('T');
+    // an order can appear in both sections: its testing batches up top, the rest queued
+    const activeOrders = orders.map(order => order.filter(inTesting)).filter(order => order.length);
+    const queuedOrders = orders.map(order => order.filter(batch => !inTesting(batch))).filter(order => order.length);
 
     const renderOrders = (orders) => {
         if (!batches)
@@ -142,9 +144,9 @@ function BatchEntry() {
                 </section>
             </div>
             <h2 className={styles.section_heading}>Active orders</h2>
-            {renderOrders(orders.filter(isActive))}
+            {renderOrders(activeOrders)}
             <h2 className={styles.section_heading}>Queued orders</h2>
-            {renderOrders(orders.filter(order => !isActive(order)))}
+            {renderOrders(queuedOrders)}
             <div className={`${styles.row} ${styles.row_end}`}>
                 <button className={styles.default_button} onClick={reformGateways} disabled={reforming} title='Make every lab gateway rebuild its sensor list'>Reform gateways</button>
             </div>
