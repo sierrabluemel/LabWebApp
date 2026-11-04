@@ -46,8 +46,10 @@ export function getDateString(date: Date) {
 
 export function removeDuplicateCertificates(certificateArray: any[]) {
     const seenCertificates = new Set()
-    return certificateArray.filter(({ sensor_id, timestamp }) => {
-        const dateKey = `${sensor_id}-${getDateString(timestamp)}`
+    // One billable certificate per base per batch per day: a base reused the same day on another order is a new batch,
+    // while regenerating within a batch (including after a lead was scanned late) is not
+    return certificateArray.filter(({ sensor_id, batch_id, timestamp }) => {
+        const dateKey = `${sensor_id}-${batch_id}-${getDateString(timestamp)}`
         if (seenCertificates.has(dateKey)) {
             return false;
         } else {

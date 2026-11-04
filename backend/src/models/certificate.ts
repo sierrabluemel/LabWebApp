@@ -7,6 +7,7 @@ const certificate = {
                 api_certificate.certificate_id, 
                 api_batch.calibration_procedure_id,
                 api_sensor.sensor_id,
+                api_certificate.batch_id,
                 api_certificate.timestamp,
                 api_certificate.pass
             FROM
@@ -74,6 +75,7 @@ const certificate = {
         return executeQuery(pool, `
             SELECT
                 API_CERTIFICATE.SENSOR_ID,
+                API_CERTIFICATE.BATCH_ID,
                 API_CERTIFICATE.TIMESTAMP,
                 GENERATE_CERTIFICATE_JSON,
                 SKU,
