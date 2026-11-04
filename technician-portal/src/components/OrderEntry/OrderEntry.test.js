@@ -21,13 +21,15 @@ beforeEach(() => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/get-orders-to-ship/`:
-                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }, { order_id: 2, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }] })
+                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test', received_timestamp: "2024-08-27T20:11:22.132Z", ready_to_ship: true }, { order_id: 2, customer_order_number: 'packing', received_timestamp: "2024-08-27T20:11:22.132Z", ready_to_ship: false }] })
             case `http://${ip}/api/get-batches-by-order-id/`:
-                return Promise.resolve({ data: ['test', 'test'] })
+                return Promise.resolve({ data: [{ batch_id: 1 }, { batch_id: 2 }] })
+            case `http://${ip}/api/log-batch-interaction/`:
+                return Promise.resolve({ data: {} })
             case `http://${ip}/api/get-order-by-id/`:
                 return Promise.resolve({ data: { order_id: 1 } })
             default:
-                return Promise.reject();
+                return Promise.reject({ response: { status: 500 } });
         }
     });
 })
@@ -58,7 +60,7 @@ test('clicking order logs batch interaction and navigates', async () => {
             </AppWrapper>
         )
     })
-    const orderButton = screen.getByText(/order: 1/i)
+    const orderButton = screen.getByText(/^test \|/i)
     expect(orderButton).toBeInTheDocument()
     await act(async () => {
         fireEvent.click(orderButton)
@@ -77,7 +79,7 @@ test('clicking order without sign in stops', async () => {
             </AppWrapper>
         )
     })
-    const orderButton = screen.getByText(/order: 1/i)
+    const orderButton = screen.getByText(/^test \|/i)
     expect(orderButton).toBeInTheDocument()
     await act(async () => {
         fireEvent.click(orderButton)
@@ -135,11 +137,11 @@ test('response without order_id gets detected', async () => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/get-orders-to-ship/`:
-                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }, { order_id: 2, customer_order_number: 'test', received_timestamp : "2024-08-27T20:11:22.132Z" }] })
+                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test', received_timestamp: "2024-08-27T20:11:22.132Z", ready_to_ship: true }, { order_id: 2, customer_order_number: 'packing', received_timestamp: "2024-08-27T20:11:22.132Z", ready_to_ship: false }] })
             case `http://${ip}/api/get-order-by-id/`:
                 return Promise.resolve({ data: { Result: 'Error' } })
             default:
-                return Promise.reject();
+                return Promise.reject({ response: { status: 500 } });
         }
     });
     await act(async () => {
@@ -162,4 +164,12 @@ test('response without order_id gets detected', async () => {
     })
     expect(orderBox).toHaveValue('1');
     expect(mockedUseNavigate).toBeCalledTimes(0);
+})
+
+test('readyToShip picks which orders are listed', async () => {
+    const shared = { orderNumber: 1, setOrderNumber: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(), setBatches: jest.fn() }
+    await act(async () => { render(<AppWrapper sharedState={shared}><OrderEntry readyToShip={false} /></AppWrapper>) })
+    expect(screen.getByText(/orders to package/i)).toBeInTheDocument()
+    expect(screen.getByText(/^packing \|/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^test \|/i)).not.toBeInTheDocument()
 })

@@ -58,7 +58,7 @@ beforeEach(() => {
             case `http://${ip}/api/change-batch-heartbeats/`:
                 return Promise.resolve({ data: { Result: 'Success' } });
             case `http://${ip}/api/get-locations/`:
-                return Promise.resolve({ data: ['S-STD', 'T-STD'] });
+                return Promise.resolve({ data: ['P-A1', 'T-STD'] });
             case `http://${ip}/api/get-calibration-procedures/`:
                 return Promise.resolve({ data: calibrationProcedures });
             default:
@@ -205,6 +205,6 @@ test('changing location to testing location calls api', async () => {
     await testChangeLocation('T-STD');
 });
 
-test('changing location to shipping location calls api', async () => {
-    await testChangeLocation('S-STD');
+test('changing location to packaging location calls api', async () => {
+    await testChangeLocation('P-A1');
 });

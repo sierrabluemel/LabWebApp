@@ -283,7 +283,7 @@ function EditOrderPopup({ order, openOrderPage, removeBatch, reload, close }) {
                 <div className={styles.modal_body}>
                     {!batches ? <p>Loading...</p> : batches.map(batch => {
                         const batchSensors = sensors.filter(sensor => sensor.batch_id === batch.batch_id);
-                        const shipped = batch.current_location?.startsWith('S');
+                        const shipped = /^[PS]/.test(batch.current_location ?? ''); // packaged batches are locked like shipped ones
 
                         return (
                             <div className={styles.modal_row} key={batch.batch_id}>

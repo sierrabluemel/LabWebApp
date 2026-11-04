@@ -13,7 +13,7 @@ export default function apiPost(endPoint, data, config) {
 
     return axios.post(url, data, config)
         .catch((err) => {
-            if (err.response.status !== 418) {
+            if (err.response?.status !== 418) {
                 throw err;
             }
             return refreshToken()

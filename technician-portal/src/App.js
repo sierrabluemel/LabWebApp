@@ -89,7 +89,8 @@ function App() {
 
                 <Route path='/manageBatch' element={<ManageBatch />} />
                 <Route path='/metrics' element={<Metrics />} />
-                <Route path='/orderEntry' element={<OrderEntry />} />
+                <Route path='/packaging' element={<OrderEntry readyToShip={false} />} />
+                <Route path='/orderEntry' element={<OrderEntry readyToShip />} />
 
                 <Route path='/shipping' element={<Shipping />} />
                 <Route path='/signIn' element={<SignInMenu />} />

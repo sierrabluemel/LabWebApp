@@ -8,7 +8,8 @@ import styles from "../../styles/styles.module.css";
 import parseDataBaseDate from "../../utils/parseDataBaseDate";
 import addWorkDays from "../../utils/addWorkDays";
 
-function OrderEntry() {
+// readyToShip: true lists orders whose batches all sit in an S- bin (Shipping tab), false the rest (Packaging tab)
+function OrderEntry({ readyToShip = true }) {
     const navigate = useNavigate();
     const {
         orderNumber, setOrderNumber,
@@ -78,6 +79,8 @@ function OrderEntry() {
                 return callApi('get-batches-by-order-id', { order_id: orderNumber })
             })
             .then(batches => {
+                if (!batches)
+                    return; // order not found, popup already shown
                 setBatches(batches);
                 for (const batch of batches) {
                     callApi('log-batch-interaction', {
@@ -96,9 +99,12 @@ function OrderEntry() {
             return;
         callApi('get-orders-to-ship')
             .then(orders => {
-                setActiveOrders(setOrderColors(orders));
+                setActiveOrders(setOrderColors(orders.filter(order => !!order.ready_to_ship === readyToShip)));
             })
-    }, [activeOrders, technicianId, orderNumber])
+    }, [activeOrders, technicianId, orderNumber, readyToShip])
+
+    // Switching tabs reuses this component, so refetch when the filter changes
+    useEffect(() => setActiveOrders(null), [readyToShip])
 
     return (
         <>
@@ -119,7 +125,7 @@ function OrderEntry() {
                         Submit
                     </button>
                 </form>
-                <h2 className={styles.section_heading}>Orders to ship</h2>
+                <h2 className={styles.section_heading}>{readyToShip ? 'Orders to ship' : 'Orders to package'}</h2>
                 {!activeOrders &&
                     <h1 className={styles.title}>Loading...</h1>
                 }

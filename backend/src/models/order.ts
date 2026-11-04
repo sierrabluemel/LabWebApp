@@ -41,7 +41,16 @@ const order = {
                         JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
                     WHERE
                         API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
-                ) AS SENSOR_COUNT
+                ) AS SENSOR_COUNT,
+                -- true once every batch sits in a shipping (S-) bin; packaging otherwise, including empty orders
+                COALESCE((
+                    SELECT
+                        BOOL_AND(API_BATCH.CURRENT_LOCATION LIKE 'S-%')
+                    FROM
+                        API_BATCH
+                    WHERE
+                        API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
+                ), FALSE) AS READY_TO_SHIP
             FROM
                 API_ORDER
             WHERE

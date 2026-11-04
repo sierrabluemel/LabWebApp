@@ -219,7 +219,7 @@ function ManageBatch() {
                     </div>
                 </div>
                 <div className={styles.triple_grid_menu}>
-                    <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
+                    <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} stages='RTP' />
                     <select className={styles.dropdown} aria-label={'Heartbeat'} value={heartbeat} onChange={event => changeHeartbeat(event.target.value)}>
                         {/* Shown in the closed box only; hidden from the list */}
                         <option value='' disabled hidden>Change heartbeat...</option>

@@ -134,6 +134,11 @@ mark {
     gap: var(--space-3);
 }
 
+/* Shipping view has one card; keep it a third wide like the three packaging cards */
+.action_cards_thirds {
+    grid-template-columns: repeat(3, 1fr);
+}
+
 .default_button.small_button {
     width: auto;
     display: block;
@@ -1886,6 +1891,17 @@ mark {
     position: relative;
 }
 
+.location_picker .dropdown {
+    padding: 2px var(--space-3);
+    white-space: nowrap;
+}
+
+/* In a right-aligned row (Ready to Ship) the grid hangs from the right edge so it stays on screen */
+.row_end .location_panel {
+    left: auto;
+    right: 0;
+}
+
 .location_panel {
     position: absolute;
     top: 100%;
@@ -1913,7 +1929,14 @@ mark {
     background-color: var(--stage-tint, transparent);
 }
 
-/* Stage colors: receiving amber, testing green (matches the testing badge), shipping blue */
+/* Stage colors: receiving amber, testing green (matches the testing badge), packaging purple, shipping blue */
+.location_stage_P {
+    --stage: #7c5cbf;
+    --stage-soft: #ece6f7;
+    --stage-tint: #f9f7fd;
+    --stage-selected-text: var(--text-inverse);
+}
+
 .location_stage_R {
     --stage: var(--warning);
     --stage-soft: var(--warning-soft);

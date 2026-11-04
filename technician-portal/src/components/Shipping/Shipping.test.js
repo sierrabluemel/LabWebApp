@@ -158,6 +158,12 @@ beforeEach(() => {
                 })
             case `http://${ip}/api/get-sensor-list/`:
                 return Promise.resolve({ data: [] })
+            case `http://${ip}/api/get-locations/`:
+                return Promise.resolve({ data: ['P-A1', 'S-A2'] })
+            case `http://${ip}/api/create-location-log/`:
+            case `http://${ip}/api/log-batch-interaction/`:
+            case `http://${ip}/api/move-batch-to-network-group/`:
+                return Promise.resolve({ data: {} })
             case `http://${ip}/api/update-batch-technician/`:
             case `http://${ip}/api/set-batch-active-state/`:
             case `http://${ip}/api/create-certificates/`:
@@ -237,7 +243,7 @@ test('downloading return record calls api', async () => {
         render(
             <AppWrapper sharedState={{
                 setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
-                orderNumber: 2, batches: [], setBatches: jest.fn()
+                orderNumber: 2, batches: [{ batch_id: 1, current_location: 'S-A2' }], setBatches: jest.fn()
             }}>
                 <Shipping />
             </AppWrapper>
@@ -293,4 +299,41 @@ test('a failed certificate download shows a popup instead of crashing', async ()
         fireEvent.click(screen.getByLabelText(/download certificates/i))
     })
     expect(setPopupMessage).toHaveBeenCalledWith('Failed to download certificates for order 2')
+})
+
+const renderWithBatches = async (batches) => {
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{
+                setConfirmationMessage: jest.fn(), technicianId: 1, setPopupMessage: jest.fn(),
+                orderNumber: 2, batches, setBatches: jest.fn()
+            }}>
+                <Shipping />
+            </AppWrapper>
+        )
+    })
+}
+
+test('a packaging order can generate certificates but not print the return record or close', async () => {
+    await renderWithBatches([{ batch_id: 1, current_location: 'P-A1' }])
+    expect(screen.getByText(/generate certificates/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/scan sensor to print label/i)).toBeInTheDocument()
+    expect(screen.queryByText(/print return record/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/close order/i)).not.toBeInTheDocument()
+    // Ready to Ship opens the shipping-bin grid; a pick moves every batch and goes back to the Packaging list
+    expect(screen.queryByLabelText('Location')).not.toBeInTheDocument()
+    await act(async () => { fireEvent.click(screen.getByText('Ready to Ship')) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'S-A2' })) })
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/create-location-log/`, expect.objectContaining({ params: { location: 'S-A2', batch_id: 1 } }))
+    expect(mockedUseNavigate).toBeCalledWith('/packaging')
+})
+
+test('an order in a shipping bin only reprints certificates, prints the return record and closes', async () => {
+    await renderWithBatches([{ batch_id: 1, current_location: 'S-A2' }, { batch_id: 2, current_location: 'S-A2' }])
+    expect(screen.queryByText(/generate certificates/i)).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/scan sensor to print label/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Ready to Ship')).not.toBeInTheDocument()
+    expect(screen.getByText(/print certificates/i)).toBeInTheDocument()
+    expect(screen.getByText(/print return record/i)).toBeInTheDocument()
+    expect(screen.getByText(/close order/i)).toBeInTheDocument()
 })

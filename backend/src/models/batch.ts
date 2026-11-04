@@ -119,7 +119,7 @@ const batch = {
             FROM
                 API_LOCATION_LOG
             WHERE
-                LOCATION ~ '^[RTS]-[A-Z0-9]+$'
+                LOCATION ~ '^[RTPS]-[A-Z0-9]+$'
                 AND LOCATION NOT IN ('T-AB', 'S-C12', 'S-BS', 'S-C', 'S-STD')
             UNION
             SELECT

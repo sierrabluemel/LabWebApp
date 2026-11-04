@@ -1,9 +1,10 @@
 import callApi from "./api/callApi";
 
-// What moving a batch to a location starting with each letter does. R = receiving (queued), T = testing, S = shipping
+// What moving a batch to a location starting with each letter does. R = receiving (queued), T = testing, P = packaging, S = shipping
 const LOCATION_ACTIONS = {
     R: { department: 'receiving', start: false, active: true, networkGroup: 'staging', heartbeat: 2 },
     T: { department: 'testing', start: true, active: true, networkGroup: 'testing', heartbeat: 0.05 },
+    P: { department: 'testing', start: false, active: false, networkGroup: 'staging', heartbeat: 120 },
     S: { department: 'testing', start: false, active: false, networkGroup: 'staging', heartbeat: 120 },
 };
 
@@ -17,7 +18,7 @@ export default async function setBatchLocation(location, technicianId, batchNumb
     const action = location ? LOCATION_ACTIONS[location[0]] : undefined;
 
     if (!action) {
-        return { moved: false, error: `Location "${location}" is invalid: it must start with R, T or S` };
+        return { moved: false, error: `Location "${location}" is invalid: it must start with R, T, P or S` };
     }
 
     const steps = [
