@@ -31,7 +31,17 @@ const order = {
             SELECT
                 API_ORDER.ORDER_ID,
                 API_ORDER.CUSTOMER_ORDER_NUMBER,
-                API_ORDER.RECEIVED_TIMESTAMP
+                API_ORDER.RECEIVED_TIMESTAMP,
+                API_ORDER.EXPEDITED,
+                (
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        API_BATCH
+                        JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
+                    WHERE
+                        API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
+                ) AS SENSOR_COUNT
             FROM
                 API_ORDER
             WHERE
@@ -60,6 +70,15 @@ const order = {
                 *
         `, [timestamp, courier, orderId]);
     },
+    setOrderExpedited: (orderId: number, expedited: boolean) => {
+        return executeNonQuery(pool, `
+            UPDATE API_ORDER
+            SET
+                EXPEDITED = $1
+            WHERE
+                ORDER_ID = $2
+        `, [expedited, orderId]);
+    },
     setOrderActiveState: (orderId: number, status: boolean) => {
         return executeNonQuery(pool, `
             UPDATE API_ORDER
@@ -68,6 +87,15 @@ const order = {
             WHERE
                 ORDER_ID = $2
         `, [status, orderId]);
+    },
+    deleteOrder: (orderId: number) => {
+        return executeQuery(pool, `
+            DELETE FROM API_ORDER
+            WHERE
+                ORDER_ID = $1
+            RETURNING
+                *
+        `, [orderId]);
     },
     getOrderDetails: (orderId: number) => {
         return executeQuerySingleReturn(pool, `
@@ -86,23 +114,18 @@ const order = {
                 API_ORDER.ORDER_ID = $1;
         `, [orderId]);
     },
-    getSensorsOnOrder: (orderId: number) => {
+    getSensorsByOrderId: (orderId: number) => {
         return executeQuery(pool, `
             SELECT
-                API_ORDER.CUSTOMER_ORDER_NUMBER,
-                API_BATCH.CALIBRATION_PROCEDURE_ID,
-                API_SENSOR.*,
-                API_CERTIFICATE.GENERATE_CERTIFICATE_JSON
-                API_CERTIFICATE.CERTIFICATE_ID
+                api_sensor.sensor_id
             FROM
-                API_ORDER
-                JOIN API_BATCH ON API_ORDER.ORDER_ID = API_BATCH.ORDER_ID
-                JOIN API_SENSOR ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
-                JOIN API_CERTIFICATE ON API_SENSOR.SENSOR_ID = API_CERTIFICATE.SENSOR_ID
+                api_order
+                INNER JOIN api_batch ON api_order.order_id = api_batch.order_id
+                INNER JOIN api_sensor ON api_batch.batch_id = api_sensor.batch_id
             WHERE
-                API_ORDER.ORDER_ID = $1;
+                api_order.order_id = $1;
         `, [orderId]);
-    },
+    }
 };
 
 export default order;

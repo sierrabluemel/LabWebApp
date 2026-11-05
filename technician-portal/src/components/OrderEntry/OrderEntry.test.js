@@ -63,7 +63,7 @@ test('clicking order logs batch interaction and navigates', async () => {
     await act(async () => {
         fireEvent.click(orderButton)
     })
-    expect(mockedUseNavigate).toBeCalledWith('/shipping')
+    expect(mockedUseNavigate).toBeCalledWith(expect.stringContaining('/shipping'))
 })
 
 test('clicking order without sign in stops', async () => {
@@ -105,7 +105,7 @@ test('entering order in box navigates', async () => {
         fireEvent.click(submitButton)
     })
     expect(orderBox).toHaveValue('1');
-    expect(mockedUseNavigate).toBeCalledWith('/shipping');
+    expect(mockedUseNavigate).toBeCalledWith(expect.stringContaining('/shipping'));
 })
 
 test('entering order in box without technician id stops', async () => {

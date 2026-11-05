@@ -3,7 +3,6 @@ import { removeDuplicateCertificates } from "../methods/common";
 import monnitFetch from "../utils/monnit";
 import pdf from "../utils/pdf";
 import PDFMerger from "pdf-merger-js";
-import fs from 'fs';
 import certificate from "../models/certificate";
 import sensor from "../models/sensor";
 import misc from "../models/misc";
@@ -12,9 +11,56 @@ import batch from "../models/batch";
 import reading from "../models/reading";
 import equipment from "../models/equipment";
 import { parseDataBaseDate } from "../utils/db";
-import { addMonths } from "date-fns";
-import { EXPIRE_AFTER_25_MONTHS } from "../constants";
 import calibrationProcedures from "../utils/calibrationprocedures";
+const sillyConfig = require('../../config.json');
+
+function filterReadings(readings: any[], setPoints: any[]) {
+    let finalReadings = setPoints.map((setPoint) => {
+        const temperatureReading = readings.find((reading) => {
+            return (reading.set_point === setPoint[reading.type] && reading.type === 'temperature' && reading.as_found === setPoint.calibrate)
+        })
+        const humidityReading = readings.find((reading) => {
+            return (reading.set_point === setPoint[reading.type] && reading.type === 'humidity' && reading.as_found === setPoint.calibrate)
+        })
+        if (humidityReading)
+            return { temperatureReading, humidityReading }
+        return { temperatureReading }
+    })
+    return finalReadings
+}
+
+function renderCertificate(cert: any) {
+    const certificateJson = { 'CertNumber': `MNT-${cert.certificate_id}`, ...cert.generate_certificate_json };
+    return pdf.fillCertificate(cert.template, certificateJson, cert.pass)
+        .then((blob) => blob.arrayBuffer());
+}
+
+// Every created or edited certificate goes through here so the public PDF (and its QR code link) stays current
+async function publishCertificate(cert: any) {
+    const bytes = await renderCertificate(cert);
+    // Dev certificate ids overlap prod ones, so uploading from dev would overwrite customer PDFs
+    if (process.env.STATUS !== 'production') {
+        console.log(`Skipping Azure upload of MNT-${cert.certificate_id}.pdf outside production`);
+        return;
+    }
+    await pdf.uploadPdfToAzure(bytes, `MNT-${cert.certificate_id}.pdf`);
+}
+
+function syncImonnit(sensorId: number, cableId: number | null, calibrationDate: Date, dueDate: Date, certificateId: number) {
+    const parameters = {
+        'SensorID': sensorId,
+        'DateCertified': calibrationDate.toISOString(),
+        'CertificationExpirationDate': dueDate.toISOString(),
+        'CalibrationFacilityID': 5,
+        'CalibrationNumber': `MNT-${certificateId}`,
+        'CableID': cableId
+    } as any;
+    const params = new URLSearchParams();
+    for (const parameter in parameters) {
+        params.append(parameter, parameters[parameter]);
+    };
+    return monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateCreate/?${params.toString()}`);
+}
 
 const certificateRoutes = {
     getCalibrationsByMonth: (req: Request, res: Response) => {
@@ -25,8 +71,8 @@ const certificateRoutes = {
 
         certificate.getCalibrationsByDateRange(startDate, endDate)
             .then((result) => {
-                const data = removeDuplicateCertificates(result);
-                res.json(data);
+                // failures count every FAIL certificate, so they come from the raw rows, not the deduped set
+                res.json({ calibrations: removeDuplicateCertificates(result), failures: result.filter((r: any) => r.pass === false) });
             })
             .catch((err) => {
                 console.error(err);
@@ -50,13 +96,15 @@ const certificateRoutes = {
         const dueDate = req.query.due_date;
         const certificateNumber = req.query.certificate_number;
         const sensorId = req.query.sensor_id;
+        const cableId = req.query.cable_id;
+        const deviceString = cableId ? `cable_id=${cableId}` : `sensor_id=${sensorId}`
         if (process.env.STATUS === 'development') {
             res.json({ 'Result': `Failed: print disabled in test environment` });
             return;
         }
         let url = `http://localhost:4000/print-label/`;
 
-        fetch(`${url}?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}&sensor_id=${sensorId}`)
+        fetch(`${url}?calibration_date=${calibrationDate}&due_date=${dueDate}&certificate_number=${certificateNumber}&${deviceString}`)
             .then((response: any) => {
                 res.json({ 'Result': JSON.stringify(response) })
             })
@@ -67,46 +115,84 @@ const certificateRoutes = {
     },
     updateCertificateJson: (req: Request, res: Response) => {
         let certificateId = parseInt(req.query.certificate_id as string ?? "");
-        let certificateJson = req.query.certificate_json;
+        let certificateJson: any;
+        try {
+            certificateJson = JSON.parse(req.query.certificate_json as string ?? "");
+        } catch {
+            res.status(400).json({ error: `certificate_json is not valid JSON` });
+            return;
+        }
 
-        certificate.updateCertificateJson(certificateId, certificateJson)
-            .then((certificate) => {
-                res.json(certificate);
+        certificate.updateCertificateJson(certificateId, certificateJson, certificateJson.CS5 === 'PASS')
+            .then(async (updated) => {
+                await publishCertificate(updated);
+                res.json(updated);
             })
             .catch((err) => {
                 console.error(err);
                 res.status(500).json({ error: `Error updating certficate` });
             });
     },
-    generateCertificate: (req: Request, res: Response) => {
-        let certificateId = parseInt(req.query.certificate_id as string ?? "");
-        const upload = req.query.upload;
-        const print = req.query.print;
+    updateCertificatesJson: async (req: Request, res: Response) => {
+        const orderId = parseInt(req.query.order_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const certificateId = parseInt(req.query.certificate_id as string ?? "");
 
-        certificate.getCertficateById(certificateId)
-            .then(async (certificate) => {
-                const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
+        let edits: any;
+        try {
+            edits = JSON.parse(req.query.certificate_json as string ?? "");
+        } catch {
+            res.status(400).json({ error: `Certificate changes are not valid JSON` });
+            return;
+        }
+        if (!orderId) {
+            res.status(400).json({ error: `Order number is required` });
+            return;
+        }
+        if (!edits || typeof edits !== 'object' || Array.isArray(edits) || Object.values(edits).some((v) => typeof v !== 'string')) {
+            res.status(400).json({ error: `Certificate changes must be an object of text values` });
+            return;
+        }
+        for (const dateKey of ['CS1', 'CS2']) {
+            if (dateKey in edits && isNaN(new Date(edits[dateKey]).getTime())) {
+                res.status(400).json({ error: `${dateKey} must be a date like 1/31/2026` });
+                return;
+            }
+        }
 
-                const bytes = await pdf.fillCertificate(certificate.template, certificateJson);
-                if (upload && process.env.STATUS === 'production') {
-                    pdf.uploadPdfToAzure(bytes, `MNT-${certificate.certificate_id}.pdf`)
-                        .catch((err: any) => {
-                            console.error("Error uploading PDF:", err);
-                            res.status(500).json({ error: "Error uploading PDF" })
-                        });
-                }
-                if (print) {
-                    pdf.printPdf(bytes);
-                }
-                res.setHeader("Content-Disposition", `attachment; filename=MNT-${certificateId}.pdf`);
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(Buffer.from(await bytes.bytes()));
-            })
-            .catch((err) => {
-                console.error(err);
-                res.status(500).json({ error: "An error occurred while processing the PDF." });
-            })
+        try {
+            let targets = await certificate.getCertificatesByOrderId(orderId);
+            if (batchId)
+                targets = targets.filter((c) => c.batch_id === batchId);
+            if (certificateId)
+                targets = targets.filter((c) => c.certificate_id === certificateId);
+            if (targets.length === 0) {
+                res.status(400).json({ error: `No certificates found for order ${orderId}${batchId ? ` batch ${batchId}` : ''}${certificateId ? ` certificate MNT-${certificateId}` : ''}` });
+                return;
+            }
 
+            // Only existing fields: a key the PDF template lacks makes fillCertificate throw
+            const unknownKeys = Object.keys(edits).filter((key) => targets.some((c) => !(key in c.generate_certificate_json)));
+            if (unknownKeys.length > 0) {
+                res.status(400).json({ error: `Unknown certificate fields: ${unknownKeys.join(', ')}` });
+                return;
+            }
+
+            const datesChanged = 'CS1' in edits || 'CS2' in edits;
+            // shortcut: per-row updates with no transaction, a mid-loop failure leaves earlier certificates edited; add a transaction if orders get large
+            const updated = await Promise.all(targets.map(async (target) => {
+                const merged = { ...target.generate_certificate_json, ...edits };
+                const cert = await certificate.updateCertificateJson(target.certificate_id, merged, merged.CS5 === 'PASS');
+                await publishCertificate(cert);
+                if (datesChanged)
+                    await syncImonnit(target.sensor_id, target.cable_id, new Date(merged.CS1), new Date(merged.CS2), cert.certificate_id);
+                return cert;
+            }));
+            res.json(updated);
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: `Error updating certificates` });
+        }
     },
     generateOrderCertificates: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
@@ -115,15 +201,14 @@ const certificateRoutes = {
         certificate.getCertificatesByOrderId(orderId)
             .then(async (certificates) => {
                 if (certificates.length == 0) {
-                    return res.status(404).json({ error: `No certificates found under order id ${orderId}` });
+                    return res.status(500).json({ error: `No certificates found under order id ${orderId}` });
                 }
+
+                certificates = certificates.sort((a, b) => a.certificate_id - b.certificate_id)
 
                 let merger = new PDFMerger()
                 for (const certificate of certificates) {
-                    const certificateJson = { ...{ 'CertNumber': `MNT-${certificate.certificate_id}` }, ...certificate.generate_certificate_json };
-                    const bytes = await pdf.fillCertificate(certificate.template, certificateJson);
-                    fs.writeFileSync('fileOutputs/certificate.pdf', await bytes.bytes());
-                    await merger.add('fileOutputs/certificate.pdf');
+                    await merger.add(await renderCertificate(certificate));
                 }
                 const finalCertificates = await merger.saveAsBuffer();
 
@@ -132,7 +217,7 @@ const certificateRoutes = {
                         pdf.printPdf(finalCertificates);
                     }
                     res.setHeader("Content-Disposition", `attachment; filename=${certificates[0].customer_order_number}Certificates.pdf`);
-                    res.setHeader("Content-Type", "application/json; charset=utf-8");
+                    res.setHeader("Content-Type", "application/pdf");
                     res.end(Buffer.from(finalCertificates));
                 } catch (error) {
                     console.error("Error occurred:", error);
@@ -144,39 +229,59 @@ const certificateRoutes = {
                 res.status(500).json({ error: "An error occurred while processing the PDF." });
             })
     },
-    createCertificate: async (req: Request, res: Response) => {
+    createCertificates: async (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
+        const sensorId = parseInt(req.query.sensor_id as string ?? "")
 
         try {
-            let sensors = await sensor.getSensorByOrderId(orderId);
+            // Spares only get a certificate once promoted into the batch
+            let sensors = (await sensor.getSensorByOrderId(orderId)).filter((s) => !s.spare);
+            if (sensorId)
+                sensors = sensors.filter((s) => s.sensor_id === sensorId);
+
             let thisOrder = await order.getOrderById(orderId);
             let customer = await misc.getCustomerById(thisOrder.customer_id);
             let batches = await batch.getBatchesByOrderId(orderId)
-            let equip = await equipment.getEquipment();
-            let certificates = await Promise.all(sensors.map((s) => {
-                return reading.getReadingsBySensorId(s.sensor_id)
-                    .then((readings) => {
+            let calibrationProcedureObjects = await misc.getCalibrationProcedures()
+            const equip = await equipment.getEquipment(true)
+
+            // Pass 1 builds every payload, so a sensor without readings fails before anything is saved or sent to iMonnit
+            const payloads = await Promise.all(sensors.map((s) => {
+                return reading.getReadingsBySensorId(s.sensor_id, s.batch_id)
+                    .then(async (readings) => {
                         if (readings.length === 0) {
                             throw new Error(`Could not find readings for sensor ${s.sensor_id}`)
                         }
                         let batch = batches.find((b) => b.batch_id == s.batch_id)
+                        const calibrationProcedure = calibrationProcedureObjects.filter((p) => p.calibration_procedure_id === batch.calibration_procedure_id)[0] as any;
+
+                        readings = filterReadings(readings, calibrationProcedure.set_points)
+                        const temperatureReadings = readings.map(r => r.temperatureReading)
+
                         const today = new Date();
                         const date = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
-                        const calibrationDate = readings[0].timestamp;
+                        const calibrationDate = temperatureReadings[0].timestamp;
+                        let sku = s.sku;
+                        let deviceId = s.sensor_id
+
+                        if (s.cable_id) {
+                            sku = s.cable_sku;
+                            deviceId = s.cable_id;
+                        }
 
                         let certificateJson = {
                             'C1': customer.name,
                             'C2': `${customer.address_line_1}, ${customer.address_line_2}`,
                             'C3': `${customer.city}, ${customer.state} ${customer.zip_code}`,
                             'D1': 'Manufacturer: Monnit Corp',
-                            'D2': `Model: ${s.sku}`,
-                            'D3': `Identifier/Serial: ${s.sensor_id}`,
+                            'D2': `Model: ${sku}`,
+                            'D3': `Identifier/Serial: ${deviceId}`,
                             'D4': 'Condition: Functional',
                             'CS1': parseDataBaseDate(calibrationDate),
                             'CS3': JSON.stringify(batch.calibration_procedure_id),
-                            'CS4': `${readings[0].lab_rh}% RH @ ${readings[0].lab_temperature}°C`,
-                            'TechName': 'Colton Robinson',
-                            'AuthName': 'Kelly S Lewis',
+                            'CS4': `${temperatureReadings[0].lab_rh}% RH @ ${temperatureReadings[0].lab_temperature}°C`,
+                            'TechName': sillyConfig.certificateSignatures.technician.name,
+                            'AuthName': sillyConfig.certificateSignatures.authorizer.name,
                             'Date': date,
                         }
 
@@ -186,26 +291,27 @@ const certificateRoutes = {
 
                         switch (batch.calibration_procedure_id) {
                             case 1:
-                                cpJson = calibrationProcedures.cp1(readings, equip)
+                                cpJson = calibrationProcedures.cp1(temperatureReadings, equip)
                                 break;
                             case 2:
-                                cpJson = calibrationProcedures.cp2(readings, equip)
+                                cpJson = calibrationProcedures.cp2(temperatureReadings, equip)
                                 break;
                             case 3:
+                                template = 'humidityCertificate.pdf'
                                 cpJson = calibrationProcedures.cp3(readings, equip)
                                 break;
                             case 4:
-                                cpJson = calibrationProcedures.cp4(readings, equip)
+                                cpJson = calibrationProcedures.cp4(temperatureReadings, equip)
                                 break;
                             case 5:
-                                cpJson = calibrationProcedures.cp5(readings, equip)
+                                cpJson = calibrationProcedures.cp5(temperatureReadings, equip)
                                 break;
                             case 6:
-                                cpJson = calibrationProcedures.cp6(readings, equip)
+                                cpJson = calibrationProcedures.cp6(temperatureReadings, equip)
                                 break;
                             case 7:
                                 template = 'temperature8SetPoints1Reference.pdf'
-                                cpJson = calibrationProcedures.cp7(readings, equip)
+                                cpJson = calibrationProcedures.cp7(temperatureReadings, equip)
                                 break;
                             case 8:
                                 template = 'temperature8SetPoints1Reference.pdf'
@@ -214,66 +320,31 @@ const certificateRoutes = {
                             default:
                                 throw new Error("Invalid calibration procedure")
                         }
-                        return { template, ...certificateJson, ...cpJson };
-                    })
-                    .then(async (certificateJson) => {
-                        let sensorId = s.sensor_id;
-                        let { template, calibrationDate, dueDate } = certificateJson;
 
-                        delete certificateJson.template;
-                        delete certificateJson.calibrationDate;
-                        delete certificateJson.dueDate;
 
-                        let cert = await certificate.createCertificate(certificateJson, template, sensorId)
-                        let url = `https://www.imonnit.com/json/CalibrationCertificateCreate/`;
-                        const parameters = {
-                            'SensorID': sensorId,
-                            'DateCertified': calibrationDate,
-                            'CertificationExpirationDate': dueDate,
-                            'CalibrationFacilityID': 5,
-                            'CalibrationNumber': `MNT-${cert.certificate_id}`,
-                        } as any;
-                        const params = new URLSearchParams();
-                        for (const parameter in parameters) {
-                            params.append(parameter, parameters[parameter]);
-                        };
-                        await monnitFetch(`${url}?${params.toString()}`)
-                        return cert
+                        let { dueDate } = { ...cpJson };
+                        const pass = cpJson.CS5 === 'PASS'
+
+                        delete cpJson.dueDate;
+                        return { s, certificateJson: { ...certificateJson, ...cpJson }, template, pass, calibrationDate, dueDate }
                     })
             }))
-            await Promise.all(sensors.map((s) => {
-                const sensorId = s.sensor_id;
-                const checkDigit = s.check_digit
 
-                let url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
-                const parameters = {
-                    'SensorID': sensorId,
-                    'CheckDigit': checkDigit,
-                    'reportInterval': 120,
-                    'activeStateInterval': 120,
-                } as any;
+            const certificates = await Promise.all(payloads.map(async (p) => {
+                const cert = await certificate.createCertificate(p.certificateJson, p.template, p.s.sensor_id, p.pass, p.s.batch_id, p.s.cable_id ?? null, p.s.cable_sku ?? null)
+                await publishCertificate(cert)
+                await syncImonnit(p.s.sensor_id, p.s.cable_id, p.calibrationDate, p.dueDate, cert.certificate_id)
+                return cert
+            }))
+            res.status(200).json(certificates);
 
-                const params = new URLSearchParams();
-                for (const parameter in parameters) {
-                    params.append(parameter, parameters[parameter]);
-                };
-                return monnitFetch(`${url}?${params.toString()}`)
-                    .then(() => {
-                        url = `https://www.imonnit.com/json/RemoveSensor/`;
-                        return monnitFetch(`${url}?${params.toString()}`)
-                    })
-                    .then((response) => {
-                        res.json(response)
-                    })
-                    .catch((err) => {
-                        console.error(err);
-                        res.status(500).json({ error: "Error removing sensor." })
-                    })
-            }));
-            res.json(certificates);
         } catch (err) {
             console.error(err);
-            res.status(500).json({ error: `Error creating certificate` });
+
+            if (err instanceof TypeError)
+                res.status(500).json({ error: `Not enough readings to generate certificate` })
+            else
+                res.status(500).json({ error: `Error creating sensor certificates` })
         }
     },
 };

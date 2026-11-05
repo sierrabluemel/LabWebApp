@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Technician Portal",
+  "name": "Sensor Calibrations Technician Portal",
   "icons": [
     {
       "src": "favicon.ico",

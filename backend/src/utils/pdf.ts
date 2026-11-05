@@ -2,6 +2,7 @@ import fs from 'fs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import qrcode from 'qrcode'
 import { BlobServiceClient } from '@azure/storage-blob';
+const sillyConfig = require('../../config.json');
 
 const pdf = {
     fillForm: async (template: string, fields: string[]) => {
@@ -17,15 +18,15 @@ const pdf = {
         const filledPdfBytes = await pdfDoc.save();
         return filledPdfBytes;
     },
-    fillCertificate: async (template: string, fields: any) => {
+    fillCertificate: async (template: string, fields: any, pass: boolean = true) => {
         const pdfBytes = fs.readFileSync(`templates/${template}`);
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const form = pdfDoc.getForm();
 
         const page = pdfDoc.getPage(0);
-        let technicianSignature = fs.readFileSync(`templates/signatures/Colton Signature.png`) as any;
+        let technicianSignature = fs.readFileSync(`templates/signatures/${sillyConfig.certificateSignatures.technician.signature}`) as any;
         technicianSignature = await pdfDoc.embedPng(technicianSignature);
-        let authorizorSignature = fs.readFileSync(`templates/signatures/Kelly Signature.png`) as any;
+        let authorizorSignature = fs.readFileSync(`templates/signatures/${sillyConfig.certificateSignatures.authorizer.signature}`) as any;
         authorizorSignature = await pdfDoc.embedPng(authorizorSignature);
         let qrCode = await qrcode.toBuffer(`https://sensorcalibrations.blob.core.windows.net/public-certificates/${fields.CertNumber}.pdf`) as any;
         qrCode = await pdfDoc.embedPng(qrCode);
@@ -52,11 +53,28 @@ const pdf = {
             const textField = form.getTextField(field);
             textField.setText(fields[field]);
         }
+
+        if (!pass) {
+            page.drawRectangle({
+                x: 0,
+                y: 246,
+                width: 21,
+                height: 300,
+                color: rgb(0.8, 0, 0)
+            })
+            page.drawRectangle({
+                x: 590,
+                y: 246,
+                width: 22,
+                height: 300,
+                color: rgb(0.8, 0, 0)
+            })
+        }
         form.flatten();
-        const filledPdfBytes = await pdfDoc.save();
+        const filledPdfBytes: any = await pdfDoc.save();
         return new Blob([filledPdfBytes]);
     },
-    uploadPdfToAzure: async (pdfBytes: Blob, fileName: string) => {
+    uploadPdfToAzure: async (pdfBytes: ArrayBuffer, fileName: string) => {
 
         const connectionString = process.env.AZURE_CONNECTION_STRING ?? "";
         const containerName = "public-certificates";
@@ -69,7 +87,7 @@ const pdf = {
             blobHTTPHeaders: { blobContentType: "application/pdf" },
         });
     },
-    printPdf: (pdfBytes: Blob | Buffer) => {
+    printPdf: (pdfBytes: Blob | Buffer | any) => {
         fetch('http://localhost:4000/print-pdf/', {
             method: 'POST',
             body: pdfBytes,
@@ -129,10 +147,10 @@ const pdf = {
 
             const textArray = [
                 `MNT-${sensor.certificate_id}`,
-                JSON.stringify(sensor.sensor_id),
+                sensor.cable_id ? JSON.stringify(sensor.cable_id) : JSON.stringify(sensor.sensor_id),
                 sensor.generate_certificate_json.CS5,
                 sensor.manufacturer,
-                sensor.sku,
+                sensor.cable_sku ? sensor.cable_sku : sensor.sku,
                 sensor.customer_order_number,
                 JSON.stringify(sensor.calibration_procedure_id),
             ];

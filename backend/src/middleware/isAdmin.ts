@@ -2,12 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import misc from "../models/misc";
 
 const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-    misc.getTechnicianById(req.user.user_id)
+    // The JWT payload is the "user" row, so its key is id
+    misc.getTechnicianById(req.user.id)
         .then((result) => {
             if (result && result.admin)
                 next();
             else
-                res.status(500).json({ error: `Not a technician` });
+                res.status(403).json({ error: `Admin access required` });
         })
         .catch((err) => {
             console.error(err);

@@ -1,6 +1,6 @@
 import { pool } from "../utils/db";
 
-export function getCertificateInvoiceData(certificates: any[]) {
+export function getCertificateInvoiceData(certificates: any[], calibrationProcedures: any[]) {
     const prodecureData = {
         passed: 0,
         failed: 0,
@@ -11,9 +11,9 @@ export function getCertificateInvoiceData(certificates: any[]) {
         calibration_procedure_3_no_lead: JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
     } as any
 
-    for (let i = 1; i <= 6; i++) {
-        invoiceData[`calibration_procedure_${i}`] = JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
-    }
+    calibrationProcedures.map((calibrationProcedure, index) => {
+        invoiceData[`calibration_procedure_${index+1}`] = JSON.parse(JSON.stringify(prodecureData)) // Create deep copy of procedureData
+    })
 
     for (const certificate of certificates) {
         invoiceData.tos.add(certificate.customer_order_number)

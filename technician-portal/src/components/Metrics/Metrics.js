@@ -1,30 +1,39 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-loop-func */
-import React, { useState, useEffect, useRef } from 'react';
-import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { useState, useEffect, useRef } from 'react';
+import { Chart, CategoryScale, LinearScale, BarElement, LineController, LineElement, PointElement, Title, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar } from 'react-chartjs-2';
 import styles from "../../styles/styles.module.css";
 import callApi from '../../utils/api/callApi';
 import addWorkDays from '../../utils/addWorkDays';
+import { useAppContext } from '../../contexts/app';
 
 Chart.register(
-	CategoryScale, LinearScale, BarElement,
+	CategoryScale, LinearScale, BarElement, LineController, LineElement, PointElement,
 	Title, Tooltip, Legend, ChartDataLabels
 );
 
+// calibrated matches --primary, failures is the saturated twin of --cal-1, rate stays neutral so it doesn't compete with the bars
+const COLORS = { calibrated: '#3b6ea5', failures: '#d9636e', rate: '#333' };
+// saturated twins of the --cal-1..8 CP badge colors, indexed by calibration_procedure_id - 1
+const PROCEDURE_COLORS = ['#d9636e', '#4f86c6', '#d9b13b', '#d98b5f', '#4fa872', '#8a6fbf', '#3fa3ad', '#c96a9e'];
+
 function Metrics() {
 	const today = new Date();
-	const [totalSensors, setTotalSensors] = useState([]);
 	const calibrationProcedures = useRef([]);
-	const [datasets, setDataSets] = useState([]);
-	const [totalDataSets, setTotalDataSets] = useState([]);
+	const [charts, setCharts] = useState(null); // { calibrated: { total, byProcedure }, failures: { total, byProcedure } }
+	const [view, setView] = useState('total');
 	const [activeSensors, setActiveSensors] = useState(0);
-	const [nextOrderDue, setNextOrderDue] = useState(<></>);
+	const [nextOrderDue, setNextOrderDue] = useState({});
+	const [nextOrderDueClass, setNextOrderDueClass] = useState('');
 	const [bestMonth, setBestMonth] = useState('');
 	const [bestMonthTotal, setBestMonthTotal] = useState(0);
 	const [sensorsInReceiving, setSensorsInReceiving] = useState(0);
 	const [sensorsInShipping, setSensorsInShipping] = useState(0);
+	const isMounted = useRef(false);
+
+	const { setEquipmentList } = useAppContext()
 
 	const monthNames = [
 		"January", "February", "March", "April", "May", "June", "July",
@@ -32,6 +41,15 @@ function Metrics() {
 	];
 
 	useEffect(() => {
+		if (isMounted.current)
+			return
+
+		callApi('get-equipment')
+			.then(equipment => {
+				setEquipmentList(equipment);
+			})
+
+		isMounted.current = true;
 		const today = new Date()
 
 		const fetchData = async () => {
@@ -52,7 +70,7 @@ function Metrics() {
 						}
 						let sensorDue;
 						sensor.expedited ? sensorDue = addWorkDays(new Date(sensor.received_timestamp), 2) :
-						sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
+							sensorDue = addWorkDays(new Date(sensor.received_timestamp), 7);
 
 						if (!dueDate || sensorDue < dueDate) {
 							dueDate = sensorDue;
@@ -60,26 +78,19 @@ function Metrics() {
 						}
 					}
 					let spanClass;
-					if (today > dueDate) {
-						spanClass = styles.red;
+					if (addWorkDays(today, 0) > dueDate) {
+						spanClass = styles.soft_bad;
 					} else if (addWorkDays(new Date(), 3) < dueDate) {
-						spanClass = styles.green;
+						spanClass = styles.soft_good;
 					} else {
-						spanClass = styles.yellow;
+						spanClass = styles.soft_warn;
 					}
-					setNextOrderDue(
-						<>
-							<span className={`${spanClass}`}>
-								{dueDate.getMonth() + 1}/{dueDate.getDate()}/{dueDate.getFullYear()}
-							</span>
-							({orderDue})
-						</>
-					);
+					setNextOrderDue({ date: `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`, order: orderDue });
+					setNextOrderDueClass(spanClass);
 					setSensorsInReceiving(sensorsToTest);
 					setSensorsInShipping(sensorsToShip);
 				})
 
-			const colors = ['#FF000095', '#0000FF95', '#FFFF0095', '#FF000095', '#FFFF0095', '#08afe695']
 			const promises = [];
 			calibrationProcedures.current = await callApi('get-calibration-procedures')
 			if (!Array.isArray(calibrationProcedures.current)) {
@@ -87,179 +98,131 @@ function Metrics() {
 			}
 			let topMonth;
 			let topMonthTotal;
+			// [...count per procedure, total]
+			const countByProcedure = (list) => [
+				...calibrationProcedures.current.map(cp => list.filter(c => c.calibration_procedure_id === cp.calibration_procedure_id).length),
+				list.length
+			];
 			for (let i = 5; i >= 0; i--) {
 				const startDate = new Date(today.getFullYear(), today.getMonth() - i, 1)
 				const promise = callApi('get-calibrations-by-month', { start_date: startDate })
 					.then(response => {
-						if (!topMonthTotal || topMonthTotal < response.length) {
-							topMonthTotal = response.length;
+						const calibrations = response.calibrations ?? [];
+						if (!topMonthTotal || topMonthTotal < calibrations.length) {
+							topMonthTotal = calibrations.length;
 							topMonth = monthNames[today.getMonth() - i];
 						}
-						let calibrationProcedureTotals = []
-						for (const calibrationProcedure of calibrationProcedures.current) {
-							try {
-								calibrationProcedureTotals.push(response.filter(calibrationList => calibrationList.calibration_procedure_id === calibrationProcedure.calibration_procedure_id).length)
-							} catch (error) {
-								continue
-							}
-						}
-						calibrationProcedureTotals.push(response.length)
-						return calibrationProcedureTotals;
+						const calibrated = countByProcedure(calibrations), failures = countByProcedure(response.failures ?? []);
+						// failures per 100 calibrated sensor-days; a sensor failing twice in a day counts twice
+						return { calibrated, failures, rate: calibrated.map((c, i) => c ? Math.round(100 * failures[i] / c) : 0) };
 					});
 				promises.push(promise);
 			}
-			const sensorsData = await Promise.all(promises);
+			const monthsData = await Promise.all(promises);
 
 			setBestMonth(topMonth);
 			setBestMonthTotal(topMonthTotal)
 
-			const newDatasets = [];
-			for (let i = 0; i < sensorsData[0].length; i++) {
-				if (i === sensorsData[0].length - 1) {
-					setTotalDataSets([{
-						label: 'Total sensors',
-						data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i], sensorsData[3][i], sensorsData[4][i], sensorsData[5][i]],
-						backgroundColor: colors[5],
-						borderColor: '#333',
-						borderWidth: 1,
-						hoverBorderWidth: 2,
-						borderRadius: 2,
-					}])
-				} else {
-					newDatasets.push(
-						{
-							label: `CP ${i + 1}: ${calibrationProcedures.current[i].calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', '')}`,
-							data: [sensorsData[0][i], sensorsData[1][i], sensorsData[2][i], sensorsData[3][i], sensorsData[4][i], sensorsData[5][i]],
-							backgroundColor: colors[i],
-							borderColor: '#333',
-							borderWidth: 1,
-							hoverBorderWidth: 2,
-							borderRadius: 2,
-						}
-					)
-				}
-			}
-			setDataSets(newDatasets);
-			setTotalSensors(sensorsData);
+			// monthsData[m][key] is [...per procedure, total]. Total view: one series per month. By procedure: one series per procedure, still by month.
+			const totalIndex = calibrationProcedures.current.length;
+			const byProcedure = (key) => calibrationProcedures.current.map((cp, i) => ({
+				label: `CP ${cp.calibration_procedure_id}`, // short so eight legend entries fit on one line; the full name shows in the tooltip
+				fullName: cp.calibration_procedure.replace(', 3-Set Points', '').replace('Monnit ', ''),
+				data: monthsData.map(m => m[key][i]),
+				backgroundColor: PROCEDURE_COLORS[(cp.calibration_procedure_id - 1) % PROCEDURE_COLORS.length],
+				// wider bars than chart.js defaults (0.9 / 0.8) so the value labels fit with 8 bars per month
+				barPercentage: 1, categoryPercentage: 0.95,
+			}));
+			setCharts({
+				labels: [5, 4, 3, 2, 1, 0].map(i => monthNames[new Date(today.getFullYear(), today.getMonth() - i, 1).getMonth()].slice(0, 3)),
+				total: {
+					calibrated: monthsData.map(m => m.calibrated[totalIndex]),
+					failures: monthsData.map(m => m.failures[totalIndex]),
+					rate: monthsData.map(m => m.rate[totalIndex]),
+				},
+				byProcedure: { calibrated: byProcedure('calibrated'), failures: byProcedure('failures') },
+			});
 		};
 
-		if (totalSensors.length === 0) {
-			fetchData();
-		}
-	}, [datasets, monthNames, totalSensors]);
+		fetchData();
+	}, []);
 
-	const byProcedureOptions = {
-		responsive: true,
-		maintainAspectRatio: false,
-		plugins: {
-			datalabels: {
-				anchor: 'end',
-				align: 'top',
-				offset: -5,
-				formatter: function (value) {
-					return value > 0 ? value : ''
-				},
-			},
-			legend: {
-				display: false,
-			},
-			title: {
-				display: true,
-				text: 'Sensors Calibrated By Procedure',
-			},
-		},
-	};
-
-	const totalOptions = JSON.parse(JSON.stringify(byProcedureOptions)); // Deep copy byProcedureOptions
-
-	totalOptions.plugins.title.text = 'Total Sensors Calibrated';
-
-	const labels = [
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 5, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 4, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 3, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 2, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth() - 1, 1).getMonth()],
-		monthNames[new Date(today.getFullYear(), today.getMonth(), 1).getMonth()]
-	]
-
-	const byProcedure6MonthData = {
-		labels,
-		datasets: datasets,
-	}
-
-	const total6MonthData = {
-		labels,
-		datasets: totalDataSets,
-	}
-
-	if (totalDataSets.length === 0) {
+	if (!charts) {
 		return (
 			<>
-				<br />
-				<br />
 				<h1 className={styles.title}>Loading...</h1>
 			</>
 		)
 	}
+
+	const barStyle = { borderColor: '#333', borderWidth: 1, hoverBorderWidth: 2, borderRadius: 2 };
+	const chartOptions = (title, legend, extraScales = {}) => ({
+		responsive: true,
+		maintainAspectRatio: false,
+		scales: { y: { beginAtZero: true }, ...extraScales },
+		plugins: {
+			datalabels: { anchor: 'end', align: 'top', offset: -5, formatter: value => value > 0 ? value : '' },
+			legend: { display: legend, position: 'bottom' },
+			title: { display: true, text: title },
+			tooltip: { callbacks: { label: item => `${item.dataset.fullName ?? item.dataset.label}: ${item.formattedValue}` } },
+		},
+	});
+
+	// Total view: calibrated and failure bars side by side, failure rate as a line on a right-hand percent axis
+	const totalDatasets = [
+		{ ...barStyle, label: 'Total sensors', data: charts.total.calibrated, backgroundColor: COLORS.calibrated, order: 1 }, // order 1 draws under the line
+		{ ...barStyle, label: 'Total failures', data: charts.total.failures, backgroundColor: COLORS.failures, order: 1 },
+		{
+			label: 'Failure rate', data: charts.total.rate, type: 'line', yAxisID: 'y1', order: 0,
+			borderColor: COLORS.rate, backgroundColor: COLORS.rate, borderWidth: 2, tension: 0.3, pointRadius: 4,
+			datalabels: {
+				color: '#fff', backgroundColor: COLORS.rate, borderRadius: 3, padding: { top: 2, bottom: 1, left: 4, right: 4 },
+				font: { weight: 'bold' }, offset: 4, formatter: v => v + '%',
+			},
+		},
+	];
+	const totalOptions = chartOptions('Calibrations and failures by month', true, {
+		y1: { position: 'right', beginAtZero: true, grace: '25%', grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } },
+	});
+	const byProcedureDatasets = (key) => charts.byProcedure[key].map(d => ({ ...barStyle, ...d }));
 
 	return (
 		<div data-testid='graphs'>
 			<script src="chartjs-plugin-datalabels.js"></script>
 			<div className={styles.graph_grid}>
 				<div className={styles.metrics_header}>
-					<div className={styles.metrics_text_grid}>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Best month:</div>
-								<div className={styles.float_right}>{bestMonth} ({bestMonthTotal})</div>
+					<div className={styles.kpi_grid}>
+						{[
+							['Best month', `${bestMonth} (${bestMonthTotal})`],
+							[nextOrderDue.order ? `Next order due (${nextOrderDue.order})` : 'Next order due', nextOrderDue.date, nextOrderDueClass],
+							['Sensors in lab', activeSensors],
+							['Ready to calibrate', sensorsInReceiving],
+							['In progress', activeSensors - sensorsInReceiving - sensorsInShipping || 0],
+							['Ready to ship', sensorsInShipping],
+						].map(([label, value, statusClass = '']) => (
+							<div className={`${styles.kpi_tile} ${statusClass}`} key={label}>
+								<div className={styles.kpi_label}>{label}</div>
+								<div className={styles.kpi_value}>{value}</div>
 							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Next order due:</div>
-								<div className={styles.float_right}>{nextOrderDue}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors in lab:</div>
-								<div className={styles.float_right}>{activeSensors}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors ready to calibrate:</div>
-								<div className={styles.float_right}>{sensorsInReceiving}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors in progress:</div>
-								<div className={styles.float_right}>{activeSensors - sensorsInReceiving - sensorsInShipping || 0}</div>
-							</div>
-						</h3>
-
-						<h3 className={styles.default_text}>
-							<div className={styles.metrics_text_container}>
-								<div className={styles.float_left}>Sensors ready to ship:</div>
-								<div className={styles.float_right}>{sensorsInShipping}</div>
-							</div>
-						</h3>
-
+						))}
 					</div>
 				</div>
-				<div className={styles.graph_tile}>
-					<Bar options={byProcedureOptions} data={byProcedure6MonthData} />
+				<div className={styles.graph_toggle} role='group' aria-label='Graph view'>
+					{[['total', 'Total'], ['byProcedure', 'By procedure']].map(([key, label]) =>
+						<button key={key} aria-pressed={view === key} onClick={() => setView(key)}>{label}</button>)}
 				</div>
-				<div className={styles.graph_tile}>
-					<Bar options={totalOptions} data={total6MonthData} />
-				</div>
+				{view === 'total' ?
+					<div className={styles.graph_tile}>
+						<Bar options={totalOptions} data={{ labels: charts.labels, datasets: totalDatasets }} />
+					</div>
+					: <>
+						<div className={`${styles.graph_tile} ${styles.graph_tile_half}`}>
+							<Bar options={chartOptions('Sensors calibrated by procedure', false)} data={{ labels: charts.labels, datasets: byProcedureDatasets('calibrated') }} />
+						</div>
+						<div className={`${styles.graph_tile} ${styles.graph_tile_half}`}>
+							<Bar options={chartOptions('Failures by procedure', true)} data={{ labels: charts.labels, datasets: byProcedureDatasets('failures') }} />
+						</div>
+					</>}
 			</div>
 		</div>
 	);

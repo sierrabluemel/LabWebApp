@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 import { AppWrapper } from './contexts/app';
 
@@ -14,19 +14,19 @@ import Metrics from './components/Metrics/Metrics';
 import NavigationMenu from './components/NavigationMenu.js/NavigationMenu.js';
 import OrderEntry from './components/OrderEntry/OrderEntry';
 import PageNotFound from './components/PageNotFound/PageNotFound';
-import Receiving from './components/Receiving/Receiving';
 import SalesOrderForm from './components/SalesOrderForm/SalesOrderForm';
 import Shipping from './components/Shipping/Shipping';
 import SignInMenu from './components/SignInMenu/SignInMenu';
-import SearchMenu from './components/SearchMenu/SearchMenu.js';
 
 import styles from './styles/styles.module.css';
 import Admin from './components/Admin/Admin.js';
+import SearchResults from './components/SearchResults/SearchResults.js';
 
 function App() {
   const [salesOrder, setSalesOrder] = useState('');
-  const [technicianId, setTechnicianId] = useState(0);
-  const [technician, setTechnician] = useState({});
+  // Read the saved user up front so a refresh on /admin doesn't bounce home before Header runs
+  const [technician, setTechnician] = useState(() => JSON.parse(localStorage.getItem('user')) ?? {});
+  const [technicianId, setTechnicianId] = useState(technician.technician_id ?? 0);
   const [batchNumber, setBatchNumber] = useState('');
   const [sensorList, setSensorList] = useState([]);
   const [procedureId, setProcedureId] = useState(0);
@@ -36,14 +36,19 @@ function App() {
   const [orderNumber, setOrderNumber] = useState('');
   const [batches, setBatches] = useState([]);
   const [sensorGrid, setSensorGrid] = useState([]);
-  const [expedited, setExpedited] = useState(false)
+  const [expedited, setExpedited] = useState(false);
+  const [searchSelection, setSearchSelection] = useState(null)
+  const variances = useRef([]);
   const equipment = useRef({});
-  const equipmentList = useRef([]);
+  const [labReadings, setLabReadings] = useState({})
+  const [equipmentList, setEquipmentList] = useState([]);
+  const [customerOrderNumber, setCustomerOrderNumber] = useState(null);
+  const [notifications, setNotifications] = useState([]);
 
   const banner = process.env.REACT_APP_STATUS !== 'production' && <div className={styles.dev_banner}>Development Environment</div>
 
   return (
-    <div className={styles.App}>
+    <div className={`${styles.App} ${banner ? styles.has_banner : ''}`}>
       <meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
       <AppWrapper
         sharedState={{
@@ -60,7 +65,12 @@ function App() {
           orderNumber, setOrderNumber,
           batches, setBatches,
           expedited, setExpedited,
-          equipment, equipmentList
+          equipmentList, setEquipmentList,
+          labReadings, setLabReadings,
+          searchSelection, setSearchSelection,
+          customerOrderNumber, setCustomerOrderNumber,
+          variances, equipment,
+          notifications, setNotifications
         }}
       >
         <Router>
@@ -81,12 +91,12 @@ function App() {
                 <Route path='/metrics' element={<Metrics />} />
                 <Route path='/orderEntry' element={<OrderEntry />} />
 
-                <Route path='/receiving' element={<Receiving />} />
                 <Route path='/shipping' element={<Shipping />} />
-                <Route path='/search' element={<SearchMenu />} />
                 <Route path='/signIn' element={<SignInMenu />} />
 
-                <Route path='/Admin' element={<Admin />} />
+                <Route path='/admin' element={technician.admin ? <Admin /> : <Navigate to='/' replace />} />
+
+                <Route path='/search' element={<SearchResults />} />
 
                 <Route path='*' element={<PageNotFound />} />
               </Routes>

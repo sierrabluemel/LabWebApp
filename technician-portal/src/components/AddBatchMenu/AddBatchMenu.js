@@ -1,102 +1,144 @@
 import { useEffect, useRef, useState } from "react";
-
 import { useAppContext } from "../../contexts/app";
 import addSensor from "../../utils/addSensor";
 import parseSensorString from "../../utils/parseSensorString";
 import callApi from "../../utils/api/callApi";
 import ScannedSensors from "../ScannedSensors/ScannedSensors";
-import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
 
 import styles from "../../styles/styles.module.css";
+import LocationPicker from "../LocationPicker/LocationPicker";
+import binClass from "../../utils/binClass";
+import Button from "../Button/Button";
+import ConfirmationPopup from "../ConfirmationPopup/ConfirmationPopup";
 
-function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches }) {
-    const { setPopupMessage, technicianId } = useAppContext();
+function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId, preload = false, hideCancel = false }) {
+    const { setPopupMessage } = useAppContext();
 
     const [addedSensors, setAddedSensors] = useState([]);
     const [sensors, setSensors] = useState([]);
-    const [sensor, setSensor] = useState('');
+    const [sensorString, setSensorString] = useState('');
     const [displayed, setDisplayed] = useState(true);
-    const [location, setLocation] = useState('');
     const [currentLocation, setCurrentLocation] = useState('No location set');
-    const [confirmationArray, setConfirmationArray] = useState(false);
-    const awaitingUpdate = useRef(false);
+    const [bin, setBin] = useState(null);
+    const [binString, setBinString] = useState('');
+    const [cancelling, setCancelling] = useState(false);
+    const [spareMode, setSpareMode] = useState(false);
+    const [removeConfirmation, setRemoveConfirmation] = useState([]);
+    const sensorToRemove = useRef(null);
+    const spareCount = sensors.filter(s => s.spare).length;
+    const summary = `Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length - spareCount}${spareCount ? ` | Spares: ${spareCount}` : ''}`;
+
+    // Editing an existing batch: show the sensors and location it already has
+    useEffect(() => {
+        if (!preload)
+            return;
+        callApi('get-sensors', { batch_id: batchNumber })
+            .then(existing => {
+                setSensors(existing.map(s => ({ sensor: `${s.sensor_id}:${s.check_digit}`, online: false, cable_id: s.cable_id, spare: s.spare })));
+                setAddedSensors(existing.map(s => s.sensor_id));
+            })
+            .catch(err => console.error(err))
+        callApi('get-batch-by-id', { batch_id: batchNumber })
+            .then(batch => {
+                setCurrentLocation(batch?.current_location ?? 'No location set');
+                setBin(batch?.bin ?? null);
+            })
+            .catch(err => console.error(err))
+    }, [preload, batchNumber]);
+
+    // The bin label is QR scanned: the scanner types it and presses Enter
+    const handleSetBin = (event) => {
+        event.preventDefault();
+        if (!binString)
+            return;
+        callApi('set-batch-bin', { batch_id: batchNumber, bin: binString })
+            .then(() => {
+                setBin(binString);
+                setBinString('');
+            })
+            .catch(err => {
+                setPopupMessage(err.response?.data?.error ?? `Could not set bin for batch ${batchNumber}`);
+                console.error(err);
+            })
+    }
 
     const handleAddSensor = (event) => {
         event.preventDefault();
-        if (!technicianId) {
-            setPopupMessage('Please sign in');
-            return
-        }
-        if (!sensor)
+        if (!sensorString)
             return;
-        const [sensorID, checkDigit] = parseSensorString(sensor);
-        const sensorObject = { sensor: `${sensorID}:${checkDigit}`, online: false }
-
-        setSensor('');
-        if (addedSensors.includes(sensorID)) {
-            setPopupMessage(`Sensor "${sensorID}" is already in this batch`);
+        setSensorString('');
+        let sensorId, checkDigit;
+        try {
+            [sensorId, checkDigit] = parseSensorString(sensorString);
+        } catch (error) {
+            setPopupMessage(`"${sensorString}": ${error.message}`);
             return;
         }
+        const sensorObject = { sensor: `${sensorId}:${checkDigit}`, online: false, spare: spareMode }
 
-        setAddedSensors([...addedSensors, parseInt(sensorID)]);
-        addSensor(sensor, batchNumber)
+        if (addedSensors.includes(sensorId)) {
+            setPopupMessage(`Sensor "${sensorId}" is already in this batch`);
+            return;
+        }
+
+        setAddedSensors([...addedSensors, parseInt(sensorId)]);
+        addSensor(sensorString, batchNumber, spareMode)
             .then(sensorValid => {
                 if (!sensorValid) {
-                    setPopupMessage(`Sensor "${sensorID}" could not be added`);
-                    setSensors(sensors.filter(item => item !== sensorObject))
-                    setAddedSensors(addedSensors.filter(item => item !== sensorID))
+                    setPopupMessage(`Sensor "${sensorId}" could not be added`);
+                    setSensors(sensors.filter(item => JSON.stringify(item) !== JSON.stringify(sensorObject)))
+                    setAddedSensors(addedSensors.filter(item => parseInt(item) !== parseInt(sensorId)))
                 }
             })
         setSensors([...sensors, sensorObject]);
     }
 
-    const handleSetLocation = async (event) => {
-        if (!location) {
-            return;
-        }
-        event.preventDefault();
-        callApi('create-location-log', { 'location': location, 'batch_id': batchNumber })
-            .then((response) => {
-                setPopupMessage(`Batch moved to ${location}`);
-                setCurrentLocation(location);
-                setLocation('');
-                if (location.startsWith('T')) {
-                    callApi('log-batch-interaction', { department: 'testing', start: true, technician_id: technicianId, batch_id: batchNumber })
-                } else if (location.startsWith('R')) {
-                    callApi('log-batch-interaction', { department: 'receiving', start: false, technician_id: technicianId, batch_id: batchNumber })
-                }
-            })
-            .catch((error) => {
-                setPopupMessage('The batch was not moved successfully');
-                console.error(error)
-            })
+    const getAllLeads = async () => {
+        const noCable = [], failed = [];
+        let added = 0;
+        await Promise.all(sensors.map(sensor => {
+            const sensorId = sensor.sensor.split(':')[0];
+            return callApi('get-sensor-cable-id', { sensor_id: sensorId })
+                .then(() => added++)
+                .catch(err => {
+                    // backend answers 509 when iMonnit has no cable on the sensor
+                    if (err.response?.status === 509)
+                        noCable.push(sensorId);
+                    else {
+                        failed.push(sensorId);
+                        console.error(`Unable to automatically add cable to sensor ${sensorId}: ${err}`)
+                    }
+                })
+        }))
+        const lines = [`Leads added for ${added} of ${sensors.length} sensors`];
+        if (noCable.length) lines.push(`No cable on: ${noCable.join(', ')}`);
+        if (failed.length) lines.push(`Lookup failed: ${failed.join(', ')}`);
+        setPopupMessage(lines.join('. '))
     }
 
     const checkStatus = () => {
-        if (awaitingUpdate.current) {
-            return;
-        }
-        awaitingUpdate.current = true;
-        callApi('get-online-sensors')
+        callApi('get-online-sensors', { order_id: orderId })
             .then(response => {
                 for (const sensor of addedSensors) {
-                    if (!response.includes(sensor)) {
+                    if (!response.online_sensors.includes(sensor)) {
                         continue;
                     }
                     let newSensors = []
                     for (const sensorElement of sensors) {
-                        if (parseSensorString(sensorElement.sensor)[0] === sensor)
+                        if (parseSensorString(sensorElement.sensor)[0] === sensor) {
                             sensorElement.online = true;
-                        newSensors.push({ sensor: sensorElement.sensor, online: sensorElement.online });
+                            sensorElement.cable_id = response.order_sensors.filter(s => s.sensor_id === sensor)[0].cable_id
+                        }
+                        newSensors.push({ ...sensorElement });
                     }
                     setSensors(newSensors)
                 }
-                awaitingUpdate.current = false;
             })
             .catch(error => {
                 console.error(error);
             })
+
     }
 
     useEffect(() => {
@@ -104,13 +146,20 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
         return () => clearInterval(interval);
     })
 
-    const removeBatch = () => {
-        callApi('delete-batch', { batch_id: batchNumber })
-            .then(() => { })
+    const removeBatch = (force = false) => {
+        setCancelling(true);
+        Promise.all(addedSensors.map(sensorId => callApi('remove-sensor-from-batch', { sensor_id: sensorId, batch_id: batchNumber })))
+            .then(() => callApi('delete-batch', { batch_id: batchNumber, force }))
+            .then(() => setBatches(current => current.filter(batch => batch.batch_id !== batchNumber)))
             .catch(error => {
+                setCancelling(false);
+                const message = error.response?.data?.error ?? `Could not remove batch ${batchNumber}`;
+                if (error.response?.status === 409 && !force)
+                    setPopupMessage({ message, action: { label: 'Delete anyway', onClick: () => removeBatch(true) } });
+                else
+                    setPopupMessage(message);
                 console.error(error)
             })
-        setBatches(batches.length > 1 ? batches.filter(batch => batch.batch_id !== batchNumber) : []);
     }
 
     const printWorkOrder = () => {
@@ -118,27 +167,68 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, batches, setBatches
             .then(setPopupMessage(`Batch ${batchNumber} work order printed`))
     }
 
+    const requestRemove = (sensorObject) => {
+        sensorToRemove.current = sensorObject;
+        setRemoveConfirmation([`Remove sensor ${parseSensorString(sensorObject.sensor)[0]} from batch ${batchNumber}?`]);
+    }
+
+    // Same two calls as the testing page: reset the iMonnit heartbeat, then drop the batch row
+    const removeSensor = () => {
+        const [sensorId, checkDigit] = parseSensorString(sensorToRemove.current.sensor);
+        callApi('remove-sensor', { sensor_id: sensorId, check_digit: checkDigit })
+            .then(() => callApi('remove-sensor-from-batch', { sensor_id: sensorId, batch_id: batchNumber }))
+            .then(() => {
+                setSensors(current => current.filter(s => parseSensorString(s.sensor)[0] !== sensorId));
+                setAddedSensors(current => current.filter(id => parseInt(id) !== sensorId));
+                setPopupMessage(`Sensor ${sensorId} removed from batch ${batchNumber}`);
+            })
+            .catch(err => {
+                setPopupMessage(`Could not remove sensor ${sensorId}`);
+                console.error(err);
+            })
+    }
+
+    const onSpareChange = (sensorId, spare) => {
+        setSensors(current => current.map(s => parseSensorString(s.sensor)[0] === sensorId ? { ...s, spare } : s));
+    }
+
     if (!displayed) {
         return (
-            <button className={`${styles.default_button} ${styles.double_span}`} onClick={() => setDisplayed(true)}>{`Expand (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
+            <button className={styles.default_button} onClick={() => setDisplayed(true)}>{`Expand (${summary}`}</button>
         )
     }
 
     return (
-        <>
-            {confirmationArray.length > 0 ? <ConfirmationPopup confirmationArray={confirmationArray} setConfirmationArray={setConfirmationArray} handleConfirm={removeBatch} /> : <></>}
-            <button className={`${styles.default_button} ${styles.double_span}`} onClick={() => setDisplayed(false)}>{`Hide (Batch: ${batchNumber} | Calibration procedure: ${calibrationProcedureId}) | Total sensors: ${sensors.length}`}</button>
-            <h1 className={styles.title}>{`Current location: ${currentLocation}`}</h1>
-            <form onSubmit={handleAddSensor} data-testid={'addSensorForm'}>
-                <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Sensor ID:Check Digit'} />
-            </form>
-            <form onSubmit={handleSetLocation} data-testid={'setLocationForm'} >
-                <input type='text' value={location} onChange={event => setLocation(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Location'} />
-            </form>
-            <button type="button" className={`${styles.remove_batch_button} ${styles.red}`} onClick={() => setConfirmationArray([`Are you sure you would like to remove batch ${batchNumber}?`])}>Remove batch</button>
-            <ScannedSensors sensorList={sensors} />
-            <button className={styles.default_button} onClick={printWorkOrder}>Print work order</button>
-        </>
+        <section className={`${styles.subsection} ${styles.stack}`}>
+            <ConfirmationPopup confirmationArray={removeConfirmation} setConfirmationArray={setRemoveConfirmation} handleConfirm={removeSensor} confirmText={'Remove'} />
+            <button className={styles.default_button} onClick={() => setDisplayed(false)}>{`Hide (${summary}`}</button>
+
+            <div className={styles.current_location_text}>{`Current location: ${currentLocation} | Bin: `}<span className={binClass(bin)}>{bin ?? 'none'}</span></div>
+
+            <div className={styles.grid_menu}>
+                <div className={styles.row}>
+                    <form onSubmit={handleAddSensor} data-testid={'addSensorForm'} className={styles.row} style={{ flex: 1 }}>
+                        <input type='text' value={sensorString} onChange={event => setSensorString(event.target.value)} className={styles.default_text_box} placeholder={spareMode ? 'Scan spare' : 'Scan Sensor'} style={{ flex: 1 }} />
+                        <label className={styles.admin_check_box_container}>
+                            <input className={styles.admin_check_box} type='checkbox' checked={spareMode} onChange={event => setSpareMode(event.target.checked)} /> Spare
+                        </label>
+                    </form>
+                    <form onSubmit={handleSetBin} data-testid={'binForm'}>
+                        <input type='text' value={binString} onChange={event => setBinString(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Scan bin'} style={{ width: '7rem' }} />
+                    </form>
+                </div>
+                <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
+                <Button onClick={printWorkOrder} innerText={'Print work order'} />
+                <Button onClick={getAllLeads} innerText={'Get all leads'} />
+            </div>
+
+            <ScannedSensors sensorList={sensors} batchNumber={batchNumber} onSpareChange={onSpareChange} onRemove={requestRemove} />
+
+            {hideCancel ? <></> :
+                <div className={styles.card_actions}>
+                    <button type="button" className={`${styles.default_button} ${styles.red}`} onClick={() => removeBatch()} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel'}</button>
+                </div>}
+        </section>
     )
 }
 

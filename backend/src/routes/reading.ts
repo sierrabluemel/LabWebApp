@@ -3,10 +3,10 @@ import reading from "../models/reading";
 
 const readingRoutes = {
     getRecentReadings: (req: Request, res: Response) => {
-        const sensors = req.query.sensors as string;
-        const sensorIds = sensors.split(',').map(sensor => parseInt(sensor.trim()));
+        const sensors = req.query.sensors as Array<string>;
+        const sensorIds = sensors.map(sensor => parseInt(sensor.trim()));
         const now = new Date();
-        const earliestReadingDate = new Date(now.setDate(now.getDate() - 30)).toISOString();
+        const earliestReadingDate = new Date(now.setDate(now.getDate() - 2)).toISOString();
 
         reading.getRecentReadingsBySensorIds(sensorIds, earliestReadingDate)
             .then((readings) => {
@@ -41,15 +41,23 @@ const readingRoutes = {
         let uncertainty = parseFloat(req.query.uncertainty as string ?? "");
         let tolerance = parseFloat(req.query.tolerance as string ?? "");
         let standardDeviation = parseFloat(req.query.standard_deviation as string ?? "");
+        let readingRawData = req.query.reading_raw_data as any;
+        let asFound = req.query.as_found as unknown as boolean ?? false;
         let pass = false;
 
-        if (Math.abs(referenceReading - sensorReading) < tolerance) {
+        if (Math.abs(referenceReading - sensorReading) <= tolerance) {
             pass = true;
         }
         if (isNaN(sensorReading)) {
             sensorReading = null!;
         }
-        reading.createReading(type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass, standardDeviation)
+        if (!standardDeviation || !readingRawData) {
+                console.error('Missing data to create reading');
+                res.status(500).json({ error: `Error creating reading: must have standard_deviation and reading_raw_data` });
+                return;
+        }
+
+        reading.createReading(type, setPoint, referenceReading, sensorReading, labRh, labTemperature, sensorId, generatorId, referenceId, uncertainty, tolerance, pass, standardDeviation, readingRawData, asFound)
             .then((r) => {
                 res.json(r);
             })

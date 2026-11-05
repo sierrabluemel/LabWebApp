@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import styles from '../../../styles/styles.module.css'
-import { useAppContext } from '../../../contexts/app';
+import styles from '../../styles/styles.module.css'
+import { useAppContext } from '../../contexts/app';
 
-function EquipmentRow({ generatorText, generatorHint, generatorTag, description, selectedOption, setSelectedOption }) {
+function EquipmentConfigRow({ generatorText, generatorHint, generatorTag, description, selectedOption, setSelectedOption }) {
     const [referenceTag, setReferenceTag] = useState('');
     const [certificateNumber, setCertificateNumber] = useState('');
     const [calibrationDate, setCalibrationDate] = useState('');
@@ -13,11 +13,11 @@ function EquipmentRow({ generatorText, generatorHint, generatorTag, description,
     let currentGenerator;
     let dropdownOptions;
     if (generatorTag) {
-        currentGenerator = equipmentList.current.filter(asset => asset.asset_tag === generatorTag)[0];
-        dropdownOptions = equipmentList.current.filter(asset => asset.asset_tag !== currentGenerator.reference_tag);
+        currentGenerator = equipmentList.filter(asset => asset.asset_tag === generatorTag)[0];
+        dropdownOptions = equipmentList.filter(asset => asset.asset_tag !== currentGenerator.reference_tag);
     } else {
-        currentGenerator = equipmentList.current.filter(asset => asset.reference_tag === asset.asset_tag)[0];
-        dropdownOptions = equipmentList.current.filter(asset => asset.asset_tag !== asset.reference_tag);
+        currentGenerator = equipmentList.filter(asset => asset.reference_tag === asset.asset_tag)[0];
+        dropdownOptions = equipmentList.filter(asset => asset.asset_tag !== asset.reference_tag);
     }
 
     if (!currentGenerator) {
@@ -73,7 +73,7 @@ function EquipmentRow({ generatorText, generatorHint, generatorTag, description,
             </div>
             <select data-testid={generatorText} className={styles.equipment_dropdown} value={referenceTag} onChange={handleDropDownChange}>
                 {
-                    !equipmentList.current.length > 0 ? <option key={-1}>Loading...</option> : // awaiting response
+                    !equipmentList.length > 0 ? <option key={-1}>Loading...</option> : // awaiting response
                         currentGenerator.reference_tag === currentGenerator.asset_tag ? // is the current equipment the SuperDAQ?
                             <option key={-1}>{currentGenerator.asset_tag}</option> :
                             <option key={-1}>{currentGenerator.reference_tag}</option>
@@ -95,4 +95,4 @@ function EquipmentRow({ generatorText, generatorHint, generatorTag, description,
     )
 }
 
-export default EquipmentRow;
+export default EquipmentConfigRow;

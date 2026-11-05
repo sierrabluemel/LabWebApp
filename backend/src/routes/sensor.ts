@@ -2,7 +2,7 @@ import monnitFetch from "../utils/monnit";
 import fs from 'fs'
 import path from 'path'
 import ExcelJS from 'exceljs'
-import { Request, response, Response } from "express";
+import { Request, Response } from "express";
 import { removeDuplicateCertificates, getCertificateInvoiceData, getDateString } from "../methods/common";
 import sensor from "../models/sensor";
 import certificate from "../models/certificate";
@@ -20,9 +20,9 @@ const sensorRoutes = {
                     res.json(result);
                 })
         } else {
-            query = sensor.getSensorById(batchId)
+            query = sensor.getSensorsByBatchId(batchId)
                 .then((result) => {
-                    res.json([result]);
+                    res.json(result);
                 })
         }
         query
@@ -48,13 +48,16 @@ const sensorRoutes = {
         certificate.invoiceReport(startDate, endDate)
             .then(async (data) => {
                 const certificates = removeDuplicateCertificates(data);
-                const certificateInvoiceData = getCertificateInvoiceData(certificates) as any;
-                const templatePath = path.join(__dirname, 'templates', 'sensorBillingReport.xlsx')
-                const outputPath = path.join(__dirname, 'fileOutputs', 'sensorBillingReport.xlsx')
                 let calibrationProcedures = await misc.getCalibrationProcedures();
+                const certificateInvoiceData = getCertificateInvoiceData(certificates, calibrationProcedures) as any;
+                const directory = path.join(__dirname, '..', '..')
+                const templatePath = path.join(directory, 'templates', 'sensorBillingReport.xlsx')
+                const outputPath = path.join(directory, 'fileOutputs', 'sensorBillingReport.xlsx')
+
+                fs.mkdirSync(path.dirname(outputPath), { recursive: true }); // gitignored, missing on a fresh clone
 
                 const workbook = new ExcelJS.Workbook();
-                workbook.xlsx.readFile(templatePath)
+                return workbook.xlsx.readFile(templatePath)
                     .then(() => {
                         const worksheet = workbook.getWorksheet(1)!
                         worksheet.getCell('F3').value = getDateString(startDate)
@@ -72,8 +75,9 @@ const sensorRoutes = {
                             worksheet.getCell(`F${firstRow + index}`).value = certificateInvoiceData[`calibration_procedure_${calibrationProcedure.calibration_procedure_id}`].expedited;
                         })
 
-                        worksheet.getCell('A20').value = 'Report for ' + [...certificateInvoiceData.customerOrderNumbers].join(', ');
+                        const orderNumbers = certificateInvoiceData?.tos;
 
+                        worksheet.getCell('A20').value = certificateInvoiceData ? 'Report for ' + [...orderNumbers].join(', ') : '';
                         return workbook.xlsx.writeFile(outputPath);
                     })
                     .then(() => {
@@ -102,7 +106,14 @@ const sensorRoutes = {
         let params = new URLSearchParams();
         params.append("SensorID", sensorId);
 
-        monnitFetch(`${url}?${params.toString()}`)
+        // iMonnit ignores the auto-calibrate push while the sensor holds an unexpired certificate ("pre-calibrated and certified"),
+        // so drop any current one first; the batch re-creates the certificate when it finishes
+        const monnitDate = (value: string) => parseInt(value.match(/-?\d+/)?.[0] ?? "0");
+        monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateList/?SensorID=${sensorId}`)
+            .then((list) => Promise.all((list.Result ?? [])
+                .filter((cert: any) => monnitDate(cert.CertificationValidUntil) > Date.now())
+                .map((cert: any) => monnitFetch(`https://www.imonnit.com/json/CalibrationCertificateRemove/?CalibrationCertificateID=${cert.CalibrationCertificateID}`))))
+            .then(() => monnitFetch(`${url}?${params.toString()}`))
             .then((result) => {
                 url = `https://www.imonnit.com/json/SensorSetCalibration/`;
 
@@ -131,9 +142,8 @@ const sensorRoutes = {
         let sensorId = parseInt(req.query.sensor_id as string ?? "");
         let checkDigit = req.query.check_digit as string;
         let batchId = parseInt(req.query.batch_id as string ?? "");
-        let sku: string;
+        const spare = req.query.spare === 'true';
         const manufacturer = 'Monnit Corporation';
-        let url = `https://www.imonnit.com/json/AssignSensor/`;
 
         const parameters = {
             'NetworkID': sillyConfig.stagingNetworks[0],
@@ -147,41 +157,27 @@ const sensorRoutes = {
             params.append(parameter, parameters[parameter]);
         };
 
-        monnitFetch(`${url}?${params.toString()}`)
+        monnitFetch(`https://www.imonnit.com/json/AssignSensor/?${params.toString()}`)
             .then(() => {
-                url = 'https://www.imonnit.com/json/SensorSetHeartbeat/'
-                return monnitFetch(`${url}?${params.toString()}`)
+                return monnitFetch(`https://www.imonnit.com/json/SensorSetHeartbeat/?${params.toString()}`)
             })
             .then(() => {
-                url = 'https://www.imonnit.com/json/LookUpSensor/'
-                return monnitFetch(`${url}?${params.toString()}`)
+                return monnitFetch(`https://www.imonnit.com/json/LookUpSensor/?${params.toString()}`)
             })
-            .then((response) => {
-                sku = response['Result']['SKU'];
-                return sensor.createSensor(sensorId, checkDigit, manufacturer, sku, batchId)
+            .then(response => {
+                return sensor.createSensor(sensorId, checkDigit, manufacturer, response.Result.SKU, batchId, spare)
             })
             .then((result) => {
                 res.json(result);
             })
             .catch((err) => {
-                if (err.message == `duplicate key value violates unique constraint "sensor_pkey"`) {
-                    sensor.setBatchId(sensorId, batchId)
-                        .then((result) => {
-                            res.json(result);
-                        })
-                        .catch((err) => {
-                            console.error(err);
-                            res.status(500).json({ error: `Error creating sensor` });
-                        })
-                } else {
-                    console.error(err);
-                    res.json({ error: `Error creating sensor` });
-                }
+                console.error(err);
+                res.status(500).json({ error: `Could not add sensor ${sensorId} in iMonnit` });
             });
     },
     changeSensorHeartbeat: (req: Request, res: Response) => {
         let sensorId = req.query.sensor_id;
-        let reportInterval = parseInt(req.query.heartbeat as string ?? "");
+        let reportInterval = parseFloat(req.query.heartbeat as string ?? "");
         if (isNaN(reportInterval)) {
             res.json({ Result: 'Heartbeat must be a number' })
             return
@@ -197,13 +193,14 @@ const sensorRoutes = {
         for (const parameter in parameters) {
             params.append(parameter, parameters[parameter]);
         };
-        try {
-            const data = monnitFetch(`${url}?${params.toString()}`);
-            res.json(data);
-        } catch (error) {
-            console.error(error);
-            res.json({ 'Result': error });
-        }
+        monnitFetch(`${url}?${params.toString()}`)
+            .then((data) => {
+                res.json(data);
+            })
+            .catch((error) => {
+                console.error(error);
+                res.json({ 'Result': error });
+            })
     },
     getSensorsByOrderId: async (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
@@ -226,14 +223,37 @@ const sensorRoutes = {
     },
     removeSensorFromBatch: (req: Request, res: Response) => {
         const sensorId = parseInt(req.query.sensor_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
 
-        sensor.removeFromBatch(sensorId)
+        if (isNaN(sensorId) || isNaN(batchId)) {
+            return res.status(400).json({ error: "Sensor id and batch id are required." });
+        }
+
+        sensor.removeFromBatch(sensorId, batchId)
             .then(() => {
                 res.json({ Result: 'Sensor successfully removed from batch' });
             })
             .catch((err) => {
                 console.error(err);
-                res.status(500).json({ error: "Error removing sensor from batch." })
+                res.status(500).json({ error: `Error removing sensor from batch: ${err.message}` })
+            })
+    },
+    setSensorSpare: (req: Request, res: Response) => {
+        const sensorId = parseInt(req.query.sensor_id as string ?? "");
+        const batchId = parseInt(req.query.batch_id as string ?? "");
+        const spare = req.query.spare === 'true';
+
+        if (isNaN(sensorId) || isNaN(batchId)) {
+            return res.status(400).json({ error: "Sensor id and batch id are required." });
+        }
+
+        sensor.setSpare(sensorId, batchId, spare)
+            .then(() => {
+                res.json({ Result: spare ? `Sensor ${sensorId} marked as spare` : `Sensor ${sensorId} added to batch ${batchId}` });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error updating sensor spare state." })
             })
     },
     removeSensor: (req: Request, res: Response) => {
@@ -266,79 +286,64 @@ const sensorRoutes = {
                 res.status(500).json({ error: "Error removing sensor." })
             })
     },
-    moveSensorsToNetworkGroup: (req: Request, res: Response) => {
-        const networkGroup = req.query.network_group;
-        const sensors = JSON.parse(req.query.sensors as string ?? "");
+    getSensorList: (req: Request, res: Response) => {
+        let url = 'https://www.imonnit.com/json/SensorList/'
 
-        let networkIDs = []
-        switch (networkGroup) {
-            case 'staging':
-                networkIDs.push(...sillyConfig.stagingNetworks);
-                break
-            case 'testing_all_frequencies':
-                networkIDs.push(...sillyConfig.anyFrequencyNetworks);
-                break
-            case 'testing_all_networks':
-                networkIDs.push(...sillyConfig.anyFrequencyNetworks);
-                networkIDs.push(...sillyConfig.commonFrequencyOnlyNetworks);
-                break
-            default:
-                res.status(500).json({ Error: 'Invalid network group' });
-                return
-        }
-
-        monnitFetch('https://www.imonnit.com/json/SensorListFull')
-            .then(response => {
-                let allSensors = response.Result
-                for (let sensor of allSensors) {
-                    // Converting minutes per heartbeat to heartbeats per second
-                    sensor.heartbeatsPerSecond = 60 / (sensor.ReportInterval * 60) / 60;
-
-                    sensors.includes(sensor.SensorID) ? sensor.moving = true : sensor.moving = false
-                }
-
-                let sensorsToMove = allSensors.filter((sensor: any) => sensor.moving === true);
-
-                let networkHeartbeats = networkIDs.map(networkID => {
-                    const sensorsOnNetwork = allSensors.filter((sensor: any) => sensor.CSNetID === networkID)
-                    let heartbeatsPerSecond = 0
-                    sensorsOnNetwork.map((sensor: any) => {
-                        heartbeatsPerSecond += sensor.heartbeatsPerSecond
-                    })
-                    return {
-                        networkID,
-                        heartbeatsPerSecond,
-                    }
-                })
-
-                let networksToAddTo = [] as any[];
-                for (const sensorToMove of sensorsToMove) {
-                    const currentNetwork = networkHeartbeats.filter(network => network.networkID === sensorToMove.CSNetID)[0];
-                    if (networksToAddTo.length < 1) {
-                        const lowestCapacity = Math.min(...networkHeartbeats.map(network => network.heartbeatsPerSecond))
-                        networksToAddTo = networkHeartbeats.filter(network => {
-                            return network.heartbeatsPerSecond === lowestCapacity;
-                        })
-                    }
-                    const nextNetwork = networksToAddTo[0];
-                    const sensor = allSensors.filter((sensor: any) => sensor.SensorID === sensorToMove.SensorID)[0];
-                    const inCurrentNetworkGroup = networkIDs.filter(networkID => networkID === sensor.CSNetID)[0];
-                    if (!inCurrentNetworkGroup || currentNetwork?.heartbeatsPerSecond > nextNetwork.heartbeatsPerSecond) {
-                        // TODO add new monnit api call to move sensor whitelist
-                        monnitFetch(`https://www.imonnit.com/json/AssignSensor?NetworkID=${nextNetwork.networkID}&SensorID=${sensor.SensorID}&CheckDigit=${sensor.CheckDigit}`);
-                        if (currentNetwork) {
-                            currentNetwork.heartbeatsPerSecond -= sensor.heartbeatsPerSecond;
-                        }
-                        nextNetwork.heartbeatsPerSecond += sensor.heartbeatsPerSecond
-                        networksToAddTo.shift();
-                    }
-                }
-
-                res.json({ Result: 'Success' })
+        monnitFetch(url)
+            .then((response) => {
+                const sensorIds = response.Result.map((s: any) => s.SensorID)
+                res.json(sensorIds)
             })
-            .catch(err => {
-                res.status(500).json({ Error: 'Could not move sensors' })
-                console.error(`Error moving sensors: ${err}`)
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error getting sensors" })
+            })
+    },
+    getSensorCableId: (req: Request, res: Response) => {
+        const sensorId = parseInt(req.query.sensor_id as any);
+        let url = `https://www.imonnit.com/json/SensorGetExtended?sensorID=${sensorId}`
+
+        monnitFetch(url)
+            .then(response => {
+                const cableId = response.Result.CableID;
+                if (cableId < 0)
+                    return res.status(500).json({ error: "cableID returned is not valid" })
+
+                if (!cableId)
+                    return res.status(509).json({ Result: 'No cableID found from iMonnit' })
+
+                url = `https://www.imonnit.com/json/CableLookup/?CableID=${cableId}`
+                monnitFetch(url)
+                    .then(result => {
+                        const cableSku = result.Result.SKU
+                        sensor.addCableToSensor(sensorId, cableId, cableSku)
+                            .then(() => res.json({ Result: 'Cable added to sensor' }));
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        res.status(500).json({ error: "Error setting cable" })
+                    })
+
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error looking up sensor" })
+            })
+    },
+    addCableToSensor: (req: Request, res: Response) => {
+        const cableId = parseInt(req.query.cable_id as any);
+        const sensorId = parseInt(req.query.sensor_id as any);
+        let url = `https://www.imonnit.com/json/CableLookup/?CableID=${cableId}`
+
+        monnitFetch(url)
+            .then(result => {
+                const cableSku = result.Result.SKU
+                sensor.addCableToSensor(sensorId, cableId, cableSku)
+                    .then(() => res.json({ Result: 'Cable added to sensor' }));
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: "Error setting cable" })
             })
     },
 };

@@ -1,32 +1,22 @@
 import { addMonths } from "date-fns";
 import { parseDataBaseDate } from "./db";
-import { AS_FOUND_FLAGS, EXPIRE_AFTER_13_MONTHS, EXPIRE_AFTER_25_MONTHS, EXPIRE_AFTER_7_MONTHS } from "../constants";
+import { EXPIRE_AFTER_13_MONTHS, EXPIRE_AFTER_25_MONTHS, EXPIRE_AFTER_7_MONTHS } from "../constants";
 
-function filterReadings(readings: any[], setPoints: string[]) {
-    return readings
-        .filter((r) => setPoints.includes(r.set_point))
-        .filter((r, i, arr) => arr.findIndex(r) == i)
-}
-
-function isPass(readings: any[], setPoints: string[]) {
-    return readings.findIndex((r) => !r.pass && !AS_FOUND_FLAGS.includes(r.set_point)) != -1 && readings.length === setPoints.length;
+function isPass(readings: any[]) {
+    return readings.findIndex((r) => {
+        return !r.pass && !r.as_found
+    }) === -1;
 }
 
 const calibrationProcedures = {
     cp1: (readings: any[], equipment: any) => {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_25_MONTHS);
-        let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-        // @TODO load this from db
-        let setPoints = ['-999.00', '28.00', '-25.00', '90.00'];
-        readings = filterReadings(readings, setPoints)
+        let parsedDueDate = parseDataBaseDate(dueDate);
 
-        let certificateStatus = isPass(readings, setPoints) ? "PASS" : "FAIL";
-
-        const calibrationDate = readings[0].timestamp;
+        let certificateStatus = isPass(readings) ? "PASS" : "FAIL";
 
         return {
             dueDate,
-            calibrationDate,
             'CS2': parsedDueDate,
             'CS5': certificateStatus,
             'CD11': parseFloat(readings[1].set_point).toFixed(0) + '°C',
@@ -75,17 +65,11 @@ const calibrationProcedures = {
     cp2: (readings: any[], equipment: any) => {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_13_MONTHS);
         let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-        // @TODO load this from db
-        let setPoints = ['-999.00', '0.00', '-80.00', '-197.00'];
-        readings = filterReadings(readings, setPoints)
 
-        let certificateStatus = isPass(readings, setPoints) ? "PASS" : "FAIL";
-
-        const calibrationDate = readings[0].timestamp;
+        let certificateStatus = isPass(readings) ? "PASS" : "FAIL";
 
         return {
             dueDate,
-            calibrationDate,
             'CS2': parsedDueDate,
             'CS5': certificateStatus,
             'CD11': parseFloat(readings[1].set_point).toFixed(0) + '°C',
@@ -135,71 +119,61 @@ const calibrationProcedures = {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_7_MONTHS);
         let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
 
-        // @TODO load this from db
-        let temperatureSetPoints = ['20.00', '30.00', '40.00'];
-        let temperatureReadings = filterReadings(readings.filter((r) => r.type === "temperature"), temperatureSetPoints);
-
-        let humiditySetPoints = ['80.00', '50.00', '20.00'];
-        let humidityReadings = filterReadings(readings.filter((r) => r.type === "humidity"), humiditySetPoints);
-
         let reference = equipment.rotronic;
-        let certificateStatus = isPass(temperatureReadings, temperatureSetPoints) && isPass(humidityReadings, humiditySetPoints) ? "PASS" : "FAIL";
-
-        const calibrationDate = readings[0].timestamp;
+        let certificateStatus = isPass(readings.map(r => r.humidityReading)) && isPass(readings.map(r => r.temperatureReading)) ? "PASS" : "FAIL";
 
         return {
             dueDate,
-            calibrationDate,
             'CS2': parsedDueDate,
             'CS5': certificateStatus,
-            'CD11': parseFloat(humidityReadings[0].set_point).toFixed(0) + '% RH',
-            'CD12': parseFloat(humidityReadings[0].reference_reading).toFixed(1) + '%',
-            'CD13': parseFloat(humidityReadings[0].sensor_reading).toFixed(1) + '%',
+            'CD11': parseFloat(readings[0].humidityReading.set_point).toFixed(0) + '% RH',
+            'CD12': parseFloat(readings[0].humidityReading.reference_reading).toFixed(1) + '%',
+            'CD13': parseFloat(readings[0].humidityReading.sensor_reading).toFixed(1) + '%',
             'CD14': 'N/A',
-            'CD15': parseFloat(humidityReadings[0].sensor_reading).toFixed(1) + '%',
-            'CD16': parseFloat(humidityReadings[0].tolerance).toFixed(1) + '%',
-            'CD17': parseFloat(humidityReadings[0].uncertainty).toFixed(1) + '%',
-            'CD18': (humidityReadings[0].pass ? 'PASS' : 'FAIL'),
-            'CD21': parseFloat(humidityReadings[1].set_point).toFixed(0) + '% RH',
-            'CD22': parseFloat(humidityReadings[1].reference_reading).toFixed(1) + '%',
-            'CD23': parseFloat(humidityReadings[1].sensor_reading).toFixed(1) + '%',
+            'CD15': parseFloat(readings[0].humidityReading.sensor_reading).toFixed(1) + '%',
+            'CD16': parseFloat(readings[0].humidityReading.tolerance).toFixed(1) + '%',
+            'CD17': parseFloat(readings[0].humidityReading.uncertainty).toFixed(1) + '%',
+            'CD18': (readings[0].humidityReading.pass ? 'PASS' : 'FAIL'),
+            'CD21': parseFloat(readings[1].humidityReading.set_point).toFixed(0) + '% RH',
+            'CD22': parseFloat(readings[1].humidityReading.reference_reading).toFixed(1) + '%',
+            'CD23': parseFloat(readings[1].humidityReading.sensor_reading).toFixed(1) + '%',
             'CD24': 'N/A',
-            'CD25': parseFloat(humidityReadings[1].sensor_reading).toFixed(1) + '%',
-            'CD26': parseFloat(humidityReadings[1].tolerance).toFixed(1) + '%',
-            'CD27': parseFloat(humidityReadings[1].uncertainty).toFixed(1) + '%',
-            'CD28': (humidityReadings[1].pass ? 'PASS' : 'FAIL'),
-            'CD31': parseFloat(humidityReadings[2].set_point).toFixed(0) + '% RH',
-            'CD32': parseFloat(humidityReadings[2].reference_reading).toFixed(1) + '%',
-            'CD33': parseFloat(humidityReadings[2].sensor_reading).toFixed(1) + '%',
+            'CD25': parseFloat(readings[1].humidityReading.sensor_reading).toFixed(1) + '%',
+            'CD26': parseFloat(readings[1].humidityReading.tolerance).toFixed(1) + '%',
+            'CD27': parseFloat(readings[1].humidityReading.uncertainty).toFixed(1) + '%',
+            'CD28': (readings[1].humidityReading.pass ? 'PASS' : 'FAIL'),
+            'CD31': parseFloat(readings[2].humidityReading.set_point).toFixed(0) + '% RH',
+            'CD32': parseFloat(readings[2].humidityReading.reference_reading).toFixed(1) + '%',
+            'CD33': parseFloat(readings[2].humidityReading.sensor_reading).toFixed(1) + '%',
             'CD34': 'N/A',
-            'CD35': parseFloat(humidityReadings[2].sensor_reading).toFixed(1) + '%',
-            'CD36': parseFloat(humidityReadings[2].tolerance).toFixed(1) + '%',
-            'CD37': parseFloat(humidityReadings[2].uncertainty).toFixed(1) + '%',
-            'CD38': (humidityReadings[2].pass ? 'PASS' : 'FAIL'),
-            'CD41': parseFloat(temperatureReadings[0].set_point).toFixed(0) + '°C',
-            'CD42': parseFloat(temperatureReadings[0].reference_reading).toFixed(1) + '°C',
-            'CD43': parseFloat(temperatureReadings[0].sensor_reading).toFixed(1) + '°C',
+            'CD35': parseFloat(readings[2].humidityReading.sensor_reading).toFixed(1) + '%',
+            'CD36': parseFloat(readings[2].humidityReading.tolerance).toFixed(1) + '%',
+            'CD37': parseFloat(readings[2].humidityReading.uncertainty).toFixed(1) + '%',
+            'CD38': (readings[2].humidityReading.pass ? 'PASS' : 'FAIL'),
+            'CD41': parseFloat(readings[0].temperatureReading.set_point).toFixed(0) + '°C',
+            'CD42': parseFloat(readings[0].temperatureReading.reference_reading).toFixed(1) + '°C',
+            'CD43': parseFloat(readings[0].temperatureReading.sensor_reading).toFixed(1) + '°C',
             'CD44': 'N/A',
-            'CD45': parseFloat(temperatureReadings[0].sensor_reading).toFixed(1) + '°C',
-            'CD46': parseFloat(temperatureReadings[0].tolerance).toFixed(1) + '°C',
-            'CD47': parseFloat(temperatureReadings[0].uncertainty).toFixed(2) + '°C',
-            'CD48': (temperatureReadings[0].pass ? 'PASS' : 'FAIL'),
-            'CD51': parseFloat(temperatureReadings[1].set_point).toFixed(0) + '°C',
-            'CD52': parseFloat(temperatureReadings[1].reference_reading).toFixed(1) + '°C',
-            'CD53': parseFloat(temperatureReadings[1].sensor_reading).toFixed(1) + '°C',
+            'CD45': parseFloat(readings[0].temperatureReading.sensor_reading).toFixed(1) + '°C',
+            'CD46': parseFloat(readings[0].temperatureReading.tolerance).toFixed(1) + '°C',
+            'CD47': parseFloat(readings[0].temperatureReading.uncertainty).toFixed(2) + '°C',
+            'CD48': (readings[0].temperatureReading.pass ? 'PASS' : 'FAIL'),
+            'CD51': parseFloat(readings[1].temperatureReading.set_point).toFixed(0) + '°C',
+            'CD52': parseFloat(readings[1].temperatureReading.reference_reading).toFixed(1) + '°C',
+            'CD53': parseFloat(readings[1].temperatureReading.sensor_reading).toFixed(1) + '°C',
             'CD54': 'N/A',
-            'CD55': parseFloat(temperatureReadings[1].sensor_reading).toFixed(1) + '°C',
-            'CD56': parseFloat(temperatureReadings[1].tolerance).toFixed(1) + '°C',
-            'CD57': parseFloat(temperatureReadings[1].uncertainty).toFixed(2) + '°C',
-            'CD58': (temperatureReadings[1].pass ? 'PASS' : 'FAIL'),
-            'CD61': parseFloat(temperatureReadings[2].set_point).toFixed(0) + '°C',
-            'CD62': parseFloat(temperatureReadings[2].reference_reading).toFixed(1) + '°C',
-            'CD63': parseFloat(temperatureReadings[2].sensor_reading).toFixed(1) + '°C',
+            'CD55': parseFloat(readings[1].temperatureReading.sensor_reading).toFixed(1) + '°C',
+            'CD56': parseFloat(readings[1].temperatureReading.tolerance).toFixed(1) + '°C',
+            'CD57': parseFloat(readings[1].temperatureReading.uncertainty).toFixed(2) + '°C',
+            'CD58': (readings[1].temperatureReading.pass ? 'PASS' : 'FAIL'),
+            'CD61': parseFloat(readings[2].temperatureReading.set_point).toFixed(0) + '°C',
+            'CD62': parseFloat(readings[2].temperatureReading.reference_reading).toFixed(1) + '°C',
+            'CD63': parseFloat(readings[2].temperatureReading.sensor_reading).toFixed(1) + '°C',
             'CD64': 'N/A',
-            'CD65': parseFloat(temperatureReadings[2].sensor_reading).toFixed(1) + '°C',
-            'CD66': parseFloat(temperatureReadings[2].tolerance).toFixed(1) + '°C',
-            'CD67': parseFloat(temperatureReadings[2].uncertainty).toFixed(2) + '°C',
-            'CD68': (temperatureReadings[2].pass ? 'PASS' : 'FAIL'),
+            'CD65': parseFloat(readings[2].temperatureReading.sensor_reading).toFixed(1) + '°C',
+            'CD66': parseFloat(readings[2].temperatureReading.tolerance).toFixed(1) + '°C',
+            'CD67': parseFloat(readings[2].temperatureReading.uncertainty).toFixed(2) + '°C',
+            'CD68': (readings[2].temperatureReading.pass ? 'PASS' : 'FAIL'),
             'RS11': reference.asset_tag,
             'RS12': reference.description,
             'RS13': parseDataBaseDate(reference.last_calibration),
@@ -213,16 +187,11 @@ const calibrationProcedures = {
     cp5: (readings: any[], equipment: any) => {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_25_MONTHS);
         let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-        // @TODO load this from db
-        let setPoints = ['-999.00', '20.00', '-20.00', '60.00'];
-        readings = filterReadings(readings, setPoints)
 
-        let certificateStatus = isPass(readings, setPoints) ? "PASS" : "FAIL";
-        const calibrationDate = readings[0].timestamp;
+        let certificateStatus = isPass(readings) ? "PASS" : "FAIL";
 
         return {
             dueDate,
-            calibrationDate,
             'CS2': parsedDueDate,
             'CS5': certificateStatus,
             'CD11': parseFloat(readings[1].set_point).toFixed(0) + '°C',
@@ -263,17 +232,11 @@ const calibrationProcedures = {
     cp6: (readings: any[], equipment: any) => {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_25_MONTHS);
         let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-        // @TODO load this from db
-        let setPoints = ['-998.00', '-25.00', '-999.00', '28.00', '90.00'];
-        readings = filterReadings(readings, setPoints)
 
-        let certificateStatus = isPass(readings, setPoints) ? "PASS" : "FAIL";
-
-        const calibrationDate = readings[0].timestamp;
+        let certificateStatus = isPass(readings) ? "PASS" : "FAIL";
 
         return {
             dueDate,
-            calibrationDate,
             'CS2': parsedDueDate,
             'CS5': certificateStatus,
             'CD11': parseFloat(readings[1].set_point).toFixed(0) + '°C',
@@ -322,17 +285,11 @@ const calibrationProcedures = {
     cp7: (readings: any[], equipment: any) => {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_25_MONTHS);
         let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-        // @TODO load this from db
-        let setPoints = ['-999.00', '30.00', '40.00', '20.00', '10.00', '0.00', '-10.00', '-20.00', '-30.00'];
-        readings = filterReadings(readings, setPoints)
 
-        let certificateStatus = isPass(readings, setPoints) ? "PASS" : "FAIL";
-
-        const calibrationDate = readings[0].timestamp;
+        let certificateStatus = isPass(readings) ? "PASS" : "FAIL";
 
         return {
             dueDate,
-            calibrationDate,
             'CS2': parsedDueDate,
             'CS5': certificateStatus,
             'CD11': parseFloat(readings[1].set_point).toFixed(0) + '°C',
@@ -413,88 +370,79 @@ const calibrationProcedures = {
     cp8: (readings: any[], equipment: any) => {
         let dueDate = addMonths(new Date(), EXPIRE_AFTER_7_MONTHS);
         let parsedDueDate = `${dueDate.getMonth() + 1}/${dueDate.getDate()}/${dueDate.getFullYear()}`;
-        // @TODO load this from db
-        let temperatureSetPoints = ['10.00', '20.00', '30.00', '40.00'];
-        let humiditySetPoints = ['80.00', '60.00', '40.00', '20.00'];
 
-        let finalTemperatureReadings = filterReadings(readings.filter((r) => r.type === "temperature"), temperatureSetPoints)
-        let finalHumidityReadings = filterReadings(readings.filter((r) => r.type === "humidity"), humiditySetPoints)
-
-        let certificateStatus = isPass(finalTemperatureReadings, temperatureSetPoints) && isPass(finalHumidityReadings, humiditySetPoints) ? "PASS" : "FAIL";
+        let certificateStatus = isPass(readings.map(r => r.humidityReading)) && isPass(readings.map(r => r.temperatureReading)) ? "PASS" : "FAIL";
 
         let reference = equipment.rotronic;
 
-        const calibrationDate = readings[0].timestamp;
-
         return {
             dueDate,
-            calibrationDate,
             'CS2': parsedDueDate,
             'CS5': certificateStatus,
-            'CD11': parseFloat(finalHumidityReadings[0].set_point).toFixed(0) + '% RH',
-            'CD12': parseFloat(finalHumidityReadings[0].reference_reading).toFixed(1) + '%',
-            'CD13': parseFloat(finalHumidityReadings[0].sensor_reading).toFixed(1) + '%',
+            'CD11': parseFloat(readings[0].humidityReading.set_point).toFixed(0) + '% RH',
+            'CD12': parseFloat(readings[0].humidityReading.reference_reading).toFixed(1) + '%',
+            'CD13': parseFloat(readings[0].humidityReading.sensor_reading).toFixed(1) + '%',
             'CD14': 'N/A',
-            'CD15': parseFloat(finalHumidityReadings[0].sensor_reading).toFixed(1) + '%',
-            'CD16': parseFloat(finalHumidityReadings[0].tolerance).toFixed(1) + '%',
-            'CD17': parseFloat(finalHumidityReadings[0].uncertainty).toFixed(1) + '%',
-            'CD18': (finalHumidityReadings[0].pass ? 'PASS' : 'FAIL'),
-            'CD21': parseFloat(finalHumidityReadings[1].set_point).toFixed(0) + '% RH',
-            'CD22': parseFloat(finalHumidityReadings[1].reference_reading).toFixed(1) + '%',
-            'CD23': parseFloat(finalHumidityReadings[1].sensor_reading).toFixed(1) + '%',
+            'CD15': parseFloat(readings[0].humidityReading.sensor_reading).toFixed(1) + '%',
+            'CD16': parseFloat(readings[0].humidityReading.tolerance).toFixed(1) + '%',
+            'CD17': parseFloat(readings[0].humidityReading.uncertainty).toFixed(1) + '%',
+            'CD18': (readings[0].humidityReading.pass ? 'PASS' : 'FAIL'),
+            'CD21': parseFloat(readings[1].humidityReading.set_point).toFixed(0) + '% RH',
+            'CD22': parseFloat(readings[1].humidityReading.reference_reading).toFixed(1) + '%',
+            'CD23': parseFloat(readings[1].humidityReading.sensor_reading).toFixed(1) + '%',
             'CD24': 'N/A',
-            'CD25': parseFloat(finalHumidityReadings[1].sensor_reading).toFixed(1) + '%',
-            'CD26': parseFloat(finalHumidityReadings[1].tolerance).toFixed(1) + '%',
-            'CD27': parseFloat(finalHumidityReadings[1].uncertainty).toFixed(1) + '%',
-            'CD28': (finalHumidityReadings[1].pass ? 'PASS' : 'FAIL'),
-            'CD31': parseFloat(finalHumidityReadings[2].set_point).toFixed(0) + '% RH',
-            'CD32': parseFloat(finalHumidityReadings[2].reference_reading).toFixed(1) + '%',
-            'CD33': parseFloat(finalHumidityReadings[2].sensor_reading).toFixed(1) + '%',
+            'CD25': parseFloat(readings[1].humidityReading.sensor_reading).toFixed(1) + '%',
+            'CD26': parseFloat(readings[1].humidityReading.tolerance).toFixed(1) + '%',
+            'CD27': parseFloat(readings[1].humidityReading.uncertainty).toFixed(1) + '%',
+            'CD28': (readings[1].humidityReading.pass ? 'PASS' : 'FAIL'),
+            'CD31': parseFloat(readings[2].humidityReading.set_point).toFixed(0) + '% RH',
+            'CD32': parseFloat(readings[2].humidityReading.reference_reading).toFixed(1) + '%',
+            'CD33': parseFloat(readings[2].humidityReading.sensor_reading).toFixed(1) + '%',
             'CD34': 'N/A',
-            'CD35': parseFloat(finalHumidityReadings[2].sensor_reading).toFixed(1) + '%',
-            'CD36': parseFloat(finalHumidityReadings[2].tolerance).toFixed(1) + '%',
-            'CD37': parseFloat(finalHumidityReadings[2].uncertainty).toFixed(1) + '%',
-            'CD38': (finalHumidityReadings[2].pass ? 'PASS' : 'FAIL'),
-            'CD41': parseFloat(finalHumidityReadings[3].set_point).toFixed(0) + '% RH',
-            'CD42': parseFloat(finalHumidityReadings[3].reference_reading).toFixed(1) + '%',
-            'CD43': parseFloat(finalHumidityReadings[3].sensor_reading).toFixed(1) + '%',
+            'CD35': parseFloat(readings[2].humidityReading.sensor_reading).toFixed(1) + '%',
+            'CD36': parseFloat(readings[2].humidityReading.tolerance).toFixed(1) + '%',
+            'CD37': parseFloat(readings[2].humidityReading.uncertainty).toFixed(1) + '%',
+            'CD38': (readings[2].humidityReading.pass ? 'PASS' : 'FAIL'),
+            'CD41': parseFloat(readings[3].humidityReading.set_point).toFixed(0) + '% RH',
+            'CD42': parseFloat(readings[3].humidityReading.reference_reading).toFixed(1) + '%',
+            'CD43': parseFloat(readings[3].humidityReading.sensor_reading).toFixed(1) + '%',
             'CD44': 'N/A',
-            'CD45': parseFloat(finalHumidityReadings[3].sensor_reading).toFixed(1) + '%',
-            'CD46': parseFloat(finalHumidityReadings[3].tolerance).toFixed(1) + '%',
-            'CD47': parseFloat(finalHumidityReadings[3].uncertainty).toFixed(1) + '%',
-            'CD48': (finalHumidityReadings[2].pass ? 'PASS' : 'FAIL'),
-            'CD51': parseFloat(finalTemperatureReadings[0].set_point).toFixed(0) + '°C',
-            'CD52': parseFloat(finalTemperatureReadings[0].reference_reading).toFixed(1) + '°C',
-            'CD53': parseFloat(finalTemperatureReadings[0].sensor_reading).toFixed(1) + '°C',
+            'CD45': parseFloat(readings[3].humidityReading.sensor_reading).toFixed(1) + '%',
+            'CD46': parseFloat(readings[3].humidityReading.tolerance).toFixed(1) + '%',
+            'CD47': parseFloat(readings[3].humidityReading.uncertainty).toFixed(1) + '%',
+            'CD48': (readings[3].humidityReading.pass ? 'PASS' : 'FAIL'),
+            'CD51': parseFloat(readings[0].temperatureReading.set_point).toFixed(0) + '°C',
+            'CD52': parseFloat(readings[0].temperatureReading.reference_reading).toFixed(1) + '°C',
+            'CD53': parseFloat(readings[0].temperatureReading.sensor_reading).toFixed(1) + '°C',
             'CD54': 'N/A',
-            'CD55': parseFloat(finalTemperatureReadings[0].sensor_reading).toFixed(1) + '°C',
-            'CD56': parseFloat(finalTemperatureReadings[0].tolerance).toFixed(1) + '°C',
-            'CD57': parseFloat(finalTemperatureReadings[0].uncertainty).toFixed(2) + '°C',
-            'CD58': (finalTemperatureReadings[0].pass ? 'PASS' : 'FAIL'),
-            'CD61': parseFloat(finalTemperatureReadings[1].set_point).toFixed(0) + '°C',
-            'CD62': parseFloat(finalTemperatureReadings[1].reference_reading).toFixed(1) + '°C',
-            'CD63': parseFloat(finalTemperatureReadings[1].sensor_reading).toFixed(1) + '°C',
+            'CD55': parseFloat(readings[0].temperatureReading.sensor_reading).toFixed(1) + '°C',
+            'CD56': parseFloat(readings[0].temperatureReading.tolerance).toFixed(1) + '°C',
+            'CD57': parseFloat(readings[0].temperatureReading.uncertainty).toFixed(2) + '°C',
+            'CD58': (readings[0].temperatureReading.pass ? 'PASS' : 'FAIL'),
+            'CD61': parseFloat(readings[1].temperatureReading.set_point).toFixed(0) + '°C',
+            'CD62': parseFloat(readings[1].temperatureReading.reference_reading).toFixed(1) + '°C',
+            'CD63': parseFloat(readings[1].temperatureReading.sensor_reading).toFixed(1) + '°C',
             'CD64': 'N/A',
-            'CD65': parseFloat(finalTemperatureReadings[1].sensor_reading).toFixed(1) + '°C',
-            'CD66': parseFloat(finalTemperatureReadings[1].tolerance).toFixed(1) + '°C',
-            'CD67': parseFloat(finalTemperatureReadings[1].uncertainty).toFixed(2) + '°C',
-            'CD68': (finalTemperatureReadings[1].pass ? 'PASS' : 'FAIL'),
-            'CD71': parseFloat(finalTemperatureReadings[2].set_point).toFixed(0) + '°C',
-            'CD72': parseFloat(finalTemperatureReadings[2].reference_reading).toFixed(1) + '°C',
-            'CD73': parseFloat(finalTemperatureReadings[2].sensor_reading).toFixed(1) + '°C',
+            'CD65': parseFloat(readings[1].temperatureReading.sensor_reading).toFixed(1) + '°C',
+            'CD66': parseFloat(readings[1].temperatureReading.tolerance).toFixed(1) + '°C',
+            'CD67': parseFloat(readings[1].temperatureReading.uncertainty).toFixed(2) + '°C',
+            'CD68': (readings[1].temperatureReading.pass ? 'PASS' : 'FAIL'),
+            'CD71': parseFloat(readings[2].temperatureReading.set_point).toFixed(0) + '°C',
+            'CD72': parseFloat(readings[2].temperatureReading.reference_reading).toFixed(1) + '°C',
+            'CD73': parseFloat(readings[2].temperatureReading.sensor_reading).toFixed(1) + '°C',
             'CD74': 'N/A',
-            'CD75': parseFloat(finalTemperatureReadings[2].sensor_reading).toFixed(1) + '°C',
-            'CD76': parseFloat(finalTemperatureReadings[2].tolerance).toFixed(1) + '°C',
-            'CD77': parseFloat(finalTemperatureReadings[2].uncertainty).toFixed(2) + '°C',
-            'CD78': (finalTemperatureReadings[2].pass ? 'PASS' : 'FAIL'),
-            'CD81': parseFloat(finalTemperatureReadings[3].set_point).toFixed(0) + '°C',
-            'CD82': parseFloat(finalTemperatureReadings[3].reference_reading).toFixed(1) + '°C',
-            'CD83': parseFloat(finalTemperatureReadings[3].sensor_reading).toFixed(1) + '°C',
+            'CD75': parseFloat(readings[2].temperatureReading.sensor_reading).toFixed(1) + '°C',
+            'CD76': parseFloat(readings[2].temperatureReading.tolerance).toFixed(1) + '°C',
+            'CD77': parseFloat(readings[2].temperatureReading.uncertainty).toFixed(2) + '°C',
+            'CD78': (readings[2].temperatureReading.pass ? 'PASS' : 'FAIL'),
+            'CD81': parseFloat(readings[3].temperatureReading.set_point).toFixed(0) + '°C',
+            'CD82': parseFloat(readings[3].temperatureReading.reference_reading).toFixed(1) + '°C',
+            'CD83': parseFloat(readings[3].temperatureReading.sensor_reading).toFixed(1) + '°C',
             'CD84': 'N/A',
-            'CD85': parseFloat(finalTemperatureReadings[3].sensor_reading).toFixed(1) + '°C',
-            'CD86': parseFloat(finalTemperatureReadings[3].tolerance).toFixed(1) + '°C',
-            'CD87': parseFloat(finalTemperatureReadings[3].uncertainty).toFixed(2) + '°C',
-            'CD88': (finalTemperatureReadings[2].pass ? 'PASS' : 'FAIL'),
+            'CD85': parseFloat(readings[3].temperatureReading.sensor_reading).toFixed(1) + '°C',
+            'CD86': parseFloat(readings[3].temperatureReading.tolerance).toFixed(1) + '°C',
+            'CD87': parseFloat(readings[3].temperatureReading.uncertainty).toFixed(2) + '°C',
+            'CD88': (readings[3].temperatureReading.pass ? 'PASS' : 'FAIL'),
             'RS11': reference.asset_tag,
             'RS12': reference.description,
             'RS13': parseDataBaseDate(reference.last_calibration),

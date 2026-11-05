@@ -2,7 +2,7 @@ import axios from 'axios';
 import ip from '../ip/ip';
 import refreshToken from './refreshToken';
 
-export default function callApiAdvanced(endPoint, config) {
+export default async function callApiAdvanced(endPoint, config) {
     const url = process.env.REACT_APP_STATUS === 'production' ? `https://${ip}/api/${endPoint}/` : `http://${ip}/api/${endPoint}/`;
     let token = localStorage.getItem("jwt");
     if (!config)
@@ -13,10 +13,17 @@ export default function callApiAdvanced(endPoint, config) {
 
     return axios.get(url, config)
         .catch((err) => {
-            if (err.response.status !== 418) {
+            if (err.response.status === 418) {
+                return refreshToken()
+                    .then(() => callApiAdvanced(endPoint, config))
+                    .catch((err) => {
+                        localStorage.clear('user')
+                        localStorage.clear('jwt')
+                        localStorage.clear('refresh')
+                        throw err;
+                    })
+            } else {
                 throw err;
             }
-            return refreshToken()
-                .then(() => callApiAdvanced(endPoint, config));
         })
 }

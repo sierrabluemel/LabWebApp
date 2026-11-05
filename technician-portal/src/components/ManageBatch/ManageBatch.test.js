@@ -34,15 +34,15 @@ beforeEach(() => {
                 return Promise.resolve({ data: { current_location: 'testLocation' } });
             case `http://${ip}/api/generate-work-order?batch_id=1`:
                 return Promise.resolve({
-                    data: new Blob(['mock file content', 'testing'], { type: 'application/json; charset=utf-8' }),
+                    data: new Blob(['mock file content', 'testing'], { type: 'application/pdf' }),
                     status: 200,
                     statusText: 'OK',
-                    headers: { 'content-type': 'application/json; charset=utf-8' },
+                    headers: { 'content-type': 'application/pdf' },
                 });
             case `http://${ip}/api/generate-work-order?batch_id=2`:
                 return Promise.resolve({
                     status: 400,
-                    headers: { 'content-type': 'application/json; charset=utf-8' },
+                    headers: { 'content-type': 'application/pdf' },
                 });
             case `http://${ip}/api/generate-work-order?batch_id=3`:
                 return Promise.resolve({
@@ -52,7 +52,13 @@ beforeEach(() => {
             case `http://${ip}/api/change-sensor-heartbeat/`:
                 return Promise.resolve({ data: { Result: 'Success' } });
             case `http://${ip}/api/create-location-log/`:
+            case `http://${ip}/api/log-batch-interaction/`:
+            case `http://${ip}/api/set-batch-active-state/`:
+            case `http://${ip}/api/move-batch-to-network-group/`:
+            case `http://${ip}/api/change-batch-heartbeats/`:
                 return Promise.resolve({ data: { Result: 'Success' } });
+            case `http://${ip}/api/get-locations/`:
+                return Promise.resolve({ data: ['S-STD', 'T-STD'] });
             case `http://${ip}/api/get-calibration-procedures/`:
                 return Promise.resolve({ data: calibrationProcedures });
             default:
@@ -147,11 +153,11 @@ test('generating work order with success returns blob', async () => {
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/generate-work-order?batch_id=1`, { "responseType": "blob" });
 });
 
-const testChangeSensorHeartbeat = async (sensorId, heartbeatValue) => {
+test('picking a heartbeat and pressing Enter changes the batch heartbeat', async () => {
     await act(async () => {
         setupComponent({
             batchNumber: 1,
-            sensorList: [{ sensor_id: sensorId }],
+            sensorList: [{ sensor_id: 12345 }],
             setSensorList: jest.fn(),
             procedureId: 1,
             setPopupMessage: jest.fn(),
@@ -159,34 +165,23 @@ const testChangeSensorHeartbeat = async (sensorId, heartbeatValue) => {
         });
     });
 
-    const heartbeatForm = screen.getByTestId('heartbeatForm');
-    const heartbeatBox = screen.getByPlaceholderText(/heartbeat/i);
-
+    const heartbeatSelect = screen.getByLabelText('Heartbeat');
+    fireEvent.change(heartbeatSelect, { target: { value: '120' } });
     await act(async () => {
-        fireEvent.change(heartbeatBox, { target: { value: heartbeatValue } });
+        fireEvent.keyDown(heartbeatSelect, { key: 'Enter' });
     });
 
-    expect(heartbeatBox).toHaveValue(heartbeatValue);
-
-    await act(async () => {
-        fireEvent.submit(heartbeatForm);
-    });
-
-    expect(heartbeatBox).toHaveValue('');
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/change-sensor-heartbeat/`, {
-        'params': { 'sensor_id': sensorId, 'heartbeat': heartbeatValue }
-    });
-};
-
-test('changing heartbeat calls api', async () => {
-    await testChangeSensorHeartbeat(12345, '1');
+    expect(heartbeatSelect).toHaveValue('');
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/change-batch-heartbeats/`, expect.objectContaining({
+        'params': { 'heartbeat': '120', 'batch_id': 1 }
+    }));
 });
 
-const testChangeLocation = async (sensorId, locationValue, batchId) => {
+const testChangeLocation = async (locationValue) => {
     await act(async () => {
         setupComponent({
             batchNumber: 1,
-            sensorList: [{ sensor_id: sensorId }],
+            sensorList: [{ sensor_id: 12345 }],
             setSensorList: jest.fn(),
             procedureId: 1,
             setPopupMessage: jest.fn(),
@@ -194,29 +189,23 @@ const testChangeLocation = async (sensorId, locationValue, batchId) => {
         });
     });
 
-    const locationForm = screen.getByTestId('locationForm');
-    const locationBox = screen.getByPlaceholderText(/location/i);
-
+    const locationBox = screen.getByLabelText('Location');
+    fireEvent.click(locationBox);
+    fireEvent.click(screen.getByRole('button', { name: locationValue }));
     await act(async () => {
-        fireEvent.change(locationBox, { target: { value: locationValue } });
+        fireEvent.keyDown(locationBox, { key: 'Enter' });
     });
 
-    expect(locationBox).toHaveValue(locationValue);
-
-    await act(async () => {
-        fireEvent.submit(locationForm);
-    });
-
-    expect(locationBox).toHaveValue('');
-    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/create-location-log/`, {
-        'params': { 'location': locationValue, 'batch_id': batchId }
-    });
+    expect(locationBox).toHaveTextContent('Move to location...');
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/create-location-log/`, expect.objectContaining({
+        'params': { 'location': locationValue, 'batch_id': 1 }
+    }));
 };
 
 test('changing location to testing location calls api', async () => {
-    await testChangeLocation(12345, 'T-STD', 1);
+    await testChangeLocation('T-STD');
 });
 
 test('changing location to shipping location calls api', async () => {
-    await testChangeLocation(12345, 'S-STD', 1);
+    await testChangeLocation('S-STD');
 });

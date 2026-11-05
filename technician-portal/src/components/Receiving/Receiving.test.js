@@ -7,12 +7,14 @@ import mockAxios from 'axios';
 import { act } from 'react-dom/test-utils';
 
 jest.mock('axios')
+jest.spyOn(global.console, 'error').mockImplementation(() => { });
 
 const mockedUseNavigate = jest.fn()
 
 jest.mock('react-router-dom', () => ({
     ...(jest.requireActual('react-router-dom')),
     useNavigate: () => mockedUseNavigate,
+    useLocation: () => ({ state: null }),
 }))
 
 beforeEach(() => {
@@ -21,39 +23,58 @@ beforeEach(() => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case `http://${ip}/api/create-order/`:
-                return Promise.resolve({ data: [{ order_id: 1, customer_order_number: 'test' }] })
+                return Promise.resolve({ data: { order_id: 1, customer_order_number: 'test' } })
             default:
-                return Promise.reject();
+                return Promise.reject({ response: { status: 500 } });
         }
     });
 })
 
-test('Receiving renders successfully', async () => {
+const renderReceiving = (salesOrder, overrides = {}) => {
+    const sharedState = {
+        salesOrder, setSalesOrder: jest.fn(), setOrder: jest.fn(),
+        expedited: false, setExpedited: jest.fn(), setPopupMessage: jest.fn(),
+        ...overrides
+    }
     render(
-        <AppWrapper sharedState={{
-            salesOrder: 1, setSalesOrder: jest.fn(), setOrder: jest.fn()
-        }}>
+        <AppWrapper sharedState={sharedState}>
             <Receiving />
         </AppWrapper>
     )
-    const submitButton = screen.getByText(/submit/i)
-    expect(submitButton).toBeInTheDocument()
+    return sharedState
+}
+
+const submit = async () => {
+    await act(async () => {
+        fireEvent.click(screen.getByText(/create order/i))
+    })
+}
+
+test('Receiving renders successfully', () => {
+    renderReceiving('SO1')
+    expect(screen.getByText(/create order/i)).toBeInTheDocument()
 })
 
-test('submitting correct number navigates', async () => {
-    render(
-        <AppWrapper sharedState={{
-            salesOrder: 1, setSalesOrder: jest.fn(), setOrder: jest.fn()
-        }}>
-            <Receiving />
-        </AppWrapper>
-    )
-    const submitButton = screen.getByText(/submit/i)
-    const orderBox = screen.getByPlaceholderText(/sales order/i)
-    await act(async () => {
-        fireEvent.change(orderBox, { target: { value: '1' } })
-        fireEvent.click(submitButton)
-    })
-    expect(orderBox).toHaveValue('1');
+test('submitting a sales order creates the order and navigates', async () => {
+    const state = renderReceiving('SO1')
+    await submit()
+    expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/create-order/`, expect.objectContaining({ params: { customer_id: 1, customer_order_number: 'SO1', expedited: false } }))
+    expect(state.setOrder).toBeCalledWith(1)
     expect(mockedUseNavigate).toBeCalledWith('/createSalesOrder')
+})
+
+test('empty sales order shows popup and does not call api', async () => {
+    const state = renderReceiving('   ')
+    await submit()
+    expect(state.setPopupMessage).toBeCalledWith('Enter a sales order')
+    expect(mockAxios.get).not.toBeCalled()
+    expect(mockedUseNavigate).not.toBeCalled()
+})
+
+test('failed order creation shows popup', async () => {
+    mockAxios.get.mockImplementation(() => Promise.reject({ response: { status: 500 } }))
+    const state = renderReceiving('SO1')
+    await submit()
+    expect(state.setPopupMessage).toBeCalledWith('Could not create order SO1')
+    expect(mockedUseNavigate).not.toBeCalled()
 })

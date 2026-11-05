@@ -11,11 +11,11 @@
     "chart.js": "^4.4.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^2.30.0",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.6.1",
     "enzyme": "^3.11.0",
     "faker": "^5.5.3",
     "jest-fetch-mock": "^3.0.3",
-    "next": "^14.2.15",
+    "next": "^16.0.7",
     "pdf-lib": "^1.17.1",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
@@ -24,6 +24,7 @@
     "react-dropdown": "^1.11.0",
     "react-router-dom": "^6.15.0",
     "react-scripts": "^5.0.1",
+    "react-select": "^5.10.2",
     "react-transition-group": "^4.4.5",
     "technician-portal": "file:",
     "web-vitals": "^2.1.4"
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@babel/core": "^7.23.2",
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@babel/preset-env": "^7.23.2"
+    "@babel/preset-env": "^7.23.2",
+    "baseline-browser-mapping": "^2.9.11"
   }
 }

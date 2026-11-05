@@ -1,19 +1,22 @@
 import { Request, Response } from "express";
 import pdf from "../utils/pdf";
 import order from "../models/order";
+import batch from "../models/batch";
 import { isNullOrEmpty } from "../utils/common";
+import certificate from "../models/certificate";
+import monnitFetch from "../utils/monnit";
 
 const orderRoutes = {
     createOrder: (req: Request, res: Response) => {
         let timestamp = req.query.received_timestamp as string ?? new Date();
         let customerOrderNumber = req.query.customer_order_number as string ?? "";
         let customerId = parseInt(req.query.customer_id as string ?? "");
-        let expedited = eval(req.query.expedited as string);
+        let expedited = req.query.expedited === 'true';
 
         if (
             !timestamp ||
             isNaN(customerId) ||
-            (expedited != true && expedited != false) ||
+            !['true', 'false'].includes(req.query.expedited as string) ||
             !customerOrderNumber) {
             res.status(500).json({ error: "Missing arguments" });
             return;
@@ -72,9 +75,27 @@ const orderRoutes = {
                 res.status(500).json({ error: `Error setting order as shipped` });
             });
     },
+    setOrderExpedited: (req: Request, res: Response) => {
+        const orderId = parseInt(req.query.order_id as string ?? "");
+        const expedited = req.query.expedited === 'true';
+
+        if (isNaN(orderId) || !['true', 'false'].includes(req.query.expedited as string)) {
+            res.status(400).json({ error: `Invalid order id or expedited value` });
+            return;
+        }
+
+        order.setOrderExpedited(orderId, expedited)
+            .then(() => {
+                res.json({ 'Result': `Order ${orderId} expedited set to ${expedited}` })
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Unable to change expedited` });
+            });
+    },
     setOrderActiveState: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
-        const activeState = eval(req.query.active_state as string);
+        const activeState = req.query.active_state === 'true';
 
         if (isNaN(orderId)) {
             res.status(500).json({ error: `No order ID present.` });
@@ -89,10 +110,40 @@ const orderRoutes = {
                 res.status(500).json({ error: `Error setting order status.` });
             });
     },
+    deleteOrder: (req: Request, res: Response) => {
+        const orderId = parseInt(req.query.order_id as string ?? "");
+
+        if (isNaN(orderId)) {
+            res.status(400).json({ error: `Invalid order id` });
+            return;
+        }
+
+        // only empty orders can be deleted so readings and certificates are never lost
+        order.getSensorsByOrderId(orderId)
+            .then((sensors) => {
+                if (sensors.length > 0) {
+                    res.status(400).json({ error: `Order ${orderId} has ${sensors.length} sensor${sensors.length > 1 ? 's' : ''}. Remove them before deleting.` });
+                    return;
+                }
+
+                return batch.getBatchesByOrderId(orderId)
+                    .then((batches) => Promise.all(batches.map((b: any) =>
+                        batch.deleteLogs(b.batch_id).then(() => batch.deleteBatch(b.batch_id))
+                    )))
+                    .then(() => order.deleteOrder(orderId))
+                    .then((result) => {
+                        res.json(result);
+                    });
+            })
+            .catch((err) => {
+                console.error(err);
+                res.status(500).json({ error: `Error deleting order` });
+            });
+    },
     // @TODO does this work????
     generateReturnRecord: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
-        const print = eval(req.query.print as string);
+        const print = req.query.print === 'true';
 
         if (isNaN(orderId)) {
             res.status(500).json({ error: `No order ID present.` });
@@ -128,20 +179,46 @@ const orderRoutes = {
                 return pdf.fillForm('returnRecordTemplate.pdf', fields);
             })
             .then(async (bytes) => {
-                return pdf.addSensorsToReturnRecord(bytes, await order.getSensorsOnOrder(orderId));
+                return pdf.addSensorsToReturnRecord(bytes, await certificate.getCertificatesByOrderId(orderId));
             })
-            .then((finishedFormBytes) => {
+            .then((finishedFormBytes: any) => {
                 if (print) {
                     pdf.printPdf(new Blob([finishedFormBytes]));
                 }
                 res.setHeader("Content-Disposition", `attachment; filename=returnRecord${orderId}.pdf`);
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.setHeader("Content-Type", "application/pdf");
                 res.end(Buffer.from(finishedFormBytes));
             })
             .catch((err) => {
                 console.error(err);
+                res.status(500).json({ error: `Error generating return record` });
             })
-    }
+    },
+    removeSensorsFromNetwork: async (req: Request, res: Response) => {
+        let sensorIds = req.query.sensor_ids as unknown as number[];
+        const sensorsMissed: any[] = []
+
+        if (!sensorIds) {
+            res.status(500).json({ error: 'No sensor ids provided' })
+            return
+        }
+
+        const url = `https://www.imonnit.com/json/RemoveSensor/`;
+        Promise.all(sensorIds.map(sensorId => {
+            return monnitFetch(`${url}?sensorID=${sensorId}`)
+                .catch(err => {
+                    sensorsMissed.push(sensorId)
+                    console.log(`Error removing sensor ${sensorId}: ${err}`)
+                })
+        })
+        )
+        let message = 'All sensors successfully removed'
+
+        if (sensorsMissed.length > 0)
+            message = 'Unable to remove all sensors'
+
+        res.status(200).json({ result: message, sensors_missed: sensorsMissed })
+    },
 };
 
 export default orderRoutes;
