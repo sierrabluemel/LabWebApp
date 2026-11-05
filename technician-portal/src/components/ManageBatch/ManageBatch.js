@@ -120,11 +120,11 @@ function ManageBatch() {
             })
     }
 
-    // A select doesn't submit its form on Enter, so apply the picked heartbeat here
-    const handleHeartBeatKeyDown = (event) => {
-        if (event.key !== 'Enter' || !heartbeat)
+    // Applies as soon as an option is picked; the box shows the pick until the call succeeds
+    const changeHeartbeat = (heartbeat) => {
+        setHeartBeat(heartbeat);
+        if (!heartbeat)
             return;
-        event.preventDefault();
         const label = HEARTBEATS.find(option => String(option.minutes) === heartbeat).label;
         callApi('change-batch-heartbeats', { batch_id: batchNumber, heartbeat: heartbeat })
             .then((response) => {
@@ -219,8 +219,8 @@ function ManageBatch() {
                     </div>
                 </div>
                 <div className={styles.triple_grid_menu}>
-                    <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
-                    <select className={styles.dropdown} aria-label={'Heartbeat'} value={heartbeat} onChange={event => setHeartBeat(event.target.value)} onKeyDown={handleHeartBeatKeyDown}>
+                    <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} stages='RTP' />
+                    <select className={styles.dropdown} aria-label={'Heartbeat'} value={heartbeat} onChange={event => changeHeartbeat(event.target.value)}>
                         {/* Shown in the closed box only; hidden from the list */}
                         <option value='' disabled hidden>Change heartbeat...</option>
                         {HEARTBEATS.map(option => <option key={option.minutes} value={option.minutes}>{option.label}</option>)}

@@ -146,7 +146,7 @@ test('invalid location shows popup and does not create log', async () => {
     const state = renderMenu()
     await inputLocation('my test')
     expect(mockAxios.get).not.toBeCalledWith(api('create-location-log'), expect.anything())
-    expect(state.setPopupMessage).toBeCalledWith('Location "MY TEST" is invalid: it must start with R, T or S')
+    expect(state.setPopupMessage).toBeCalledWith('Location "MY TEST" is invalid: it must start with R, T, P or S')
 })
 
 test('checkStatus polls online sensors for the order', async () => {

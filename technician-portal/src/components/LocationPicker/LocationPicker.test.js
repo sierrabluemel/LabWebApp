@@ -19,7 +19,7 @@ beforeEach(() => {
     mockAxios.get.mockImplementation(url => {
         switch (url) {
             case api('get-locations'):
-                return Promise.resolve({ data: ['R-A1', 'T-AMB', 'T-B1', 'T-B2', 'T-C1', 'T-STD'] })
+                return Promise.resolve({ data: ['P-A1', 'R-A1', 'T-AMB', 'T-B1', 'T-B2', 'T-C1', 'T-STD'] })
             case api('create-location-log'):
             case api('log-batch-interaction'):
             case api('set-batch-active-state'):
@@ -55,7 +55,47 @@ test('grid is closed until the box is clicked, then lists bins by stage', async 
     const stageOf = (location) => screen.getByRole('button', { name: location }).parentElement.parentElement.previousSibling.textContent
     expect(stageOf('R-A1')).toBe('Receiving')
     expect(stageOf('T-AMB')).toBe('Testing')
+    expect(stageOf('P-A1')).toBe('Packaging')
     expect(screen.getByRole('button', { name: 'T-B2' })).toHaveTextContent(/^B2$/)
+})
+
+test('stages hides other stages and refuses a typed location outside them', async () => {
+    const setPopupMessage = jest.fn()
+    const onMoved = jest.fn()
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{ setPopupMessage, technicianId: 1 }} >
+                <LocationPicker batchNumber={3000} onMoved={onMoved} stages='RTP' />
+            </AppWrapper>
+        )
+    })
+    openGrid()
+    expect(screen.queryByText('Shipping')).not.toBeInTheDocument()
+    expect(screen.getByText('Packaging')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('New location...'))
+    fireEvent.change(screen.getByPlaceholderText(/new location/i), { target: { value: 's-a2' } })
+    await act(async () => { fireEvent.submit(screen.getByTestId('locationForm')) })
+    expect(mockAxios.get).not.toBeCalledWith(api('create-location-log'), expect.anything())
+    expect(onMoved).not.toBeCalled()
+    expect(setPopupMessage).toBeCalledWith(expect.stringContaining('S-A2 is not a Receiving, Testing, Packaging location'))
+})
+
+test('batchNumbers moves every batch in the order and reports once', async () => {
+    const setPopupMessage = jest.fn()
+    const onMoved = jest.fn()
+    await act(async () => {
+        render(
+            <AppWrapper sharedState={{ setPopupMessage, technicianId: 1 }} >
+                <LocationPicker batchNumbers={[1, 2]} onMoved={onMoved} />
+            </AppWrapper>
+        )
+    })
+    openGrid()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'P-A1' })) })
+    expect(mockAxios.get).toBeCalledWith(api('create-location-log'), expect.objectContaining({ params: { location: 'P-A1', batch_id: 1 } }))
+    expect(mockAxios.get).toBeCalledWith(api('create-location-log'), expect.objectContaining({ params: { location: 'P-A1', batch_id: 2 } }))
+    expect(onMoved).toBeCalledTimes(1)
+    expect(setPopupMessage).not.toBeCalled()
 })
 
 test('each shelf row gets its own line, named spots go last', async () => {

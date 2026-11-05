@@ -255,15 +255,18 @@ test('orders with a batch in testing are active, the rest queued, expedited firs
     await act(async () => {
         render(<AppWrapper sharedState={defaultState()}><BatchEntry /></AppWrapper>)
     })
-    expect(screen.getAllByText('TO7')).toHaveLength(1)
+    // TO7 is split: batch 125 (testing) is active, batch 123 (receiving) gets its own queued card
+    expect(screen.getAllByText('TO7')).toHaveLength(2)
     expect(screen.getByLabelText('Open batch 123')).toHaveTextContent('R1')
     expect(screen.getByLabelText('Open batch 125')).toHaveTextContent('T1')
     expect(screen.getByLabelText('Open batch 125')).toHaveTextContent('NONE')
     // DOCUMENT_POSITION_FOLLOWING = 4
     const follows = (a, b) => expect(a.compareDocumentPosition(b) & 4).toBeTruthy()
-    follows(screen.getByText('TO8'), screen.getByText('TO7'))
-    follows(screen.getByText('TO7'), screen.getByText('Queued orders'))
-    follows(screen.getByText('Queued orders'), screen.getByText('TO9'))
+    const queued = screen.getByText('Queued orders')
+    follows(screen.getByText('TO8'), screen.getByLabelText('Open batch 125'))
+    follows(screen.getByLabelText('Open batch 125'), queued)
+    follows(queued, screen.getByLabelText('Open batch 123'))
+    follows(queued, screen.getByText('TO9'))
 })
 
 const openEditor = async () => {

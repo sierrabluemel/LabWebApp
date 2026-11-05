@@ -217,7 +217,7 @@ function AddBatchMenu({ calibrationProcedureId, batchNumber, setBatches, orderId
                         <input type='text' value={binString} onChange={event => setBinString(event.target.value.toUpperCase())} className={styles.default_text_box} placeholder={'Scan bin'} style={{ width: '7rem' }} />
                     </form>
                 </div>
-                <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} />
+                <LocationPicker batchNumber={batchNumber} onMoved={setCurrentLocation} stages='RTP' />
                 <Button onClick={printWorkOrder} innerText={'Print work order'} />
                 <Button onClick={getAllLeads} innerText={'Get all leads'} />
             </div>

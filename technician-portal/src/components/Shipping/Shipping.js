@@ -14,6 +14,7 @@ import Button from "../Button/Button";
 import SensorLink from "../SensorLink/SensorLink";
 import backArrow from "../../media/arrow.png";
 import binClass from "../../utils/binClass";
+import LocationPicker from "../LocationPicker/LocationPicker";
 
 const downloadIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -47,6 +48,7 @@ function Shipping() {
     const [deleteArray, setDeleteArray] = useState([]);
     const [order, setOrder] = useState(null)
     const [referenceVerificationArray, setReferenceVerificationArray] = useState([]);
+    const [pickingShipBin, setPickingShipBin] = useState(false); // "Ready to Ship" clicked, shipping-bin grid showing
 
     const checkSensorList = (sensors = null) => {
         callApi('get-sensor-list')
@@ -75,10 +77,10 @@ function Shipping() {
                     setCertificateMessage('No certificates found')
                     return
                 }
-                const fullDate = new Date(certificates[0].timestamp)
+                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
+                const fullDate = new Date(certificates[certificates.length - 1].timestamp)
                 const dateString = `${fullDate.getMonth() + 1}/${fullDate.getDate()}/${fullDate.getFullYear()}`;
                 setCertificateMessage(`${certificates.length} certificate${certificates.length > 1 ? 's' : ''} generated on ${dateString}`);
-                certificateList.current = certificates.sort((a, b) => a.certificate_id - b.certificate_id);
             })
     }
 
@@ -417,6 +419,9 @@ function Shipping() {
     const spareCount = sensorList ? sensorList.length - regularSensors.length : 0;
     const certifiedCount = regularSensors.filter(s => certificateList.current.some(c => c.sensor_id === s.sensor_id)).length;
 
+    // Packaging view until every batch sits in an S- bin; then the Shipping view (reprints, return record, close)
+    const readyToShip = batches.length > 0 && batches.every(batch => batch.current_location?.startsWith('S'));
+
     return (
         <>
             <div className={styles.menu}>
@@ -426,7 +431,7 @@ function Shipping() {
                 <ConfirmationPopup confirmationArray={missedSensorsArray} setConfirmationArray={setMissedSensorsArray} handleConfirm={removeSensorsFromNetwork} />
 
                 <div className={styles.toolbar}>
-                    <img className={styles.back_arrow_image} onClick={() => navigate('/orderEntry')} src={backArrow} alt="Back button" />
+                    <img className={styles.back_arrow_image} onClick={() => navigate(readyToShip ? '/orderEntry' : '/packaging')} src={backArrow} alt="Back button" />
                     <h2 className={`${styles.title} ${styles.title_facts}`}>
                         <span className={styles.title_fact}><span className={styles.title_fact_label}>Sales order</span>{order ? order.customer_order_number : 'Loading...'}</span>
                         <span className={styles.title_fact}><span className={styles.title_fact_label}>Sensors</span>{sensorList ? regularSensors.length : 'Loading...'}</span>
@@ -452,38 +457,58 @@ function Shipping() {
                 </div>
 
                 <h3 className={styles.section_heading}>Actions</h3>
-                <div className={styles.action_cards}>
-                    <div className={styles.action_card}>
-                        <h4>Certificates</h4>
-                        <span className={`${styles.status_pill} ${certifiedCount === 0 ? styles.soft_bad : certifiedCount < regularSensors.length ? styles.soft_warn : styles.soft_good}`}>
-                            {certifiedCount > 0 && certifiedCount < regularSensors.length ? `${certifiedCount} of ${regularSensors.length} sensors have certificates` : certificateMessage}
-                        </span>
-                        <Button onClick={generateCertificates} innerText={'Generate certificates'} />
-                        <div className={styles.button_with_icon}>
-                            <Button onClick={printCertificates} innerText={'Print certificates'} />
-                            <button className={`${styles.default_button} ${styles.download_button}`} onClick={downloadCertificates} title='Download certificates' aria-label='Download certificates'>{downloadIcon}</button>
+                <div className={`${styles.action_cards} ${readyToShip ? styles.action_cards_thirds : ''}`}>
+                    {readyToShip
+                        ? <div className={styles.action_card}>
+                            <h4>Printing</h4>
+                            <span className={`${styles.status_pill} ${certifiedCount === 0 ? styles.soft_bad : certifiedCount < regularSensors.length ? styles.soft_warn : styles.soft_good}`}>
+                                {certifiedCount > 0 && certifiedCount < regularSensors.length ? `${certifiedCount} of ${regularSensors.length} sensors have certificates` : certificateMessage}
+                            </span>
+                            <div className={styles.button_with_icon}>
+                                <Button onClick={printCertificates} innerText={'Re-print certificates'} />
+                                <button className={`${styles.default_button} ${styles.download_button}`} onClick={downloadCertificates} title='Download certificates' aria-label='Download certificates'>{downloadIcon}</button>
+                            </div>
+                            <div className={styles.button_with_icon}>
+                                <Button onClick={printReturnRecord} innerText={'Print return record'} />
+                                <button className={`${styles.default_button} ${styles.download_button}`} onClick={createReturnRecord} title='Download return record' aria-label='Download return record'>{downloadIcon}</button>
+                            </div>
                         </div>
-                    </div>
-                    <div className={styles.action_card}>
-                        <h4>Network</h4>
-                        <span className={`${styles.status_pill} ${sensorsRemoved ? styles.soft_good : styles.soft_bad}`}>{sensorsRemovedMessage}</span>
-                        <Button onClick={removeSensorsFromNetwork} innerText={'Remove sensors'} />
-                    </div>
-                    <div className={styles.action_card}>
-                        <h4>Return record and labels</h4>
-                        <form onSubmit={printLabel}>
-                            <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
-                        </form>
-                        <div className={styles.button_with_icon}>
-                            <Button onClick={printReturnRecord} innerText={'Print return record'} />
-                            <button className={`${styles.default_button} ${styles.download_button}`} onClick={createReturnRecord} title='Download return record' aria-label='Download return record'>{downloadIcon}</button>
-                        </div>
-                    </div>
+                        : <>
+                            <div className={styles.action_card}>
+                                <h4>Certificates</h4>
+                                <span className={`${styles.status_pill} ${certifiedCount === 0 ? styles.soft_bad : certifiedCount < regularSensors.length ? styles.soft_warn : styles.soft_good}`}>
+                                    {certifiedCount > 0 && certifiedCount < regularSensors.length ? `${certifiedCount} of ${regularSensors.length} sensors have certificates` : certificateMessage}
+                                </span>
+                                <Button onClick={generateCertificates} innerText={'Generate certificates'} />
+                                <div className={styles.button_with_icon}>
+                                    <Button onClick={printCertificates} innerText={'Print certificates'} />
+                                    <button className={`${styles.default_button} ${styles.download_button}`} onClick={downloadCertificates} title='Download certificates' aria-label='Download certificates'>{downloadIcon}</button>
+                                </div>
+                            </div>
+                            <div className={styles.action_card}>
+                                <h4>Network</h4>
+                                <span className={`${styles.status_pill} ${sensorsRemoved ? styles.soft_good : styles.soft_bad}`}>{sensorsRemovedMessage}</span>
+                                <Button onClick={removeSensorsFromNetwork} innerText={'Remove sensors'} />
+                            </div>
+                            <div className={styles.action_card}>
+                                <h4>Labels</h4>
+                                <form onSubmit={printLabel}>
+                                    <input type='text' value={sensor} onChange={event => setSensor(event.target.value)} className={styles.default_text_box} placeholder={'Scan sensor to print label'} />
+                                </form>
+                            </div>
+                        </>}
                 </div>
+
+                {!readyToShip && batches.length > 0 &&
+                    <div className={`${styles.row} ${styles.row_end}`}>
+                        {pickingShipBin
+                            ? <LocationPicker batchNumbers={batches.map(batch => batch.batch_id)} onMoved={() => navigate('/packaging')} stages='S' autoOpen />
+                            : <button className={styles.default_button} onClick={() => setPickingShipBin(true)}>Ready to Ship</button>}
+                    </div>}
 
                 <h3 className={styles.section_heading}>Sensors</h3>
                 <div className={styles.sensor_container}>
-                    {sensorList?.map((sensor, index) => {
+                    {sensorList && [...sensorList].sort((a, b) => (a.spare ? 1 : 0) - (b.spare ? 1 : 0)).map((sensor, index) => { // spares last
                         const certificate = sensor.spare ? undefined : certificateList.current.find(c => c.sensor_id === sensor.sensor_id);
                         if (sensor.spare)
                             return (
@@ -511,7 +536,7 @@ function Shipping() {
                                     ? <a className={styles.sensor_link} href={`https://sensorcalibrations.blob.core.windows.net/public-certificates/MNT-${certificate.certificate_id}.pdf`} target="_blank" rel="noreferrer">MNT-{certificate.certificate_id}</a>
                                     : <span className={styles.shipping_sensor_muted}>Not generated yet</span>}
                                 {/* key resets Button's cached label once a certificate exists */}
-                                <Button key={certificate ? 'regenerate' : 'generate'} className={certificate ? `${styles.default_button} ${styles.regenerate_button}` : styles.default_button} innerText={certificate ? 'Regenerate certificate' : 'Generate certificate'} onClick={() => generateCertificate(sensor.sensor_id)} />
+                                {!readyToShip && <Button key={certificate ? 'regenerate' : 'generate'} className={certificate ? `${styles.default_button} ${styles.regenerate_button}` : styles.default_button} innerText={certificate ? 'Regenerate certificate' : 'Generate certificate'} onClick={() => generateCertificate(sensor.sensor_id)} />}
                             </div>
                         );
                     })}
@@ -520,7 +545,7 @@ function Shipping() {
                 <div className={`${styles.row} ${styles.row_end}`}>
                     {sensorList?.length === 0 &&
                         <button className={`${styles.default_button} ${styles.danger_outline_button}`} onClick={() => setDeleteArray([`Delete order ${order?.customer_order_number ?? orderNumber}?`, 'This cannot be undone.'])}>Delete Order</button>}
-                    <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>
+                    {readyToShip && <button className={`${styles.default_button} ${styles.red}`} onClick={handleCloseOrder}>Close Order</button>}
                 </div>
             </div>
         </>

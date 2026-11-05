@@ -58,7 +58,7 @@ beforeEach(() => {
             case `http://${ip}/api/change-batch-heartbeats/`:
                 return Promise.resolve({ data: { Result: 'Success' } });
             case `http://${ip}/api/get-locations/`:
-                return Promise.resolve({ data: ['S-STD', 'T-STD'] });
+                return Promise.resolve({ data: ['P-A1', 'T-STD'] });
             case `http://${ip}/api/get-calibration-procedures/`:
                 return Promise.resolve({ data: calibrationProcedures });
             default:
@@ -153,7 +153,7 @@ test('generating work order with success returns blob', async () => {
     expect(mockAxios.get).toBeCalledWith(`http://${ip}/api/generate-work-order?batch_id=1`, { "responseType": "blob" });
 });
 
-test('picking a heartbeat and pressing Enter changes the batch heartbeat', async () => {
+test('picking a heartbeat changes the batch heartbeat', async () => {
     await act(async () => {
         setupComponent({
             batchNumber: 1,
@@ -166,9 +166,8 @@ test('picking a heartbeat and pressing Enter changes the batch heartbeat', async
     });
 
     const heartbeatSelect = screen.getByLabelText('Heartbeat');
-    fireEvent.change(heartbeatSelect, { target: { value: '120' } });
     await act(async () => {
-        fireEvent.keyDown(heartbeatSelect, { key: 'Enter' });
+        fireEvent.change(heartbeatSelect, { target: { value: '120' } });
     });
 
     expect(heartbeatSelect).toHaveValue('');
@@ -206,6 +205,6 @@ test('changing location to testing location calls api', async () => {
     await testChangeLocation('T-STD');
 });
 
-test('changing location to shipping location calls api', async () => {
-    await testChangeLocation('S-STD');
+test('changing location to packaging location calls api', async () => {
+    await testChangeLocation('P-A1');
 });

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "../../styles/styles.module.css";
 import homeIcon from "../../media/home_icon.png";
 import testingIcon from "../../media/testing_icon.png";
+import packagingIcon from "../../media/boxed_icon.png";
 import shippingIcon from "../../media/shipping_icon.png";
 import adminIcon from "../../media/admin_icon.png";
 import { useAppContext } from "../../contexts/app";
@@ -25,6 +26,10 @@ function NavigationMenu() {
                 <li>
                     <input type="radio" id="testing" name="navigation_menu" className={styles.navigation_menu_radio}></input>
                     <label htmlFor="testing" className={styles.navigation_item} onClick={() => { navigate('/batchEntry') }}><img src={testingIcon} alt="Testing icon" className={styles.icon_image} /> Testing</label>
+                </li>
+                <li>
+                    <input type="radio" id="packaging" name="navigation_menu" className={styles.navigation_menu_radio}></input>
+                    <label htmlFor="packaging" className={styles.navigation_item} onClick={() => { navigate('/packaging') }}><img src={packagingIcon} alt="Packaging icon" className={styles.icon_image} /> Packaging</label>
                 </li>
                 <li>
                     <input type="radio" id="shipping" name="navigation_menu" className={styles.navigation_menu_radio}></input>

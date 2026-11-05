@@ -6,7 +6,7 @@ import setBatchLocation from "../../utils/setBatchLocation";
 import styles from "../../styles/styles.module.css";
 
 const NEW_LOCATION = 'new';
-const STAGES = { R: 'Receiving', T: 'Testing', S: 'Shipping' };
+const STAGES = { R: 'Receiving', T: 'Testing', P: 'Packaging', S: 'Shipping' };
 
 // Splits a stage's locations into one array per shelf row (T-B1, T-B2 -> row B). Named spots like T-AMB go on their own last line.
 const shelfRows = (stageLocations) => {
@@ -24,12 +24,16 @@ const shelfRows = (stageLocations) => {
 }
 
 // Opens a grid of every location used before, one row per stage. Click a bin, then press Enter to move. "New" allows typing one that isn't listed yet.
-function LocationPicker({ batchNumber, onMoved }) {
+// Pass batchNumber for one batch, or batchNumbers to move a whole order's batches together.
+// stages limits which stage letters are offered (and accepted when typed): Testing screens get 'RTP', the order screen 'PS',
+// so a batch cannot skip Packaging on its way to a Shipping bin.
+// autoOpen shows the grid as soon as the picker renders.
+function LocationPicker({ batchNumber, batchNumbers, onMoved, stages = Object.keys(STAGES).join(''), autoOpen = false }) {
     const { setPopupMessage, technicianId } = useAppContext();
     const [selected, setSelected] = useState('');
     const [newLocation, setNewLocation] = useState('');
     const [locations, setLocations] = useState([]);
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(autoOpen);
     const containerRef = useRef(null);
     const triggerRef = useRef(null);
 
@@ -49,17 +53,28 @@ function LocationPicker({ batchNumber, onMoved }) {
     }, []);
 
     const move = (location) => {
+        // a stage this screen doesn't offer is refused here; anything else invalid gets setBatchLocation's message
+        if (STAGES[location[0]] && !stages.includes(location[0])) {
+            const allowed = [...stages].map(letter => STAGES[letter]).join(', ');
+            setPopupMessage(`${location} is not a ${allowed} location. Shipping bins are picked from the Packaging tab once the order is boxed.`);
+            setSelected('');
+            return;
+        }
+        const batchIds = batchNumbers ?? [batchNumber];
         // The location is recorded in the first step; the iMonnit steps after it run in the background. Only a failure gets a popup.
+        let recorded = 0;
         const onRecorded = () => {
+            if (++recorded < batchIds.length)
+                return;
             onMoved(location);
             setSelected('');
             setNewLocation('');
             if (!locations.includes(location))
                 setLocations([...locations, location].sort());
         }
-        setBatchLocation(location, technicianId, batchNumber, onRecorded)
-            .then(({ error }) => error && setPopupMessage(error))
-            .catch(error => setPopupMessage(`Could not move batch ${batchNumber} to ${location}: ${error?.message ?? 'Unknown error'}`));
+        Promise.all(batchIds.map(id => setBatchLocation(location, technicianId, id, onRecorded)))
+            .then(results => results.filter(({ error }) => error).forEach(({ error }) => setPopupMessage(error)))
+            .catch(error => setPopupMessage(`Could not move batch ${batchIds.join(', ')} to ${location}: ${error?.message ?? 'Unknown error'}`));
     }
 
     // Enter in the "New location" box moves to the typed location
@@ -89,7 +104,7 @@ function LocationPicker({ batchNumber, onMoved }) {
             </button>
             {open &&
                 <div className={styles.location_panel} onKeyDown={event => event.key === 'Escape' && setOpen(false)}>
-                    {Object.entries(STAGES).map(([letter, stage]) =>
+                    {Object.entries(STAGES).filter(([letter]) => stages.includes(letter)).map(([letter, stage]) =>
                         <div key={letter} className={`${styles.location_stage} ${styles[`location_stage_${letter}`]}`}>
                             <span className={styles.location_stage_label}>{stage}</span>
                             <div className={styles.location_bins}>

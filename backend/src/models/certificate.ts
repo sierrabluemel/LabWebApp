@@ -7,6 +7,7 @@ const certificate = {
                 api_certificate.certificate_id, 
                 api_batch.calibration_procedure_id,
                 api_sensor.sensor_id,
+                api_certificate.batch_id,
                 api_certificate.timestamp,
                 api_certificate.pass
             FROM
@@ -20,17 +21,21 @@ const certificate = {
                 AND API_CERTIFICATE.CERTIFICATE_ID IS NOT NULL
         `, [startDate, endDate]);
     },
-    getCertificatesByOrderId: (orderId: number) => {
+    // latestOnly keeps the newest certificate per sensor/lead (PDF bundle); the edit page needs superseded ones too
+    getCertificatesByOrderId: (orderId: number, latestOnly = true) => {
         return executeQuery(pool, `
-            SELECT 
-                DISTINCT ON (API_CERTIFICATE.SENSOR_ID, API_CERTIFICATE.CABLE_ID) *
+            SELECT
+                ${latestOnly ? 'DISTINCT ON (API_CERTIFICATE.SENSOR_ID, API_CERTIFICATE.CABLE_ID)' : ''} *
             FROM
                 API_SENSOR
+                -- Lead match: the 10-26 backfill put a base sensor's whole history (one certificate per past lead) on its current batch
                 INNER JOIN API_CERTIFICATE ON API_CERTIFICATE.SENSOR_ID = API_SENSOR.SENSOR_ID AND API_CERTIFICATE.BATCH_ID = API_SENSOR.BATCH_ID
+                    AND API_CERTIFICATE.CABLE_ID IS NOT DISTINCT FROM API_SENSOR.CABLE_ID
                 INNER JOIN API_BATCH ON API_SENSOR.BATCH_ID = API_BATCH.BATCH_ID
                 INNER JOIN API_ORDER ON API_BATCH.ORDER_ID = API_ORDER.ORDER_ID
             WHERE
                 API_ORDER.ORDER_ID = $1
+                AND NOT API_SENSOR.SPARE
             ORDER BY API_CERTIFICATE.SENSOR_ID, API_CERTIFICATE.CABLE_ID, API_CERTIFICATE.CERTIFICATE_ID DESC;
         `, [orderId]);
     },
@@ -70,6 +75,7 @@ const certificate = {
         return executeQuery(pool, `
             SELECT
                 API_CERTIFICATE.SENSOR_ID,
+                API_CERTIFICATE.BATCH_ID,
                 API_CERTIFICATE.TIMESTAMP,
                 GENERATE_CERTIFICATE_JSON,
                 SKU,

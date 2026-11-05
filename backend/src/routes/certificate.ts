@@ -81,8 +81,13 @@ const certificateRoutes = {
     },
     getCertificatesByOrderId: (req: Request, res: Response) => {
         const orderId = parseInt(req.query.order_id as string ?? "");
+        const certificateId = parseInt(req.query.certificate_id as string ?? "");
 
-        certificate.getCertificatesByOrderId(orderId)
+        // A certificate with no batch (and so no order) can only be loaded by its own number
+        const lookup = !orderId && certificateId
+            ? certificate.getCertficateById(certificateId).then((row) => row ? [row] : [])
+            : certificate.getCertificatesByOrderId(orderId, req.query.all !== 'true');
+        lookup
             .then((result) => {
                 res.json(result);
             })
@@ -137,6 +142,8 @@ const certificateRoutes = {
         const orderId = parseInt(req.query.order_id as string ?? "");
         const batchId = parseInt(req.query.batch_id as string ?? "");
         const certificateId = parseInt(req.query.certificate_id as string ?? "");
+        // Save only writes Postgres; the Republish button sends publish=true to upload the PDF and sync iMonnit
+        const publish = req.query.publish === 'true';
 
         let edits: any;
         try {
@@ -145,8 +152,8 @@ const certificateRoutes = {
             res.status(400).json({ error: `Certificate changes are not valid JSON` });
             return;
         }
-        if (!orderId) {
-            res.status(400).json({ error: `Order number is required` });
+        if (!orderId && !certificateId) {
+            res.status(400).json({ error: `Order or certificate number is required` });
             return;
         }
         if (!edits || typeof edits !== 'object' || Array.isArray(edits) || Object.values(edits).some((v) => typeof v !== 'string')) {
@@ -161,7 +168,9 @@ const certificateRoutes = {
         }
 
         try {
-            let targets = await certificate.getCertificatesByOrderId(orderId);
+            let targets = orderId
+                ? await certificate.getCertificatesByOrderId(orderId, false)
+                : [await certificate.getCertficateById(certificateId)].filter(Boolean);
             if (batchId)
                 targets = targets.filter((c) => c.batch_id === batchId);
             if (certificateId)
@@ -178,14 +187,17 @@ const certificateRoutes = {
                 return;
             }
 
-            const datesChanged = 'CS1' in edits || 'CS2' in edits;
             // shortcut: per-row updates with no transaction, a mid-loop failure leaves earlier certificates edited; add a transaction if orders get large
             const updated = await Promise.all(targets.map(async (target) => {
                 const merged = { ...target.generate_certificate_json, ...edits };
                 const cert = await certificate.updateCertificateJson(target.certificate_id, merged, merged.CS5 === 'PASS');
+                if (!publish)
+                    return cert;
                 await publishCertificate(cert);
-                if (datesChanged)
-                    await syncImonnit(target.sensor_id, target.cable_id, new Date(merged.CS1), new Date(merged.CS2), cert.certificate_id);
+                const calibrationDate = new Date(merged.CS1);
+                const dueDate = new Date(merged.CS2);
+                if (!isNaN(calibrationDate.getTime()) && !isNaN(dueDate.getTime()))
+                    await syncImonnit(target.sensor_id, target.cable_id, calibrationDate, dueDate, cert.certificate_id);
                 return cert;
             }));
             res.json(updated);
